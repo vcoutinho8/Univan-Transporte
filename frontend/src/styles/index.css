@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+/*
+ * Identidade visual do UniVan.
+ * Paleta oficial: azul-marinho (marca e textos), laranja (ações e destaques) e cinza-claro (fundo).
+ * Cada cor vira uma classe do Tailwind: bg-marinho, text-laranja, border-fundo, bg-laranja/10...
+ */
+@theme {
+  --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --color-marinho: #1b3c59;
+  --color-marinho-escuro: #102d40;
+  --color-laranja: #f2600c;
+  --color-laranja-claro: #fe6f07;
+  --color-fundo: #f2f2f2;
+}
+
+body {
+  @apply bg-fundo text-marinho-escuro antialiased;
+}
+
+/* Campos de formulário padronizados (usar a classe `campo`). */
+@layer components {
+  .campo {
+    @apply mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-marinho-escuro placeholder:text-slate-400 focus:border-laranja focus:ring-2 focus:ring-laranja/20 focus:outline-none;
+  }
+}

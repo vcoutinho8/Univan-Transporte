@@ -1,0 +1,35 @@
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Banco SQLite local (recriado a partir de docs/univan-sqlite.sql)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Editores e sistema
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Claude Code (as skills em .claude/skills são versionadas; as configurações locais não)
+.claude/settings.local.json
