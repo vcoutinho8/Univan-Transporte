@@ -1,5 +1,7 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 
+import PaginaEstudantes from './modules/estudante/StudentsPage.tsx'
+import PaginaMapa from './modules/mapa/MapPage.tsx'
 import PaginaPainel from './modules/painel/DashboardPage.tsx'
 import PaginaVeiculos from './modules/veiculo/VehiclesPage.tsx'
 import LayoutPrincipal from './shared/layout/MainLayout.tsx'
@@ -13,7 +15,12 @@ export default function App() {
     <Routes>
       <Route element={<LayoutPrincipal />}>
         <Route index element={<PaginaPainel />} />
+        <Route path="passageiros" element={<PaginaEstudantes />} />
         <Route path="veiculos" element={<PaginaVeiculos />} />
+        <Route path="mapa" element={<PaginaMapa />} />
+        {/* Bairros e rotas viraram abas da tela de mapa; os endereços antigos continuam valendo. */}
+        <Route path="bairros" element={<Navigate to="/mapa?aba=bairros" replace />} />
+        <Route path="rotas" element={<Navigate to="/mapa?aba=rotas" replace />} />
 
         {/* Itens do menu ainda não construídos abrem a tela "Em construção". */}
         {ITENS_MENU.filter((item) => !item.pronto).map((item) => (

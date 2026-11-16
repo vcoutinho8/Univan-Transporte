@@ -45,7 +45,7 @@ export const MENU: GrupoMenu[] = [
         requisito: 'RF2',
         descricao:
           'Cadastro, edição, consulta e desativação de passageiros, com instituição, turno e ponto de embarque.',
-        pronto: false,
+        pronto: true,
       },
       {
         para: '/motoristas',
@@ -69,12 +69,13 @@ export const MENU: GrupoMenu[] = [
     titulo: 'Operação',
     itens: [
       {
-        para: '/rotas',
-        rotulo: 'Rotas',
-        icone: 'rota',
-        requisito: 'RF4',
-        descricao: 'Pontos de embarque, sequência das paradas, horários previstos e motorista/veículo de cada rota.',
-        pronto: false,
+        para: '/mapa',
+        rotulo: 'Mapa e rotas',
+        icone: 'mapa',
+        requisito: 'RF4 · RF6',
+        descricao:
+          'Um mapa só com três abas: visão geral dos passageiros, rotas com a sequência de embarque e o desenho dos bairros.',
+        pronto: true,
       },
       {
         para: '/viagens',
@@ -98,14 +99,6 @@ export const MENU: GrupoMenu[] = [
   {
     titulo: 'Acompanhamento',
     itens: [
-      {
-        para: '/mapa',
-        rotulo: 'Mapa',
-        icone: 'mapa',
-        requisito: 'RF6',
-        descricao: 'Pontos de embarque em mapa interativo (Leaflet + OpenStreetMap) e sequência das paradas.',
-        pronto: false,
-      },
       {
         para: '/relatorios',
         rotulo: 'Relatórios',
