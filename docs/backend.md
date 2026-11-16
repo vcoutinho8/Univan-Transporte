@@ -62,6 +62,7 @@ Cria a aplicação FastAPI (`criar_aplicacao()`), configura:
 
 - a documentação interativa em `/api/docs`;
 - o **CORS** (quais endereços de frontend podem chamar a API), lido do `.env`;
+- o **log** (`config/registro_log.py`), com o nível vindo do `.env`;
 - os **tratadores de erro** de `config/erros.py`;
 - a lista `CONTROLLERS`: cada controller expõe um `roteador`, incluído com o prefixo `/api`.
 
@@ -98,7 +99,23 @@ Cria o `motor` (engine do SQLAlchemy) e a `FabricaSessao`. A função `obter_ses
   (`veiculo.placa`), traduzidas pelo mapa `RESTRICOES_UNIQUE_SQLITE`.
   Chave estrangeira inexistente vira *"Registro relacionado não encontrado."*
 - **`MENSAGENS_VALIDACAO`**: tradução dos erros do Pydantic (`missing` → *"Campo obrigatório."*).
-- **`registrar_tratadores_erro(app)`**: transforma tudo no formato padrão de resposta.
+- **`registrar_tratadores_erro(app)`**: transforma tudo no formato padrão de resposta e registra
+  cada erro no log. Uma falha não prevista vira 500 com mensagem neutra; o rastro completo fica
+  só no log do servidor, nunca na resposta.
+
+### `app/config/registro_log.py` — o log
+
+`configurar_log(nivel)` liga o console para os loggers do projeto, todos abaixo de `univan`
+(`univan.http`, `univan.erros`, `univan.banco`). O nível vem de `LOG_LEVEL` no `.env`.
+`registrar_log_requisicoes(app)` grava uma linha por requisição:
+
+```text
+2026-11-16 14:02:11 INFO    [univan.http] GET /api/rotas?status=ativo -> 200 (12 ms)
+2026-11-16 14:02:15 INFO    [univan.erros] POST /api/veiculos recusado (409): Já existe um veículo com esta placa.
+2026-11-16 14:02:15 WARNING [univan.http] POST /api/veiculos -> 409 (8 ms)
+```
+
+Respostas 2xx saem como INFO, 4xx como WARNING e 5xx como ERROR.
 
 ### `app/shared/base.py` — a base dos models
 
@@ -305,7 +322,7 @@ Tudo que o Swagger mostra além das rotas fica em `app/config/documentacao.py`:
 - `DESCRICAO`: convenções da API (nada é apagado, PATCH parcial, formato dos erros...);
 - `TAGS`: a ordem e a explicação de cada grupo. **Módulo novo = tag nova aqui**;
 - `erros(404, 409)`: documenta os erros de uma rota no formato padrão `RespostaErro`.
-  Todas as rotas já recebem 422 e 503 (`ERROS_COMUNS`, em `main.py`);
+  Todas as rotas já recebem 422, 500 e 503 (`ERROS_COMUNS`, em `main.py`);
 - exemplos de corpo: `json_schema_extra={"examples": [...]}` no `model_config` do schema.
 
 `tests/test_documentacao.py` falha se uma rota entrar sem grupo descrito, sem resumo, sem os
@@ -323,6 +340,7 @@ própria API recusaria.
 | Não encontrado | 404 | `{"mensagem": "Veículo não encontrado."}` |
 | Restrição do banco | 409 | Mensagem de `MENSAGENS_RESTRICOES` |
 | Banco fora do ar | 503 | `{"mensagem": "Banco de dados indisponível..."}` |
+| Falha inesperada | 500 | `{"mensagem": "Erro inesperado no servidor..."}` (detalhe só no log) |
 
 Nos serviços, lance `RecursoNaoEncontrado`, `ConflitoDeDados` ou `DadosInvalidos` com a mensagem
 já em português. Nos schemas, `raise ValueError("...")` dentro de um `field_validator` vira a

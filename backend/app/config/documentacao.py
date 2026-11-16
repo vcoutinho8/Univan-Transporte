@@ -38,6 +38,7 @@ validação (422) trazem também a lista `erros`, com o campo e o problema de ca
 | 409 | Conflito com dados já gravados (placa/CPF repetido, registro já inativo...) |
 | 422 | Dados inválidos ou regra de negócio recusou (empresa/instituição inexistente...) |
 | 503 | Banco de dados indisponível |
+| 500 | Falha inesperada (o detalhe fica só no log do servidor) |
 """
 
 # Ordem e explicação dos grupos no Swagger (o nome é o mesmo usado em `tags=` dos roteadores).
@@ -105,6 +106,7 @@ _EXEMPLOS: dict[int, tuple[str, dict[str, Any]]] = {
             ],
         },
     ),
+    500: ("Falha inesperada no servidor.", {"mensagem": "Erro inesperado no servidor. Tente novamente em instantes."}),
     503: ("Banco de dados indisponível.", {"mensagem": "Banco de dados indisponível. Tente novamente mais tarde."}),
 }
 
@@ -121,5 +123,5 @@ def erros(*codigos: int) -> dict[int | str, dict[str, Any]]:
     }
 
 
-# Valem para todas as rotas: entrada inválida (422) e banco fora do ar (503).
-ERROS_COMUNS = erros(422, 503)
+# Valem para todas as rotas: entrada inválida (422), falha inesperada (500) e banco fora do ar (503).
+ERROS_COMUNS = erros(422, 500, 503)

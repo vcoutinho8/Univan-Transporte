@@ -1,9 +1,14 @@
 """Erros de negócio e tratadores que devolvem mensagens em português ao usuário."""
 
+import logging
+
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
+
+
+log = logging.getLogger("univan.erros")
 
 
 class ErroNegocio(Exception):
@@ -156,33 +161,49 @@ def registrar_tratadores_erro(app: FastAPI) -> None:
     """Registra no app os tratadores que padronizam as respostas de erro."""
 
     @app.exception_handler(ErroNegocio)
-    async def tratar_erro_negocio(_: Request, erro: ErroNegocio) -> JSONResponse:
+    async def tratar_erro_negocio(requisicao: Request, erro: ErroNegocio) -> JSONResponse:
+        log.info("%s %s recusado (%d): %s", requisicao.method, requisicao.url.path, erro.codigo_http, erro.mensagem)
         return JSONResponse(status_code=erro.codigo_http, content={"mensagem": erro.mensagem})
 
     @app.exception_handler(RequestValidationError)
-    async def tratar_validacao(_: Request, erro: RequestValidationError) -> JSONResponse:
+    async def tratar_validacao(requisicao: Request, erro: RequestValidationError) -> JSONResponse:
         erros = [
             {"campo": _nome_campo(tuple(e["loc"])), "mensagem": traduzir_erro_validacao(e)}
             for e in erro.errors()
         ]
+        campos = ", ".join(e["campo"] for e in erros)
+        log.info("%s %s com dados inválidos: %s", requisicao.method, requisicao.url.path, campos)
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={"mensagem": "Dados inválidos.", "erros": erros},
         )
 
     @app.exception_handler(IntegrityError)
-    async def tratar_integridade(_: Request, erro: IntegrityError) -> JSONResponse:
+    async def tratar_integridade(requisicao: Request, erro: IntegrityError) -> JSONResponse:
         # Rede de segurança: os services validam antes, mas o banco tem a palavra final.
         restricao = nome_restricao(erro)
+        log.warning(
+            "%s %s barrado pelo banco (%s): %s",
+            requisicao.method, requisicao.url.path, restricao or "sem nome", erro.orig,
+        )
         mensagem = MENSAGENS_RESTRICOES.get(
             restricao or "", "Operação recusada pelas regras do banco de dados."
         )
         return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"mensagem": mensagem})
 
     @app.exception_handler(OperationalError)
-    async def tratar_banco_indisponivel(_: Request, __: OperationalError) -> JSONResponse:
+    async def tratar_banco_indisponivel(requisicao: Request, erro: OperationalError) -> JSONResponse:
+        log.error("%s %s sem banco: %s", requisicao.method, requisicao.url.path, erro.orig)
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"mensagem": "Banco de dados indisponível. Tente novamente mais tarde."},
         )
 
+    @app.exception_handler(Exception)
+    async def tratar_erro_inesperado(requisicao: Request, erro: Exception) -> JSONResponse:
+        # Falha não prevista: o usuário recebe uma mensagem neutra e o log guarda o rastro completo.
+        log.exception("Erro inesperado em %s %s", requisicao.method, requisicao.url.path, exc_info=erro)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"mensagem": "Erro inesperado no servidor. Tente novamente em instantes."},
+        )

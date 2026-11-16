@@ -13,6 +13,7 @@ from app.config.banco import preparar_banco
 from app.config.configuracoes import obter_configuracoes
 from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS
 from app.config.erros import registrar_tratadores_erro
+from app.config.registro_log import configurar_log, registrar_log_requisicoes
 from app.modules.area import area_controller
 from app.modules.empresa import empresa_controller
 from app.modules.estudante import estudante_controller
@@ -48,6 +49,7 @@ async def ciclo_de_vida(_: FastAPI):
 
 def criar_aplicacao() -> FastAPI:
     configuracoes = obter_configuracoes()
+    configurar_log(configuracoes.nivel_log)
 
     app = FastAPI(
         lifespan=ciclo_de_vida,
@@ -71,6 +73,7 @@ def criar_aplicacao() -> FastAPI:
     )
 
     registrar_tratadores_erro(app)
+    registrar_log_requisicoes(app)
 
     for controller in CONTROLLERS:
         app.include_router(controller.roteador, prefix=PREFIXO_API, responses=ERROS_COMUNS)

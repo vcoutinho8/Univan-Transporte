@@ -28,6 +28,7 @@ class Configuracoes(BaseSettings):
     nome_aplicacao: str = Field(default="UniVan API", alias="APP_NAME")
     # Arquivo do banco SQLite, relativo à raiz do projeto.
     url_banco: str = Field(default="sqlite:///backend/univan.db", alias="DATABASE_URL")
+    nivel_log: str = Field(default="INFO", alias="LOG_LEVEL", pattern="(?i)^(DEBUG|INFO|WARNING|ERROR)$")
     exibir_sql: bool = Field(default=False, alias="DATABASE_ECHO")
     origens_cors: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
     # Empresa usada enquanto o login não existe (ver app/config/empresa_atual.py).
