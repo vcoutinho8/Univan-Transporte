@@ -215,5 +215,17 @@ Para explorar visualmente antes de decidir, use a skill de protótipo do projeto
 npm run dev        # servidor de desenvolvimento (http://localhost:5173)
 npm run build      # checa tipos e gera dist/
 npm run typecheck  # só checa tipos
+npm test           # roda os testes uma vez (npm run test:watch fica observando)
 ```
 
+## Testes
+
+Vitest com Testing Library, num navegador simulado (jsdom). Cada teste fica ao lado do arquivo
+que testa (`formatar.ts` → `formatar.test.ts`), e os dados de exemplo ficam em
+`src/test/fabricas.ts`. Os testes cobrem:
+
+- as máscaras de CPF, celular, CEP, moeda e horário;
+- o ponto dentro do bairro, com a mesma conta do trigger do banco;
+- quem cada rota leva, a ordem de embarque e a ordem de desembarque nas faculdades;
+- a simplificação do contorno dos bairros vindos do OpenStreetMap;
+- a paginação das tabelas (hook e rodapé, clicando como o usuário).
