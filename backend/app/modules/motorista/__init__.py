@@ -1,1 +1,1 @@
-"""Módulo motorista: quem dirige (RF2). Só model por enquanto."""
+"""Módulo motorista: quem dirige (RF2). Listagem (cadastro ainda não existe)."""

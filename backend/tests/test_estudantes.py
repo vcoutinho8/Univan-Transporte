@@ -159,3 +159,13 @@ def test_lista_instituicoes_com_endereco(cliente):  # noqa: F811
     uvv = next(i for i in corpo if i["id"] == 1)
     assert uvv["nome"] == "UVV - Universidade Vila Velha"
     assert uvv["endereco"]["latitude"] == pytest.approx(-20.354347)
+
+
+def test_lista_areas_com_poligono_em_lat_lng(cliente):  # noqa: F811
+    corpo = cliente.get("/api/areas", params={"status": "ativo"}).json()
+    assert len(corpo) == 10
+    centro = next(a for a in corpo if a["nome"] == "Centro")
+    assert centro["motorista"]["nome"] == "Carlos Eduardo Martins"
+    # Banco guarda (lon, lat); a API devolve [lat, lon], a ordem do Leaflet.
+    assert centro["poligono"][0] == [-20.669402, -40.507475]
+    assert len(centro["poligono"]) >= 3

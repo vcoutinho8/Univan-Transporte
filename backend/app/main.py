@@ -13,9 +13,11 @@ from app.config.banco import preparar_banco
 from app.config.configuracoes import obter_configuracoes
 from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS
 from app.config.erros import registrar_tratadores_erro
+from app.modules.area import area_controller
 from app.modules.empresa import empresa_controller
 from app.modules.estudante import estudante_controller
 from app.modules.instituicao import instituicao_controller
+from app.modules.motorista import motorista_controller
 from app.modules.painel import painel_controller
 from app.modules.saude import saude_controller
 from app.modules.veiculo import veiculo_controller
@@ -30,6 +32,8 @@ CONTROLLERS = (
     veiculo_controller,
     estudante_controller,
     instituicao_controller,
+    area_controller,
+    motorista_controller,
 )
 
 
