@@ -27,8 +27,8 @@ export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
           aberto ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-20 items-center justify-between px-6">
-          <Logo className="w-36" />
+        <div className="flex h-20 items-center justify-between px-5">
+          <Logo className="w-40" />
           <button onClick={aoFechar} className="text-slate-400 lg:hidden" aria-label="Fechar menu">
             <Icone nome="fechar" />
           </button>
@@ -48,16 +48,19 @@ export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
                       end
                       onClick={aoFechar}
                       className={({ isActive }) =>
-                        `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
+                        `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
                           isActive
-                            ? 'bg-laranja text-white shadow-sm shadow-laranja/30'
-                            : 'text-marinho hover:bg-fundo'
+                            ? 'bg-laranja text-white shadow-md shadow-laranja/30'
+                            : 'text-marinho hover:translate-x-1 hover:bg-fundo'
                         }`
                       }
                     >
                       {({ isActive }) => (
                         <>
-                          <Icone nome={item.icone} className="h-5 w-5 shrink-0" />
+                          <Icone
+                            nome={item.icone}
+                            className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                          />
                           <span className="flex-1">{item.rotulo}</span>
                           {!item.pronto && (
                             <span
@@ -78,7 +81,16 @@ export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
           ))}
         </nav>
 
-        <p className="border-t border-slate-100 px-6 py-4 text-xs text-slate-400">UniVan · MVP v0.2</p>
+        {/* Usuário (fixo até existir o login, RF1). No desktop é aqui que ele aparece. */}
+        <div className="flex items-center gap-3 border-t border-slate-100 px-5 py-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marinho text-white">
+            <Icone nome="usuario" className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-sm font-bold text-marinho">Administrador</p>
+            <p className="truncate text-xs text-slate-500">Gestão da empresa · v0.3</p>
+          </div>
+        </div>
       </aside>
     </>
   )

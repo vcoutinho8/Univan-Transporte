@@ -13,6 +13,127 @@
   --color-laranja: #f2600c;
   --color-laranja-claro: #fe6f07;
   --color-fundo: #f2f2f2;
+
+  /*
+   * Animações (classes animate-*). Para escalonar uma lista, use style={{ animationDelay }}:
+   * o `both` mantém o item invisível até a vez dele.
+   */
+  --animate-surgir: surgir 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-aparecer: aparecer 0.3s ease-out both;
+  --animate-gaveta: gaveta 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-flutuar: flutuar 9s ease-in-out infinite;
+  --animate-dirigir: dirigir 14s linear infinite;
+  --animate-brilho: brilho 1.4s ease-in-out infinite;
+  /* Cena da estrada no painel: camadas que rolam (paralaxe), faixa da pista, van sacolejando. */
+  --animate-rolar-lento: rolar 70s linear infinite;
+  --animate-rolar-medio: rolar 32s linear infinite;
+  --animate-rolar-rapido: rolar 11s linear infinite;
+  --animate-faixa: faixa 0.45s linear infinite;
+  --animate-sacolejo: sacolejo 0.5s ease-in-out infinite alternate;
+  --animate-girar: girar 0.45s linear infinite;
+  --animate-fumaca: fumaca 1.4s ease-out infinite;
+  --animate-piscar: piscar 3s ease-in-out infinite;
+
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes gaveta {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes flutuar {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(18px, -14px) scale(1.06);
+    }
+  }
+  @keyframes dirigir {
+    from {
+      transform: translateX(-80px);
+    }
+    to {
+      transform: translateX(calc(100cqw + 80px));
+    }
+  }
+  @keyframes rolar {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes faixa {
+    from {
+      background-position-x: 0;
+    }
+    to {
+      background-position-x: -56px;
+    }
+  }
+  @keyframes sacolejo {
+    from {
+      transform: translateY(0) rotate(0deg);
+    }
+    to {
+      transform: translateY(-2px) rotate(-0.6deg);
+    }
+  }
+  @keyframes girar {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes fumaca {
+    0% {
+      opacity: 0.55;
+      transform: translate(0, 0) scale(0.6);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-34px, -10px) scale(1.8);
+    }
+  }
+  @keyframes piscar {
+    0%,
+    100% {
+      opacity: 0.9;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+  @keyframes brilho {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
 }
 
 body {
@@ -22,6 +143,152 @@ body {
 /* Campos de formulário padronizados (usar a classe `campo`). */
 @layer components {
   .campo {
-    @apply mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-marinho-escuro placeholder:text-slate-400 focus:border-laranja focus:ring-2 focus:ring-laranja/20 focus:outline-none;
+    @apply mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-marinho-escuro transition-shadow placeholder:text-slate-400 focus:border-laranja focus:ring-2 focus:ring-laranja/20 focus:outline-none disabled:bg-fundo disabled:text-slate-400;
   }
+
+  /* Bloco cinza pulsando no lugar de um conteúdo que ainda está carregando. */
+  .esqueleto {
+    @apply animate-brilho rounded-lg bg-slate-200/80;
+  }
+}
+
+/* Quem pediu ao sistema operacional menos movimento não vê animações. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ Mapa (Leaflet) */
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #e9eef2;
+}
+
+/* Deixa o mapa de fundo mais neutro para as áreas e os pinos se destacarem. */
+.mapa-suave {
+  filter: saturate(0.55) brightness(1.04);
+}
+
+/* Pino de passageiro: gota laranja com as iniciais. */
+.pino {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--color-laranja);
+  border: 3px solid #fff;
+  box-shadow: 0 6px 14px -4px rgb(16 45 64 / 0.55);
+  transition: transform 0.2s;
+}
+.pino > span {
+  transform: rotate(45deg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.pino-sem-area {
+  background: #eab308;
+}
+.pino-apagado {
+  background: #94a3b8;
+  opacity: 0.6;
+}
+.pino-instituicao {
+  background: var(--color-marinho);
+  border-radius: 12px;
+  transform: none;
+  width: 34px;
+  height: 34px;
+}
+.pino-instituicao > svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+}
+.leaflet-marker-icon:hover .pino:not(.pino-instituicao) {
+  transform: rotate(-45deg) scale(1.12);
+}
+
+/* Etiquetas (tooltips) fixas: nome do passageiro e nome da área. */
+.leaflet-tooltip.etiqueta-nome {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-marinho-escuro);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px -2px rgb(16 45 64 / 0.35);
+}
+.leaflet-tooltip.etiqueta-nome::before {
+  display: none;
+}
+.leaflet-tooltip.etiqueta-area {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 0 6px #fff;
+}
+.leaflet-tooltip.etiqueta-area::before {
+  display: none;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  box-shadow: 0 12px 30px -10px rgb(16 45 64 / 0.4);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Editor de áreas: vértices arrastáveis e "meios" que viram vértice ao clicar. */
+.vertice {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--color-laranja);
+  box-shadow: 0 1px 4px rgb(16 45 64 / 0.4);
+  cursor: grab;
+  transition: transform 0.15s;
+}
+.vertice:hover {
+  transform: scale(1.3);
+}
+.vertice-primeiro {
+  border-color: var(--color-marinho);
+}
+.vertice-meio {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-laranja);
+  opacity: 0.45;
+  border: 2px solid #fff;
+  cursor: copy;
+}
+.vertice-meio:hover {
+  opacity: 1;
+}
+.mapa-desenhando {
+  cursor: crosshair;
 }
