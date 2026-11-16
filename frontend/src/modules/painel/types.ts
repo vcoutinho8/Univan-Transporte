@@ -15,8 +15,3 @@ export interface ResumoPainel {
   estudantes_sem_area: number
   viagens_hoje: ViagensDoDia
 }
-
-export interface Saude {
-  api: string
-  banco: string
-}
