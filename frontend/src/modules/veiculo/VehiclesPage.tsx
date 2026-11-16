@@ -5,11 +5,12 @@ import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import CabecalhoPagina from '../../shared/components/PageHeader.tsx'
+import RodapePaginacao from '../../shared/components/Pagination.tsx'
 import EtiquetaStatus from '../../shared/components/StatusBadge.tsx'
+import { usePaginacao } from '../../shared/hooks/usePagination.ts'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
 import type { StatusCadastro } from '../../shared/types/api.ts'
-import { servicoEmpresa } from '../empresa/companyService.ts'
 import { servicoVeiculo } from './vehicleService.ts'
 import type { DadosVeiculo, Veiculo } from './types.ts'
 import FormularioVeiculo from './VehicleForm.tsx'
@@ -27,19 +28,20 @@ export default function PaginaVeiculos() {
   const [aviso, setAviso] = useState<Aviso | null>(null)
 
   const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: filtroStatus }), [filtroStatus])
-  const empresas = useRequisicao(() => servicoEmpresa.listar())
 
   // A busca é feita na própria tela, sobre a lista já carregada.
   const veiculosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
     if (!termo) return veiculos.dados ?? []
     return (veiculos.dados ?? []).filter((v) =>
-      [v.placa, v.modelo, v.cor ?? '', v.empresa.nome_fantasia ?? v.empresa.razao_social]
+      [v.placa, v.modelo, v.cor ?? '']
         .join(' ')
         .toLowerCase()
         .includes(termo),
     )
   }, [veiculos.dados, busca])
+
+  const paginacao = usePaginacao(veiculosFiltrados, `${busca}|${filtroStatus}`)
 
   async function salvar(dados: DadosVeiculo) {
     const salvo =
@@ -79,24 +81,21 @@ export default function PaginaVeiculos() {
         titulo="Veículos"
         descricao="Vans, micro-ônibus e ônibus da frota."
         acoes={
-          formulario.modo === 'fechado' && (
-            <Botao onClick={() => setFormulario({ modo: 'novo' })}>
-              <Icone nome="mais" className="h-4 w-4" />
-              Novo veículo
-            </Botao>
-          )
+          <Botao onClick={() => setFormulario({ modo: 'novo' })}>
+            <Icone nome="mais" className="h-4 w-4" />
+            Novo veículo
+          </Botao>
         }
       />
 
       {aviso && (
-        <div className="mb-4">
+        <div className="mb-4 animate-surgir">
           <Alerta mensagem={aviso.mensagem} tipo={aviso.tipo} aoFechar={() => setAviso(null)} />
         </div>
       )}
 
       {formulario.modo !== 'fechado' && (
         <FormularioVeiculo
-          empresas={empresas.dados ?? []}
           veiculo={formulario.modo === 'editar' ? formulario.veiculo : null}
           aoSalvar={salvar}
           aoCancelar={() => setFormulario({ modo: 'fechado' })}
@@ -113,7 +112,7 @@ export default function PaginaVeiculos() {
               <input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por placa, modelo, cor ou empresa"
+                placeholder="Buscar por placa, modelo ou cor"
                 className="campo mt-0 rounded-full bg-fundo pl-9"
               />
             </label>
@@ -143,7 +142,6 @@ export default function PaginaVeiculos() {
                   <th className="px-5 py-3">Modelo</th>
                   <th className="px-5 py-3">Cor</th>
                   <th className="px-5 py-3 text-right">Lugares</th>
-                  <th className="px-5 py-3">Empresa</th>
                   <th className="px-5 py-3">Situação</th>
                   <th className="px-5 py-3 text-right">Ações</th>
                 </tr>
@@ -151,26 +149,29 @@ export default function PaginaVeiculos() {
               <tbody className="divide-y divide-slate-100">
                 {veiculos.carregando && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-slate-500">
+                    <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
                       Carregando...
                     </td>
                   </tr>
                 )}
                 {!veiculos.carregando && veiculosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-8 text-center text-slate-500">
+                    <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
                       Nenhum veículo encontrado.
                     </td>
                   </tr>
                 )}
                 {!veiculos.carregando &&
-                  veiculosFiltrados.map((veiculo) => (
-                    <tr key={veiculo.id} className="hover:bg-fundo/50">
+                  paginacao.visiveis.map((veiculo, indice) => (
+                    <tr
+                      key={veiculo.id}
+                      className="animate-surgir transition-colors hover:bg-fundo/50"
+                      style={{ animationDelay: `${Math.min(indice * 30, 300)}ms` }}
+                    >
                       <td className="px-5 py-3 font-mono font-bold text-marinho">{veiculo.placa}</td>
                       <td className="px-5 py-3">{veiculo.modelo}</td>
                       <td className="px-5 py-3">{veiculo.cor ?? '—'}</td>
                       <td className="px-5 py-3 text-right tabular-nums">{veiculo.capacidade}</td>
-                      <td className="px-5 py-3">{veiculo.empresa.nome_fantasia ?? veiculo.empresa.razao_social}</td>
                       <td className="px-5 py-3">
                         <EtiquetaStatus status={veiculo.status} />
                       </td>
@@ -202,6 +203,7 @@ export default function PaginaVeiculos() {
             </table>
           </div>
         )}
+        {!veiculos.carregando && !veiculos.erro && <RodapePaginacao paginacao={paginacao} rotulo="veículo(s)" />}
       </Cartao>
     </>
   )

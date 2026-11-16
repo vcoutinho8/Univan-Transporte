@@ -12,9 +12,11 @@ export interface Veiculo {
   empresa: { id: number; razao_social: string; nome_fantasia: string | null }
 }
 
-/** Dados enviados ao cadastrar (VeiculoCriacao) ou alterar (VeiculoAtualizacao). */
+/**
+ * Dados enviados ao cadastrar (VeiculoCriacao) ou alterar (VeiculoAtualizacao).
+ * Sem empresa: a API usa a empresa de quem está usando o sistema.
+ */
 export interface DadosVeiculo {
-  fk_empresa: number
   placa: string
   modelo: string
   cor: string | null
