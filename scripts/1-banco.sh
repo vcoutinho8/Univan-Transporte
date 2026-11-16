@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# PASSO 1 de 3 · Cria o banco SQLite com 5 registros de exemplo por tabela.
+# PASSO 1 de 3 · Cria o banco SQLite com os dados de exemplo (5 registros na maioria das
+# tabelas; todos os bairros, e os passageiros e rotas das 5 primeiras instituições).
 #
 # Uso, na raiz do projeto (Git Bash, Linux ou macOS):
 #   bash scripts/1-banco.sh          pergunta antes de apagar um banco que já existe
@@ -60,17 +61,18 @@ conexao = sqlite3.connect(temporario)
 conexao.executescript(pathlib.Path("docs/univan-sqlite.sql").read_text(encoding="utf-8"))
 
 # Fica com os registros 1 a 5 de cada tabela. Nos dados de teste eles só apontam
-# uns para os outros, então nenhuma chave estrangeira fica quebrada.
+# uns para os outros, então nenhuma chave estrangeira fica quebrada. Exceções, para o
+# mapa não ficar vazio: ficam todos os bairros (já divididos entre os 5 primeiros
+# motoristas) e todos os passageiros e rotas das 5 instituições que sobram.
 conexao.executescript("""
     DELETE FROM chamada        WHERE fk_viagem > 5;
     DELETE FROM viagem         WHERE id > 5;
-    DELETE FROM rota_dia       WHERE fk_rota > 5;
-    DELETE FROM rota           WHERE id > 5;
+    DELETE FROM rota           WHERE fk_instituicao > 5 OR fk_motorista > 5;
+    DELETE FROM rota_dia       WHERE fk_rota NOT IN (SELECT id FROM rota);
     DELETE FROM titulo_receber WHERE id > 5;
     DELETE FROM titulo_pagar   WHERE id > 5;
     DELETE FROM dia_sem_aula   WHERE id > 5;
-    DELETE FROM estudante      WHERE id > 5;
-    DELETE FROM area           WHERE id > 5;
+    DELETE FROM estudante      WHERE fk_instituicao > 5;
     DELETE FROM motorista      WHERE id > 5;
     DELETE FROM veiculo        WHERE id > 5;
     DELETE FROM instituicao    WHERE id > 5;
