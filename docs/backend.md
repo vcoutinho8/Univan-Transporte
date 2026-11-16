@@ -141,7 +141,7 @@ houver diferença.
 
 | Classe | Uso |
 |---|---|
-| `VeiculoCriacao` | Corpo do `POST`. Todos os campos obrigatórios; `extra="forbid"` recusa campos desconhecidos |
+| `VeiculoCriacao` | Corpo do `POST`. Sem `fk_empresa` (vem da sessão); `extra="forbid"` recusa campos desconhecidos |
 | `VeiculoAtualizacao` | Corpo do `PATCH`. Tudo opcional; só o que for enviado é alterado |
 | `VeiculoResposta` | O que a API devolve, incluindo a empresa resumida |
 
@@ -157,7 +157,8 @@ Os validadores reproduzem as regras do banco com mensagens amigáveis. Exemplo:
 
 `ServicoVeiculo(repositorio, repositorio_empresa)`:
 
-- `cadastrar`: confere se a empresa existe e se a placa está livre;
+- `cadastrar(dados, id_empresa)`: usa a empresa da sessão (`app/config/empresa_atual.py`; até o login
+  existir, vem de `EMPRESA_ATUAL_ID`), confere se ela existe e se a placa está livre;
 - `atualizar`: só altera o que veio, recusa apagar campo obrigatório (`{"modelo": null}`);
 - `inativar`: muda o status para `inativo` (nada é apagado) e recusa inativar duas vezes.
 
@@ -167,8 +168,8 @@ Os validadores reproduzem as regras do banco com mensagens amigáveis. Exemplo:
 roteador = APIRouter(prefix="/veiculos", tags=["Veículos"])
 
 @roteador.post("", response_model=VeiculoResposta, status_code=201)
-def cadastrar_veiculo(dados: VeiculoCriacao, servico: Servico):
-    return servico.cadastrar(dados)
+def cadastrar_veiculo(dados: VeiculoCriacao, servico: Servico, id_empresa: IdEmpresaAtual):
+    return servico.cadastrar(dados, id_empresa)
 ```
 
 Cada função tem uma linha de lógica: receber, chamar o serviço, devolver. `obter_servico_veiculo`
@@ -181,7 +182,7 @@ monta o serviço com os repositórios (e é o ponto que os testes substituem).
 ### `saude` — "a API está viva?"
 
 `GET /api/saude` executa `SELECT 1` no banco e responde `{"api": "ok", "banco": "conectado"}`
-ou `"indisponível"`. O painel usa isso para o indicador de conexão.
+ou `"indisponível"`. Serve para monitoramento (não aparece na interface).
 
 ### `painel` — os números da tela inicial (RF5)
 
@@ -208,8 +209,39 @@ Módulo **sem tabela própria**: só lê as outras. `GET /api/painel/resumo?data
 
 ### `empresa` — a transportadora
 
-`GET /api/empresas` lista as empresas em ordem de razão social. Usado no seletor do formulário de
-veículos. Cadastro/edição de empresa ainda não existe.
+`GET /api/empresas` lista as empresas em ordem de razão social. Cadastro/edição de empresa ainda
+não existe. Os cadastros usam a **empresa da sessão** (`IdEmpresaAtual`), não um campo do formulário.
+
+### `estudante` — passageiros (RF2)
+
+CRUD completo em `/api/estudantes`, com o endereço junto (`endereco` aninhado no corpo).
+CPF, celular e CEP chegam com ou sem pontuação e são guardados só com números. A **área**
+(`fk_area`) nunca vem da API: o trigger do banco a calcula pela latitude/longitude. Ao trocar o
+endereço no `PATCH`, o repositório reenvia `fk_endereco` para o trigger recalcular a área.
+
+### `instituicao` — faculdades de destino
+
+`GET /api/instituicoes` (com endereço) alimenta o seletor do cadastro e os pinos de destino.
+
+### `area` — bairros desenhados no mapa
+
+CRUD em `/api/areas`. O contorno trafega como `poligono: [[latitude, longitude], ...]` (a ordem
+do Leaflet) e é gravado como `((lon,lat),...)`, o formato que o trigger lê. Regras: pelo menos 3
+pontos diferentes (o anel fechado do GeoJSON é aceito), nome único entre áreas ativas e motorista
+existente. **Toda gravação recalcula a área de todos os passageiros** (o repositório reenvia
+`fk_endereco` para o trigger). Onde duas áreas se sobrepõem, vale a de menor id.
+
+### `rota` — trajetos fixos (RF4)
+
+CRUD em `/api/rotas`: motorista + instituição + turno (únicos juntos), horários de ida e volta e
+dias da semana (`dias: [1..7]`, gravados em `rota_dia`). `GET /api/rotas/{id}/passageiros`
+devolve quem a rota leva, na ordem de embarque, com **a mesma regra da rotina `gerar_dia`**:
+passageiro ativo, morando numa área ativa do motorista, da mesma instituição e do mesmo turno.
+A listagem traz `total_passageiros` de cada rota. Excluir = inativar.
+
+### `motorista` — leitura
+
+`GET /api/motoristas?status=` lista os motoristas (seletor do motorista da área).
 
 ### `veiculo` — a frota (RF2)
 
@@ -219,12 +251,7 @@ CRUD completo. Ver a seção anterior.
 
 | Módulo | Tabela(s) | Para que vai servir |
 |---|---|---|
-| `estudante` | `estudante` | **Passageiros** (RF2): cadastro, edição, consulta e desativação. A área (`fk_area`) é definida pelo trigger do banco, nunca pela API |
-| `motorista` | `motorista` | Cadastro de motoristas (RF2), com CPF e CNH únicos e veículo padrão |
-| `endereco` | `endereco` | Endereços com latitude/longitude, base dos pontos de embarque no mapa (RF4/RF6) |
-| `instituicao` | `instituicao` | Faculdades de destino |
-| `area` | `area` | Regiões (polígonos) atendidas por cada motorista |
-| `rota` | `rota`, `rota_dia` | Rotas (RF4): motorista + instituição + turno, horários e dias da semana |
+| `motorista` | `motorista` | Cadastro de motoristas (RF2), com CPF e CNH únicos e veículo padrão (hoje só listagem) |
 | `dia_sem_aula` | `dia_sem_aula` | Feriados e recessos: `gerar_dia` não cria viagens nesses dias |
 | `viagem` | `viagem` | Viagens do dia (RF3): gerar, iniciar, encerrar, substituir motorista/veículo |
 | `chamada` | `chamada` | Presença/ausência de cada passageiro numa viagem (RF3) |
@@ -244,8 +271,46 @@ CRUD completo. Ver a seção anterior.
 | POST | `/api/veiculos` | Cadastra (placa normalizada: `qja-1b23` → `QJA1B23`) |
 | PATCH | `/api/veiculos/{id}` | Altera só os campos enviados (também usado para reativar: `{"status": "ativo"}`) |
 | DELETE | `/api/veiculos/{id}` | **Inativa** (não apaga) |
+| GET | `/api/estudantes?status=&fk_area=&fk_instituicao=` | Lista passageiros com instituição, endereço e área |
+| GET | `/api/estudantes/{id}` | Busca um passageiro |
+| POST | `/api/estudantes` | Cadastra (com `endereco`); a área sai do trigger |
+| PATCH | `/api/estudantes/{id}` | Altera só o enviado; `endereco` substitui o endereço e recalcula a área |
+| DELETE | `/api/estudantes/{id}` | **Inativa** (não apaga) |
+| GET | `/api/instituicoes` | Lista instituições com endereço |
+| GET | `/api/areas?status=` | Lista áreas com motorista e polígono `[lat, lng]` |
+| GET | `/api/areas/{id}` | Busca uma área |
+| POST | `/api/areas` | Cadastra (`nome`, `fk_motorista`, `poligono`) e redistribui os passageiros |
+| PATCH | `/api/areas/{id}` | Altera nome, motorista, contorno ou situação; redistribui os passageiros |
+| DELETE | `/api/areas/{id}` | **Inativa**; os passageiros dela ficam sem área |
+| GET | `/api/motoristas?status=` | Lista motoristas |
+| GET | `/api/rotas?status=&fk_motorista=` | Lista rotas com dias e total de passageiros |
+| GET | `/api/rotas/{id}` | Busca uma rota |
+| GET | `/api/rotas/{id}/passageiros` | Passageiros da rota na ordem de embarque (regra do `gerar_dia`) |
+| POST | `/api/rotas` | Cadastra (motorista + instituição + turno únicos, horários, dias) |
+| PATCH | `/api/rotas/{id}` | Altera só o enviado; `dias` substitui a lista |
+| DELETE | `/api/rotas/{id}` | **Inativa** (não apaga) |
 
-Documentação interativa, onde dá para testar cada endpoint: http://localhost:8000/api/docs
+## Documentação da API (Swagger)
+
+| Endereço | Para quê |
+|---|---|
+| http://localhost:8000/api/docs | **Swagger**: testar cada rota com *Try it out* (exemplos já preenchidos) |
+| http://localhost:8000/api/redoc | **ReDoc**: leitura da documentação, com busca |
+| http://localhost:8000/api/openapi.json | Especificação OpenAPI 3.1 (para Postman, Insomnia, geradores de cliente) |
+
+Com o frontend rodando, os mesmos endereços também funcionam pela porta do Vite (`/api/docs`).
+
+Tudo que o Swagger mostra além das rotas fica em `app/config/documentacao.py`:
+
+- `DESCRICAO`: convenções da API (nada é apagado, PATCH parcial, formato dos erros...);
+- `TAGS`: a ordem e a explicação de cada grupo. **Módulo novo = tag nova aqui**;
+- `erros(404, 409)`: documenta os erros de uma rota no formato padrão `RespostaErro`.
+  Todas as rotas já recebem 422 e 503 (`ERROS_COMUNS`, em `main.py`);
+- exemplos de corpo: `json_schema_extra={"examples": [...]}` no `model_config` do schema.
+
+`tests/test_documentacao.py` falha se uma rota entrar sem grupo descrito, sem resumo, sem os
+erros documentados (404 em rota com `{id}`, 409 em POST/PATCH/DELETE) ou com um exemplo que a
+própria API recusaria.
 
 ---
 
