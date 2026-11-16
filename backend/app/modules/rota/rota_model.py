@@ -39,7 +39,10 @@ class Rota(Base):
 
     motorista: Mapped["Motorista"] = relationship()
     instituicao: Mapped["Instituicao"] = relationship()
-    dias: Mapped[list["RotaDia"]] = relationship(back_populates="rota")
+    # Os dias são trocados junto com a rota: dia tirado da lista é apagado de rota_dia.
+    dias: Mapped[list["RotaDia"]] = relationship(
+        back_populates="rota", cascade="all, delete-orphan", order_by="RotaDia.dia_semana"
+    )
 
 
 class RotaDia(Base):

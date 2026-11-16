@@ -19,6 +19,7 @@ from app.modules.estudante import estudante_controller
 from app.modules.instituicao import instituicao_controller
 from app.modules.motorista import motorista_controller
 from app.modules.painel import painel_controller
+from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
 from app.modules.veiculo import veiculo_controller
 
@@ -34,6 +35,7 @@ CONTROLLERS = (
     instituicao_controller,
     area_controller,
     motorista_controller,
+    rota_controller,
 )
 
 
