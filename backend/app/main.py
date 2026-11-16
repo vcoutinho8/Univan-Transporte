@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.modules as _registro_models  # noqa: F401  (registra todos os models)
 from app.config.banco import preparar_banco
 from app.config.configuracoes import obter_configuracoes
+from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS
 from app.config.erros import registrar_tratadores_erro
 from app.modules.empresa import empresa_controller
 from app.modules.painel import painel_controller
@@ -20,7 +21,12 @@ from app.modules.veiculo import veiculo_controller
 PREFIXO_API = "/api"
 
 # Cada módulo com rotas HTTP expõe um `roteador`. Para um módulo novo, basta incluí-lo aqui.
-CONTROLLERS = (saude_controller, painel_controller, empresa_controller, veiculo_controller)
+CONTROLLERS = (
+    saude_controller,
+    painel_controller,
+    empresa_controller,
+    veiculo_controller,
+)
 
 
 @asynccontextmanager
@@ -36,10 +42,15 @@ def criar_aplicacao() -> FastAPI:
     app = FastAPI(
         lifespan=ciclo_de_vida,
         title=configuracoes.nome_aplicacao,
-        description="API do sistema de gestão de transporte universitário UniVan.",
-        version="0.2.0",
+        summary="Gestão de transporte universitário: passageiros, frota, bairros e rotas.",
+        description=DESCRICAO,
+        version="0.3.0",
+        openapi_tags=TAGS,
+        # Swagger (testar as rotas) e ReDoc (leitura), ambos atrás do prefixo /api.
         docs_url=f"{PREFIXO_API}/docs",
+        redoc_url=f"{PREFIXO_API}/redoc",
         openapi_url=f"{PREFIXO_API}/openapi.json",
+        swagger_ui_parameters=PARAMETROS_SWAGGER,
     )
 
     app.add_middleware(
@@ -52,7 +63,7 @@ def criar_aplicacao() -> FastAPI:
     registrar_tratadores_erro(app)
 
     for controller in CONTROLLERS:
-        app.include_router(controller.roteador, prefix=PREFIXO_API)
+        app.include_router(controller.roteador, prefix=PREFIXO_API, responses=ERROS_COMUNS)
 
     return app
 

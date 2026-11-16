@@ -30,6 +30,8 @@ class Configuracoes(BaseSettings):
     url_banco: str = Field(default="sqlite:///backend/univan.db", alias="DATABASE_URL")
     exibir_sql: bool = Field(default=False, alias="DATABASE_ECHO")
     origens_cors: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
+    # Empresa usada enquanto o login não existe (ver app/config/empresa_atual.py).
+    id_empresa_atual: int = Field(default=1, gt=0, alias="EMPRESA_ATUAL_ID")
 
     @property
     def url_banco_resolvida(self) -> str:

@@ -39,7 +39,7 @@ MENSAGENS_RESTRICOES = {
     "empresa_cnpj_key": "Já existe uma empresa com este CNPJ.",
     "empresa_cnpj_check": "CNPJ inválido. Informe apenas os 14 números.",
     "endereco_cep_check": "CEP inválido. Informe apenas os 8 números.",
-    "estudante_cpf_key": "Já existe um estudante com este CPF.",
+    "estudante_cpf_key": "Já existe um passageiro com este CPF.",
     "estudante_cpf_check": "CPF inválido. Informe apenas os 11 números.",
     "estudante_dia_vencimento_check": "O dia de vencimento deve estar entre 1 e 28.",
     "estudante_valor_mensal_check": "O valor mensal não pode ser negativo.",
@@ -136,6 +136,10 @@ def traduzir_erro_validacao(erro: dict) -> str:
     contexto = dict(erro.get("ctx", {}))
     if "expected" in contexto:
         contexto["expected"] = str(contexto["expected"]).replace(" or ", " ou ")
+    for limite in ("gt", "ge", "lt", "le"):
+        # Limite de campo float (ex.: latitude <= 90) chega como 90.0; mostra "90".
+        if isinstance(contexto.get(limite), float) and contexto[limite].is_integer():
+            contexto[limite] = int(contexto[limite])
     try:
         return modelo.format(**contexto)
     except (KeyError, IndexError):
@@ -181,3 +185,4 @@ def registrar_tratadores_erro(app: FastAPI) -> None:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"mensagem": "Banco de dados indisponível. Tente novamente mais tarde."},
         )
+
