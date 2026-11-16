@@ -14,6 +14,8 @@ from app.config.configuracoes import obter_configuracoes
 from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS
 from app.config.erros import registrar_tratadores_erro
 from app.modules.empresa import empresa_controller
+from app.modules.estudante import estudante_controller
+from app.modules.instituicao import instituicao_controller
 from app.modules.painel import painel_controller
 from app.modules.saude import saude_controller
 from app.modules.veiculo import veiculo_controller
@@ -26,6 +28,8 @@ CONTROLLERS = (
     painel_controller,
     empresa_controller,
     veiculo_controller,
+    estudante_controller,
+    instituicao_controller,
 )
 
 
