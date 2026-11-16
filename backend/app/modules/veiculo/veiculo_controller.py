@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
+from app.config.documentacao import erros
+from app.config.empresa_atual import IdEmpresaAtual
 from app.shared.enums import StatusCadastro
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
@@ -31,7 +33,7 @@ def listar_veiculos(
     return servico.listar(status=status_veiculo, fk_empresa=fk_empresa)
 
 
-@roteador.get("/{id_veiculo}", response_model=VeiculoResposta, summary="Buscar veículo")
+@roteador.get("/{id_veiculo}", response_model=VeiculoResposta, summary="Buscar veículo", responses=erros(404))
 def obter_veiculo(id_veiculo: int, servico: Servico):
     return servico.obter(id_veiculo)
 
@@ -41,12 +43,13 @@ def obter_veiculo(id_veiculo: int, servico: Servico):
     response_model=VeiculoResposta,
     status_code=status.HTTP_201_CREATED,
     summary="Cadastrar veículo",
+    responses=erros(409),
 )
-def cadastrar_veiculo(dados: VeiculoCriacao, servico: Servico):
-    return servico.cadastrar(dados)
+def cadastrar_veiculo(dados: VeiculoCriacao, servico: Servico, id_empresa: IdEmpresaAtual):
+    return servico.cadastrar(dados, id_empresa)
 
 
-@roteador.patch("/{id_veiculo}", response_model=VeiculoResposta, summary="Alterar veículo")
+@roteador.patch("/{id_veiculo}", response_model=VeiculoResposta, summary="Alterar veículo", responses=erros(404, 409))
 def atualizar_veiculo(id_veiculo: int, dados: VeiculoAtualizacao, servico: Servico):
     return servico.atualizar(id_veiculo, dados)
 
@@ -55,6 +58,7 @@ def atualizar_veiculo(id_veiculo: int, dados: VeiculoAtualizacao, servico: Servi
     "/{id_veiculo}",
     response_model=VeiculoResposta,
     summary="Inativar veículo (não apaga o registro)",
+    responses=erros(404, 409),
 )
 def inativar_veiculo(id_veiculo: int, servico: Servico):
     return servico.inativar(id_veiculo)

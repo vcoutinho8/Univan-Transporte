@@ -3,8 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.modules.veiculo.veiculo_controller import obter_servico_veiculo
+from app.config.empresa_atual import obter_id_empresa_atual
 from app.main import app
+from app.modules.veiculo.veiculo_controller import obter_servico_veiculo
 from app.modules.empresa.empresa_model import Empresa
 from app.modules.veiculo.veiculo_model import Veiculo
 from app.modules.veiculo.veiculo_servico import ServicoVeiculo
@@ -52,11 +53,12 @@ def cliente():
     repositorio_empresa = RepositorioEmpresaFalso()
     servico = ServicoVeiculo(RepositorioVeiculoFalso(repositorio_empresa), repositorio_empresa)
     app.dependency_overrides[obter_servico_veiculo] = lambda: servico
+    app.dependency_overrides[obter_id_empresa_atual] = lambda: 1
     yield TestClient(app)
     app.dependency_overrides.clear()
 
 
-VEICULO_VALIDO = {"fk_empresa": 1, "placa": "qja-1b23", "modelo": "Sprinter 416", "cor": "Branca", "capacidade": 20}
+VEICULO_VALIDO = {"placa": "qja-1b23", "modelo": "Sprinter 416", "cor": "Branca", "capacidade": 20}
 
 
 def test_cadastra_veiculo_normalizando_placa(cliente):
@@ -75,10 +77,27 @@ def test_recusa_placa_duplicada(cliente):
     assert resposta.json()["mensagem"] == "Já existe um veículo com esta placa."
 
 
-def test_recusa_empresa_inexistente(cliente):
-    resposta = cliente.post("/api/veiculos", json={**VEICULO_VALIDO, "fk_empresa": 99})
+def test_cadastra_na_empresa_da_sessao(cliente):
+    corpo = cliente.post("/api/veiculos", json=VEICULO_VALIDO).json()
+    assert corpo["fk_empresa"] == 1
+
+
+def test_recusa_empresa_da_sessao_inexistente(cliente):
+    app.dependency_overrides[obter_id_empresa_atual] = lambda: 99
+    resposta = cliente.post("/api/veiculos", json=VEICULO_VALIDO)
     assert resposta.status_code == 422
     assert resposta.json()["mensagem"] == "Empresa não encontrada."
+
+
+@pytest.mark.parametrize("metodo", ["post", "patch"])
+def test_empresa_nao_vem_no_corpo(cliente, metodo):
+    if metodo == "post":
+        resposta = cliente.post("/api/veiculos", json={**VEICULO_VALIDO, "fk_empresa": 2})
+    else:
+        id_veiculo = cliente.post("/api/veiculos", json=VEICULO_VALIDO).json()["id"]
+        resposta = cliente.patch(f"/api/veiculos/{id_veiculo}", json={"fk_empresa": 2})
+    assert resposta.status_code == 422
+    assert {"campo": "fk_empresa", "mensagem": "Campo não permitido."} in resposta.json()["erros"]
 
 
 @pytest.mark.parametrize(

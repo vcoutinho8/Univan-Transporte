@@ -5,6 +5,7 @@ import re
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.shared.enums import StatusCadastro
+from app.shared.texto import limpar_texto
 
 # Mesma regra do CHECK veiculo_placa_check: formato antigo (ABC1234) ou Mercosul (ABC1D23).
 PADRAO_PLACA = re.compile(r"^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$")
@@ -16,13 +17,6 @@ def normalizar_placa(valor: str) -> str:
     if not PADRAO_PLACA.match(placa):
         raise ValueError("Placa inválida. Use o formato ABC1234 ou ABC1D23.")
     return placa
-
-
-def limpar_texto(valor: str | None) -> str | None:
-    if valor is None:
-        return None
-    texto = valor.strip()
-    return texto or None
 
 
 class VeiculoBase(BaseModel):
@@ -45,11 +39,10 @@ class VeiculoBase(BaseModel):
 
 
 class VeiculoCriacao(VeiculoBase):
-    """Dados para cadastrar um veículo."""
+    """Dados para cadastrar um veículo. A empresa é a da sessão, não vem no corpo."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"examples": [{"placa": "QJA-1B23", "modelo": "Mercedes-Benz Sprinter 416", "cor": "Branca", "capacidade": 20}]})
 
-    fk_empresa: int = Field(gt=0)
     placa: str
     status: StatusCadastro = StatusCadastro.ATIVO
 
@@ -60,11 +53,10 @@ class VeiculoCriacao(VeiculoBase):
 
 
 class VeiculoAtualizacao(BaseModel):
-    """Dados para alterar um veículo. Só os campos enviados são alterados."""
+    """Dados para alterar um veículo. Só os campos enviados são alterados (a empresa não muda)."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"examples": [{"cor": "Prata", "capacidade": 19}]})
 
-    fk_empresa: int | None = Field(default=None, gt=0)
     placa: str | None = None
     modelo: str | None = Field(default=None, max_length=50)
     cor: str | None = Field(default=None, max_length=30)

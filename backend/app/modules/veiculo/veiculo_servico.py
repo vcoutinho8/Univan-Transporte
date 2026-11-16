@@ -24,10 +24,11 @@ class ServicoVeiculo:
             raise RecursoNaoEncontrado("Veículo não encontrado.")
         return veiculo
 
-    def cadastrar(self, dados: VeiculoCriacao) -> Veiculo:
-        self._garantir_empresa_existe(dados.fk_empresa)
+    def cadastrar(self, dados: VeiculoCriacao, id_empresa: int) -> Veiculo:
+        """Cadastra o veículo na empresa de quem está usando o sistema."""
+        self._garantir_empresa_existe(id_empresa)
         self._garantir_placa_disponivel(dados.placa)
-        veiculo = Veiculo(**dados.model_dump())
+        veiculo = Veiculo(**dados.model_dump(), fk_empresa=id_empresa)
         self.repositorio.salvar(veiculo)
         return self.obter(veiculo.id)
 
@@ -35,12 +36,10 @@ class ServicoVeiculo:
         veiculo = self.obter(id_veiculo)
         alteracoes = dados.model_dump(exclude_unset=True)
 
-        for campo in ("fk_empresa", "placa", "modelo", "capacidade", "status"):
+        for campo in ("placa", "modelo", "capacidade", "status"):
             if campo in alteracoes and alteracoes[campo] is None:
                 raise DadosInvalidos(f"O campo {campo} não pode ficar vazio.")
 
-        if "fk_empresa" in alteracoes and alteracoes["fk_empresa"] != veiculo.fk_empresa:
-            self._garantir_empresa_existe(alteracoes["fk_empresa"])
         if "placa" in alteracoes and alteracoes["placa"] != veiculo.placa:
             self._garantir_placa_disponivel(alteracoes["placa"])
 

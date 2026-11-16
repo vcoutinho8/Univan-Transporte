@@ -66,7 +66,7 @@ def test_painel(cliente):
 def test_cadastra_edita_e_inativa_veiculo(cliente):
     criado = cliente.post(
         "/api/veiculos",
-        json={"fk_empresa": 1, "placa": "zzz-9z99", "modelo": "Master", "capacidade": 15},
+        json={"placa": "zzz-9z99", "modelo": "Master", "capacidade": 15},
     )
     assert criado.status_code == 201, criado.text
     id_veiculo = criado.json()["id"]
