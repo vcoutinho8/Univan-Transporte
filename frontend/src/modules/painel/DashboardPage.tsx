@@ -1,28 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
+import { ROTULOS_PERFIL } from '../../shared/auth/permissoes.ts'
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import CartaoIndicador from '../../shared/components/StatCard.tsx'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
+import { dataIso, formatarHorario, iniciais } from '../../shared/utils/formatar.ts'
 import { servicoArea } from '../area/areaService.ts'
+import { servicoChamada } from '../chamada/callService.ts'
 import { servicoEstudante } from '../estudante/studentService.ts'
 import { CamadaAreas, Enquadrar, MapaBase, MarcadorPassageiro } from '../mapa/MapLayers.tsx'
 import { coordenadaDo } from '../mapa/mapUtils.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
+import { servicoMotorista } from '../motorista/driverService.ts'
+import { diasParaVencer, situacaoCnh } from '../motorista/driverUtils.ts'
 import { servicoRota } from '../rota/routeService.ts'
 import type { Rota } from '../rota/types.ts'
 import { servicoPainel } from './dashboardService.ts'
 import CenaEstrada, { Ceu, periodoDoDia, type Periodo } from './RoadScene.tsx'
-import type { ViagensDoDia } from './types.ts'
-
-const SITUACOES_VIAGEM: { chave: keyof ViagensDoDia; rotulo: string; cor: string }[] = [
-  { chave: 'agendada', rotulo: 'Agendadas', cor: 'bg-marinho' },
-  { chave: 'em_andamento', rotulo: 'Em andamento', cor: 'bg-laranja' },
-  { chave: 'concluida', rotulo: 'Concluídas', cor: 'bg-emerald-500' },
-  { chave: 'cancelada', rotulo: 'Canceladas', cor: 'bg-slate-300' },
-]
+import { agruparJornadas, ORDEM_TURNOS } from '../viagem/tripGrouping.ts'
+import { servicoViagem } from '../viagem/tripService.ts'
+import type { StatusViagem } from '../viagem/types.ts'
 
 function saudacao(hora = new Date().getHours()) {
   if (hora < 12) return 'Bom dia'
@@ -30,26 +31,63 @@ function saudacao(hora = new Date().getHours()) {
   return 'Boa noite'
 }
 
-/** Tela inicial (RF5): boas-vindas, indicadores da operação, viagens do dia e mapa dos passageiros. */
+/** Status da jornada (linha da operação de hoje). */
+const PILULA: Record<StatusViagem, { rotulo: string; classe: string }> = {
+  agendada: { rotulo: 'Agendada', classe: 'bg-slate-100 text-slate-600' },
+  em_andamento: { rotulo: 'Em andamento', classe: 'bg-sky-100 text-sky-700' },
+  concluida: { rotulo: 'Concluída', classe: 'bg-emerald-100 text-emerald-700' },
+  cancelada: { rotulo: 'Cancelada', classe: 'bg-red-50 text-red-500' },
+}
+
+const RESUMO_OPERACAO = [
+  ['agendada', 'A sair', 'text-marinho'],
+  ['em_andamento', 'Rodando agora', 'text-sky-600'],
+  ['concluida', 'Concluídas', 'text-emerald-600'],
+] as const
+
+/**
+ * Tela inicial (RF5) do administrador e do auxiliar: boas-vindas com as próximas saídas,
+ * indicadores, a operação de hoje (uma linha por motorista e sentido), as chamadas do dia,
+ * os pontos de atenção e o mapa dos passageiros.
+ */
 export default function PaginaPainel() {
+  const hoje = dataIso()
   const resumo = useRequisicao(() => servicoPainel.resumo())
   const estudantes = useRequisicao(() => servicoEstudante.listar({ status: 'ativo' }))
   const areas = useRequisicao(() => servicoArea.listar({ status: 'ativo' }))
   const rotas = useRequisicao(() => servicoRota.listar({ status: 'ativo' }))
+  const viagens = useRequisicao(() => servicoViagem.listar({ data: hoje }), [hoje])
+  const chamadas = useRequisicao(() => servicoChamada.doDia(hoje), [hoje])
+  const motoristas = useRequisicao(() => servicoMotorista.listar({ status: 'ativo' }))
   const dados = resumo.dados
 
-  const viagens = dados?.viagens_hoje
-  const totalViagens = viagens ? Object.values(viagens).reduce((soma, n) => soma + n, 0) : 0
   const comLocal = (estudantes.dados ?? []).filter((e) => coordenadaDo(e) !== null)
   const semLocal = (estudantes.dados?.length ?? 0) - comLocal.length
+  const cnhs = (motoristas.dados ?? [])
+    .map((m) => ({ motorista: m, situacao: situacaoCnh(m.cnh_validade), dias: diasParaVencer(m.cnh_validade) }))
+    .filter((c) => c.situacao !== 'valida')
+    .sort((a, b) => a.dias - b.dias)
 
-  // A barra das viagens nasce vazia e cresce até o tamanho real (transição de largura).
-  const [barraCheia, setBarraCheia] = useState(false)
-  useEffect(() => {
-    if (totalViagens === 0) return
-    const temporizador = window.setTimeout(() => setBarraCheia(true), 120)
-    return () => window.clearTimeout(temporizador)
-  }, [totalViagens])
+  // Jornadas do dia (motorista + turno + sentido), na ordem manhã ida, manhã volta, noite...
+  const jornadas = useMemo(
+    () =>
+      ORDEM_TURNOS.flatMap((t) => {
+        const { ida, volta } = agruparJornadas(viagens.dados ?? [], t)
+        return [...ida, ...volta]
+      }),
+    [viagens.dados],
+  )
+  // Na lista: rodando, depois as próximas a sair, as atrasadas e por fim as concluídas.
+  const horaAgora = new Date().toTimeString().slice(0, 5)
+  const atrasada = (j: (typeof jornadas)[number]) => j.status === 'agendada' && (j.horario_previsto ?? '99:99').slice(0, 5) < horaAgora
+  const peso = (j: (typeof jornadas)[number]) =>
+    j.status === 'em_andamento' ? 0 : j.status === 'agendada' ? (atrasada(j) ? 2 : 1) : j.status === 'concluida' ? 3 : 4
+  const emDestaque = [...jornadas].sort((a, b) => peso(a) - peso(b) || (a.horario_previsto ?? '').localeCompare(b.horario_previsto ?? ''))
+  const contagem = { agendada: 0, em_andamento: 0, concluida: 0, cancelada: 0 }
+  for (const j of jornadas) contagem[j.status] += 1
+  const ativas = jornadas.length - contagem.cancelada
+  const pct = (n: number) => (ativas ? Math.round((n / ativas) * 100) : 0)
+  const resumoChamadas = chamadas.dados?.resumo
 
   return (
     <>
@@ -61,127 +99,189 @@ export default function PaginaPainel() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <CartaoIndicador
-          rotulo="Passageiros ativos"
-          valor={dados?.estudantes_ativos}
-          icone="passageiros"
-          tom="laranja"
-          detalhe="Ver passageiros"
-          para="/passageiros"
-          atraso={100}
-        />
-        <CartaoIndicador
-          rotulo="Motoristas ativos"
-          valor={dados?.motoristas_ativos}
-          icone="motorista"
-          tom="marinho"
-          detalhe="Ver motoristas"
-          para="/motoristas"
-          atraso={160}
-        />
-        <CartaoIndicador
-          rotulo="Veículos ativos"
-          valor={dados?.veiculos_ativos}
-          icone="van"
-          tom="verde"
-          detalhe="Ver a frota"
-          para="/veiculos"
-          atraso={220}
-        />
-        <CartaoIndicador
-          rotulo="Rotas ativas"
-          valor={dados?.rotas_ativas}
-          icone="rota"
-          tom="ambar"
-          detalhe="Ver as rotas"
-          para="/mapa?aba=rotas"
-          atraso={280}
-        />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <CartaoIndicador rotulo="Passageiros ativos" valor={dados?.estudantes_ativos} icone="passageiros" tom="laranja" detalhe="Ver passageiros" para="/passageiros" atraso={100} />
+        <CartaoIndicador rotulo="Motoristas ativos" valor={dados?.motoristas_ativos} icone="motorista" tom="marinho" detalhe="Ver motoristas" para="/motoristas" atraso={160} />
+        <CartaoIndicador rotulo="Veículos ativos" valor={dados?.veiculos_ativos} icone="van" tom="verde" detalhe="Ver a frota" para="/veiculos" atraso={220} />
+        <CartaoIndicador rotulo="Rotas ativas" valor={dados?.rotas_ativas} icone="rota" tom="ambar" detalhe="Ver as rotas" para="/mapa?aba=rotas" atraso={280} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Cartao titulo="Viagens de hoje" className="animate-surgir [animation-delay:340ms] lg:col-span-2">
-          {resumo.carregando ? (
-            <div className="space-y-4 py-2">
-              <div className="esqueleto h-3" />
-              <div className="grid grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((n) => (
-                  <div key={n} className="esqueleto h-12" />
-                ))}
-              </div>
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        {/* Operação de hoje */}
+        <Cartao
+          titulo="Operação de hoje"
+          className="animate-surgir [animation-delay:340ms] xl:col-span-2"
+          acoes={
+            <Link to={`/viagens?data=${hoje}`} className="group flex items-center gap-1 text-sm font-semibold text-laranja">
+              Abrir viagens
+              <Icone nome="seta" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          }
+        >
+          {viagens.carregando && !viagens.dados ? (
+            <div className="space-y-3 py-1">
+              <div className="esqueleto h-16" />
+              <div className="esqueleto h-12" />
+              <div className="esqueleto h-12" />
             </div>
-          ) : totalViagens === 0 ? (
+          ) : jornadas.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-8 text-center">
               <span className="grid h-12 w-12 place-items-center rounded-2xl bg-fundo text-slate-400">
-                <Icone nome="viagem" className="h-6 w-6" />
+                <Icone nome="mala" className="h-6 w-6" />
               </span>
               <p className="text-sm text-slate-500">Nenhuma viagem gerada para hoje.</p>
             </div>
           ) : (
             <>
-              <div className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-fundo">
-                {SITUACOES_VIAGEM.map(({ chave, cor }) => (
-                  <div
-                    key={chave}
-                    className={`${cor} transition-[width] duration-1000 ease-out`}
-                    style={{ width: barraCheia ? `${((viagens?.[chave] ?? 0) / totalViagens) * 100}%` : '0%' }}
-                  />
+              <div className="grid grid-cols-3 gap-3">
+                {RESUMO_OPERACAO.map(([chave, rotulo, cor]) => (
+                  <div key={chave} className="rounded-xl bg-fundo/70 p-3">
+                    <p className="text-xs font-semibold text-slate-500">{rotulo}</p>
+                    <p className={`mt-1 flex items-baseline gap-1.5 text-2xl font-extrabold tabular-nums ${cor}`}>
+                      {contagem[chave]}
+                      <span className="text-xs font-semibold text-slate-400">{pct(contagem[chave])}%</span>
+                    </p>
+                  </div>
                 ))}
               </div>
-              <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {SITUACOES_VIAGEM.map(({ chave, rotulo, cor }) => (
-                  <li key={chave}>
-                    <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                      <span className={`h-2.5 w-2.5 rounded-full ${cor}`} />
-                      {rotulo}
-                    </p>
-                    <p className="mt-1 text-2xl font-extrabold text-marinho tabular-nums">{viagens?.[chave] ?? 0}</p>
-                  </li>
-                ))}
+              <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-fundo">
+                <div className="bg-emerald-500 transition-all duration-700" style={{ width: `${pct(contagem.concluida)}%` }} />
+                <div className="bg-sky-500 transition-all duration-700" style={{ width: `${pct(contagem.em_andamento)}%` }} />
+              </div>
+
+              <ul className="mt-4 divide-y divide-slate-100">
+                {emDestaque.slice(0, 6).map((j) => {
+                  const fila = j.passageiros.total - j.passageiros.nao_vai
+                  const feitos = j.passageiros.presente + j.passageiros.ausente
+                  return (
+                    <li key={`${j.chave.turno}-${j.chave.sentido}-${j.motorista.id}`}>
+                      <Link
+                        to={`/viagens?data=${hoje}&turno=${j.chave.turno}`}
+                        className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-fundo/70"
+                      >
+                        <span className="w-12 shrink-0 text-sm font-extrabold text-marinho tabular-nums">{formatarHorario(j.horario_previsto)}</span>
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marinho text-xs font-bold text-white">
+                          {iniciais(j.motorista.nome)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-bold text-marinho">{j.motorista.nome}</span>
+                          <span className="block truncate text-xs text-slate-500">
+                            {ROTULOS_TURNO[j.chave.turno]} · {j.chave.sentido === 'ida' ? 'Ida' : 'Volta'} · {j.viagens.length} destino(s)
+                          </span>
+                        </span>
+                        <span className="hidden text-xs font-semibold text-slate-500 tabular-nums sm:block">
+                          {j.status === 'agendada' ? `${fila} a buscar` : `${feitos}/${fila}`}
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${atrasada(j) ? 'bg-amber-100 text-amber-700' : PILULA[j.status].classe}`}
+                        >
+                          {j.status === 'em_andamento' && (
+                            <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500 align-middle" />
+                          )}
+                          {atrasada(j) ? 'Atrasada' : PILULA[j.status].rotulo}
+                        </span>
+                      </Link>
+                    </li>
+                  )
+                })}
               </ul>
+              {jornadas.length > 6 && (
+                <p className="mt-2 text-center text-xs text-slate-500">e mais {jornadas.length - 6} na tela de viagens</p>
+              )}
             </>
           )}
         </Cartao>
 
-        <Cartao titulo="Pontos de atenção" className="animate-surgir [animation-delay:400ms]">
-          <ul className="space-y-3 text-sm">
-            {!dados ? (
-              <li className="esqueleto h-14" />
-            ) : dados.estudantes_sem_area > 0 ? (
-              <li>
-                <Link
-                  to="/passageiros"
-                  className="flex gap-3 rounded-xl bg-amber-50 p-3 text-amber-800 transition-colors hover:bg-amber-100"
-                >
-                  <Icone nome="alerta" className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    <strong>{dados.estudantes_sem_area}</strong> passageiro(s) sem área. O endereço não caiu em
-                    nenhuma área de motorista.
-                  </span>
-                </Link>
-              </li>
+        <div className="space-y-6">
+          {/* Chamadas do dia */}
+          <Cartao
+            titulo="Chamadas de hoje"
+            className="animate-surgir [animation-delay:400ms]"
+            acoes={
+              <Link to="/chamadas" className="text-sm font-semibold text-laranja hover:underline">
+                Abrir
+              </Link>
+            }
+          >
+            {!resumoChamadas ? (
+              <div className="esqueleto h-20" />
+            ) : resumoChamadas.passageiros === 0 ? (
+              <p className="py-3 text-sm text-slate-500">Sem passageiros nas viagens de hoje.</p>
             ) : (
-              <li className="flex gap-3 rounded-xl bg-emerald-50 p-3 text-emerald-800">
-                <Icone nome="ok" className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>Todos os passageiros têm área definida.</span>
-              </li>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold text-emerald-700">Confirmados</p>
+                  <p className="mt-1 text-2xl font-extrabold text-emerald-700 tabular-nums">{resumoChamadas.confirmados}</p>
+                </div>
+                <div className="rounded-xl bg-amber-50 p-3">
+                  <p className="text-xs font-semibold text-amber-700">Não vão</p>
+                  <p className="mt-1 text-2xl font-extrabold text-amber-700 tabular-nums">{resumoChamadas.avisaram}</p>
+                </div>
+                <p className="col-span-2 text-xs text-slate-500">
+                  {resumoChamadas.passageiros} passageiro(s) nas viagens
+                  {resumoChamadas.tardios > 0 && ` · ${resumoChamadas.tardios} avisaram em cima da hora`}
+                </p>
+              </div>
             )}
-            {semLocal > 0 && (
-              <li className="flex gap-3 rounded-xl bg-amber-50 p-3 text-amber-800">
-                <Icone nome="pino" className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  <strong>{semLocal}</strong> passageiro(s) sem localização no mapa. Edite o endereço e marque a casa.
-                </span>
-              </li>
-            )}
-          </ul>
-        </Cartao>
+          </Cartao>
+
+          {/* Pontos de atenção */}
+          <Cartao titulo="Pontos de atenção" className="animate-surgir [animation-delay:460ms]">
+            <ul className="space-y-2 text-sm">
+              {!dados ? (
+                <li className="esqueleto h-14" />
+              ) : (
+                <>
+                  {dados.estudantes_sem_area > 0 && (
+                    <li>
+                      <Link to="/passageiros" className="flex gap-3 rounded-xl bg-amber-50 p-3 text-amber-800 transition-colors hover:bg-amber-100">
+                        <Icone nome="alerta" className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>
+                          <strong>{dados.estudantes_sem_area}</strong> passageiro(s) fora de qualquer área de motorista.
+                        </span>
+                      </Link>
+                    </li>
+                  )}
+                  {semLocal > 0 && (
+                    <li className="flex gap-3 rounded-xl bg-amber-50 p-3 text-amber-800">
+                      <Icone nome="pino" className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>
+                        <strong>{semLocal}</strong> passageiro(s) sem localização no mapa.
+                      </span>
+                    </li>
+                  )}
+                  {cnhs.slice(0, 3).map(({ motorista, situacao, dias }) => (
+                    <li key={motorista.id}>
+                      <Link
+                        to="/motoristas"
+                        className={`flex gap-3 rounded-xl p-3 transition-colors ${
+                          situacao === 'vencida' ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                        }`}
+                      >
+                        <Icone nome="cnh" className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>
+                          CNH de <strong>{motorista.nome}</strong>{' '}
+                          {situacao === 'vencida' ? `vencida há ${-dias} dia(s)` : `vence em ${dias} dia(s)`}.
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                  {dados.estudantes_sem_area === 0 && semLocal === 0 && cnhs.length === 0 && (
+                    <li className="flex gap-3 rounded-xl bg-emerald-50 p-3 text-emerald-800">
+                      <Icone nome="ok" className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>Tudo em dia: passageiros com área e localização e CNHs válidas.</span>
+                    </li>
+                  )}
+                </>
+              )}
+            </ul>
+          </Cartao>
+        </div>
       </div>
 
       <Cartao
         titulo="Mapa dos passageiros"
-        className="mt-6 animate-surgir [animation-delay:460ms]"
+        className="mt-6 animate-surgir [animation-delay:520ms]"
         acoes={
           <Link to="/mapa" className="group flex items-center gap-1 text-sm font-semibold text-laranja">
             Abrir mapa completo
@@ -190,7 +290,7 @@ export default function PaginaPainel() {
         }
       >
         <div className="overflow-hidden rounded-xl ring-1 ring-slate-200/70">
-          <MapaBase className="h-96" rolagem={false}>
+          <MapaBase className="h-80" rolagem={false}>
             <Enquadrar
               pontos={[...(areas.dados ?? []).flatMap((a) => a.poligono), ...comLocal.map((e) => coordenadaDo(e)!)]}
               chave={`${areas.dados?.length ?? 0}-${comLocal.length}`}
@@ -249,6 +349,8 @@ const FUNDOS: Record<Periodo, string> = {
 
 /** Faixa de boas-vindas: resumo do dia, próximas saídas e a van na estrada. */
 function BoasVindas({ rotas }: { rotas: Rota[] | null }) {
+  const { usuario } = useSessao()
+  const primeiroNome = usuario?.nome.split(' ')[0] ?? ''
   const agora = new Date()
   const periodo = periodoDoDia(agora.getHours())
   const horaAgora = agora.toTimeString().slice(0, 5)
@@ -271,8 +373,11 @@ function BoasVindas({ rotas }: { rotas: Rota[] | null }) {
 
       <div className="relative grid grid-cols-1 gap-6 px-6 pt-6 pb-36 sm:px-8 lg:grid-cols-[1fr_360px] lg:pb-28">
         <div>
-          <p className="text-xs font-bold tracking-widest text-white/60 uppercase">{dataExtenso}</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{saudacao()}, Administrador</h1>
+          <p className="flex flex-wrap items-center gap-2 text-xs font-bold tracking-widest text-white/60 uppercase">
+            {dataExtenso}
+            {usuario && <span className="rounded-full bg-white/10 px-2 py-0.5 tracking-normal normal-case">{ROTULOS_PERFIL[usuario.perfil]}</span>}
+          </p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{saudacao()}, {primeiroNome}</h1>
           <p className="mt-2 max-w-xl text-sm text-white/75">
             {rotas === null
               ? 'Carregando o resumo de hoje...'
@@ -289,11 +394,11 @@ function BoasVindas({ rotas }: { rotas: Rota[] | null }) {
               Novo passageiro
             </Link>
             <Link
-              to="/mapa?aba=rotas"
+              to="/viagens"
               className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-bold ring-1 ring-white/20 backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white/20"
             >
-              <Icone nome="rota" className="h-4 w-4" />
-              Ver as rotas
+              <Icone nome="mala" className="h-4 w-4" />
+              Viagens de hoje
             </Link>
           </div>
         </div>
