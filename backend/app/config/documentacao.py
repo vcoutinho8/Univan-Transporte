@@ -29,6 +29,10 @@ Abra um grupo, escolha uma rota e clique em **Try it out** para chamar a API de 
 - **Empresa da sessão.** Os cadastros entram na empresa de quem usa o sistema; enquanto o login
   não existe, ela vem da variável `EMPRESA_ATUAL_ID`.
 
+## Login
+Todas as rotas, menos **Acesso** e **Saúde**, exigem login. No Swagger, use **Authorize** com o
+token de `POST /auth/login`. Sem login a resposta é 401; com um perfil sem permissão, 403.
+
 ## Erros
 Todo erro devolve uma `mensagem` em português, pronta para mostrar na tela. Erros de
 validação (422) trazem também a lista `erros`, com o campo e o problema de cada um.
@@ -44,6 +48,12 @@ validação (422) trazem também a lista `erros`, com o campo e o problema de ca
 
 # Ordem e explicação dos grupos no Swagger (o nome é o mesmo usado em `tags=` dos roteadores).
 TAGS: list[dict[str, str]] = [
+    {
+        "name": "Acesso",
+        "description": "Login com usuário e senha (ex.: admin / 123456 nos dados de teste). O token devolvido vai em todas as outras rotas "
+        "(`Authorization: Bearer <token>`). Perfis: **admin** (tudo), **auxiliar** (apoio: não edita nem "
+        "inativa cadastros e só visualiza viagens) e **motorista** (as próprias viagens e chamadas).",
+    },
     {"name": "Painel", "description": "Números da tela inicial: totais ativos e viagens do dia."},
     {
         "name": "Passageiros",
@@ -121,7 +131,10 @@ class RespostaErro(BaseModel):
 
 
 _EXEMPLOS: dict[int, tuple[str, dict[str, Any]]] = {
+    401: ("Sem login ou sessão expirada.", {"mensagem": "Entre no sistema para continuar."}),
+    403: ("O perfil do usuário não tem acesso a esta ação.", {"mensagem": "Seu perfil (auxiliar) não tem acesso a esta ação."}),
     404: ("Registro não encontrado.", {"mensagem": "Passageiro não encontrado."}),
+    429: ("Muitas tentativas de login erradas.", {"mensagem": "Muitas tentativas erradas. Tente de novo em 5 minuto(s)."}),
     409: ("Conflito com dados já gravados.", {"mensagem": "Já existe um veículo com esta placa."}),
     422: (
         "Dados inválidos ou recusados pela regra de negócio.",

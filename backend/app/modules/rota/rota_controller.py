@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN_OU_AUXILIAR
 from app.modules.estudante.estudante_schema import EstudanteResposta
 from app.modules.instituicao.instituicao_repositorio import RepositorioInstituicao
 from app.modules.motorista.motorista_repositorio import RepositorioMotorista
@@ -15,7 +16,7 @@ from app.modules.rota.rota_schema import RotaAtualizacao, RotaCriacao, RotaRespo
 from app.modules.rota.rota_servico import ServicoRota
 from app.shared.enums import StatusCadastro
 
-roteador = APIRouter(prefix="/rotas", tags=["Rotas"])
+roteador = APIRouter(prefix="/rotas", tags=["Rotas"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_rota(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoRota:

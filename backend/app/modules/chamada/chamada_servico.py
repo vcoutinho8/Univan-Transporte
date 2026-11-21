@@ -109,6 +109,22 @@ class ServicoChamada:
             passageiros=passageiros,
         )
 
+    @staticmethod
+    def so_do_motorista(dia: ChamadasDoDia, fk_motorista: int | None) -> ChamadasDoDia:
+        """Recorta o dia para os passageiros de um motorista (o resumo é refeito)."""
+        passageiros = [p for p in dia.passageiros if p.motorista.id == fk_motorista]
+        avisaram = [p for p in passageiros if any(s and s.status == StatusChamada.NAO_VAI for s in (p.ida, p.volta))]
+        return ChamadasDoDia(
+            data=dia.data,
+            resumo=ResumoChamadas(
+                passageiros=len(passageiros),
+                confirmados=len(passageiros) - len(avisaram),
+                avisaram=len(avisaram),
+                tardios=sum(1 for p in avisaram if any(s and s.tardio for s in (p.ida, p.volta))),
+            ),
+            passageiros=passageiros,
+        )
+
     def avisar(self, pedido: AvisoPedido) -> PassageiroDoDia:
         """Marca "não vai" nos sentidos pedidos. Só enquanto a viagem não terminou e o passageiro não embarcou."""
         alvo = self._alvos(pedido)

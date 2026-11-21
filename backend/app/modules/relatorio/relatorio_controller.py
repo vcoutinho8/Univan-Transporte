@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN_OU_AUXILIAR
 from app.modules.relatorio.relatorio_repositorio import RepositorioRelatorio
 from app.modules.relatorio.relatorio_schema import RelatorioDiasSemAula, RelatorioEstudantesAtivos
 from app.modules.relatorio.relatorio_servico import ServicoRelatorio
 from app.shared.enums import Turno
 
-roteador = APIRouter(prefix="/relatorios", tags=["Relatórios"])
+roteador = APIRouter(prefix="/relatorios", tags=["Relatórios"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_relatorio(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoRelatorio:

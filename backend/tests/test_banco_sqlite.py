@@ -38,8 +38,19 @@ def cliente(fabrica):
             sessao.close()
 
     app.dependency_overrides[obter_sessao] = sessao_de_teste
-    yield TestClient(app)
+    cliente = TestClient(app)
+    # Os testes rodam logados como administrador (acesso a tudo); os de permissão trocam o usuário.
+    entrar(cliente, "admin", "123456")
+    yield cliente
     app.dependency_overrides.clear()
+
+
+def entrar(cliente: TestClient, usuario: str, senha: str) -> dict:
+    """Faz login e deixa o token no cliente para as próximas requisições."""
+    resposta = cliente.post("/api/auth/login", json={"usuario": usuario, "senha": senha})
+    assert resposta.status_code == 200, resposta.text
+    cliente.headers["Authorization"] = f"Bearer {resposta.json()['token']}"
+    return resposta.json()
 
 
 def test_preparar_banco_cria_o_arquivo(tmp_path):

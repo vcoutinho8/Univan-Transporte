@@ -10,11 +10,12 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.config.configuracoes import obter_configuracoes
+from app.config.seguranca import Logado
 
 
-def obter_id_empresa_atual() -> int:
-    return obter_configuracoes().id_empresa_atual
+def obter_id_empresa_atual(usuario: Logado) -> int:
+    """Empresa do usuário logado: os cadastros entram nela."""
+    return usuario.fk_empresa
 
 
 IdEmpresaAtual = Annotated[int, Depends(obter_id_empresa_atual)]

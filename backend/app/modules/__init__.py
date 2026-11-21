@@ -24,6 +24,7 @@ from app.modules.financeiro.titulo_receber_model import TituloReceber
 from app.modules.instituicao.instituicao_model import Instituicao
 from app.modules.motorista.motorista_model import Motorista
 from app.modules.rota.rota_model import Rota, RotaDia
+from app.modules.usuario.usuario_model import Usuario
 from app.modules.veiculo.veiculo_model import Veiculo
 from app.modules.viagem.viagem_model import Viagem
 
@@ -40,6 +41,7 @@ __all__ = [
     "RotaDia",
     "TituloPagar",
     "TituloReceber",
+    "Usuario",
     "Veiculo",
     "Viagem",
 ]

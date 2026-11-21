@@ -237,6 +237,29 @@ CREATE TABLE titulo_pagar (
     CONSTRAINT titulo_pagar_status_check CHECK (status IN ('aberto', 'pago', 'cancelado'))
 );
 
+-- ---------------------------------------------------------------- Acesso ao sistema
+
+-- Quem entra no sistema. Perfis: admin (tudo), auxiliar (apoio do admin, sem editar nem
+-- inativar cadastros) e motorista (as próprias viagens e chamadas; precisa de fk_motorista).
+-- A senha nunca é guardada: só o hash scrypt ("scrypt$n$r$p$sal$hash").
+CREATE TABLE usuario (
+    id            INTEGER PRIMARY KEY,
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
+    nome          TEXT NOT NULL,
+    login         TEXT NOT NULL,
+    senha_hash    TEXT NOT NULL,
+    perfil        TEXT NOT NULL,
+    fk_motorista  INTEGER REFERENCES motorista (id),
+    status        TEXT NOT NULL DEFAULT 'ativo',
+    ultimo_acesso TEXT,
+    CONSTRAINT usuario_login_key UNIQUE (login),
+    CONSTRAINT usuario_login_check CHECK (length(login) BETWEEN 3 AND 30 AND login NOT GLOB '*[^a-z0-9._-]*'),
+    CONSTRAINT usuario_fk_motorista_key UNIQUE (fk_motorista),
+    CONSTRAINT usuario_perfil_check CHECK (perfil IN ('admin', 'auxiliar', 'motorista')),
+    CONSTRAINT usuario_motorista_check CHECK ((perfil = 'motorista') = (fk_motorista IS NOT NULL)),
+    CONSTRAINT usuario_status_check CHECK (status IN ('ativo', 'inativo'))
+);
+
 -- =============================================================================
 -- Dados de teste (passageiros de Guarapari indo para Vila Velha/Vitória, ES)
 -- =============================================================================
@@ -655,6 +678,12 @@ INSERT INTO viagem VALUES (7, 7, 2, 2, '2026-10-29', 'ida', '2026-10-29 06:05:00
 INSERT INTO viagem VALUES (8, 8, 3, 3, '2026-10-29', 'ida', '2026-10-29 06:25:00', NULL, 'cancelada');
 INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendada');
 INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada');
+
+-- usuario (login: admin, auxiliar, motorista e joao; senha de teste 123456 para todos: troque em produção)
+INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL);
+INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL);
+INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL);
+INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL);
 
 -- =============================================================================
 -- Índices

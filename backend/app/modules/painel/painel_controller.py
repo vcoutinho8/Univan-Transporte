@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
+from app.config.seguranca import ADMIN_OU_AUXILIAR
 from app.modules.painel.painel_repositorio import RepositorioPainel
 from app.modules.painel.painel_schema import ResumoPainel
 from app.modules.painel.painel_servico import ServicoPainel
 
-roteador = APIRouter(prefix="/painel", tags=["Painel"])
+roteador = APIRouter(prefix="/painel", tags=["Painel"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_painel(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoPainel:

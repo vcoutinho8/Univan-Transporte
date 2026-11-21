@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
 from app.config.erros import DadosInvalidos, RecursoNaoEncontrado
+from app.config.seguranca import ADMIN_OU_AUXILIAR, TODOS
 from app.modules.instituicao.instituicao_repositorio import RepositorioInstituicao
 from app.modules.instituicao.instituicao_schema import InstituicaoResposta, ParadaPedido
 
-roteador = APIRouter(prefix="/instituicoes", tags=["Instituições"])
+roteador = APIRouter(prefix="/instituicoes", tags=["Instituições"], dependencies=[TODOS])
 
 # Um ajuste de pino, não uma mudança de endereço: a parada fica perto da faculdade.
 DISTANCIA_MAXIMA_KM = 1.0
@@ -39,6 +40,7 @@ def listar_instituicoes(repositorio: Repositorio):
 
 @roteador.patch(
     "/{id_instituicao}/parada",
+    dependencies=[ADMIN_OU_AUXILIAR],
     response_model=InstituicaoResposta,
     summary="Ajustar o ponto de parada na rua (vazio = volta a usar o endereço)",
     responses=erros(404, 409),

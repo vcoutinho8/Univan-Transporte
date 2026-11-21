@@ -33,6 +33,9 @@ class Configuracoes(BaseSettings):
     origens_cors: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
     # Empresa usada enquanto o login não existe (ver app/config/empresa_atual.py).
     id_empresa_atual: int = Field(default=1, gt=0, alias="EMPRESA_ATUAL_ID")
+    # Assina os tokens de sessão. Em produção, defina SECRET_KEY no .env com um valor longo e aleatório.
+    chave_secreta: str = Field(default="univan-dev-troque-esta-chave-em-producao", alias="SECRET_KEY", min_length=16)
+    minutos_sessao: int = Field(default=8 * 60, gt=0, alias="SESSION_MINUTES")
 
     @property
     def url_banco_resolvida(self) -> str:

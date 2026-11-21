@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.autenticacao import logar_como_admin
 from app.modules.painel.painel_controller import obter_servico_painel
 from app.modules.painel.painel_servico import ServicoPainel
 from app.shared.enums import StatusViagem
@@ -39,6 +40,7 @@ class RepositorioPainelFalso:
 def repositorio():
     repositorio = RepositorioPainelFalso()
     app.dependency_overrides[obter_servico_painel] = lambda: ServicoPainel(repositorio)
+    logar_como_admin()
     yield repositorio
     app.dependency_overrides.clear()
 

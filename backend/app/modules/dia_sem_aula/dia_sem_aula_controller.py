@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN_OU_AUXILIAR
 from app.modules.dia_sem_aula.dia_sem_aula_repositorio import RepositorioDiaSemAula
 from app.modules.dia_sem_aula.dia_sem_aula_schema import (
     DiaSemAulaResposta,
@@ -20,7 +21,7 @@ from app.modules.dia_sem_aula.dia_sem_aula_schema import (
 from app.modules.dia_sem_aula.dia_sem_aula_servico import ServicoDiaSemAula
 from app.modules.instituicao.instituicao_repositorio import RepositorioInstituicao
 
-roteador = APIRouter(prefix="/dias-sem-aula", tags=["Dias sem aula"])
+roteador = APIRouter(prefix="/dias-sem-aula", tags=["Dias sem aula"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoDiaSemAula:

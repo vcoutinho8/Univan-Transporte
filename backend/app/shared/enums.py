@@ -4,7 +4,7 @@ import enum
 
 
 class StatusCadastro(str, enum.Enum):
-    """Situação do cadastro em veiculo, motorista, area, estudante, rota."""
+    """Situação do cadastro em veiculo, motorista, area, estudante, rota, usuario."""
 
     ATIVO = "ativo"
     INATIVO = "inativo"
@@ -60,3 +60,11 @@ class CategoriaTituloPagar(str, enum.Enum):
     SEGURO = "seguro"
     IMPOSTOS = "impostos"
     OUTROS = "outros"
+
+
+class PerfilUsuario(str, enum.Enum):
+    """Perfil de acesso do usuário (usuario.perfil)."""
+
+    ADMIN = "admin"
+    AUXILIAR = "auxiliar"
+    MOTORISTA = "motorista"

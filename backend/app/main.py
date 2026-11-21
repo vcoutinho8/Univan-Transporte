@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.modules as _registro_models  # noqa: F401  (registra todos os models)
 from app.config.banco import preparar_banco
 from app.config.configuracoes import obter_configuracoes
-from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS
+from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS, erros
 from app.config.erros import registrar_tratadores_erro
 from app.config.registro_log import configurar_log, registrar_log_requisicoes
 from app.modules.area import area_controller
@@ -25,6 +25,7 @@ from app.modules.painel import painel_controller
 from app.modules.relatorio import relatorio_controller
 from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
+from app.modules.usuario import usuario_controller
 from app.modules.veiculo import veiculo_controller
 from app.modules.viagem import viagem_controller
 
@@ -33,6 +34,7 @@ PREFIXO_API = "/api"
 # Cada módulo com rotas HTTP expõe um `roteador`. Para um módulo novo, basta incluí-lo aqui.
 CONTROLLERS = (
     saude_controller,
+    usuario_controller,
     painel_controller,
     empresa_controller,
     veiculo_controller,
@@ -83,8 +85,11 @@ def criar_aplicacao() -> FastAPI:
     registrar_tratadores_erro(app)
     registrar_log_requisicoes(app)
 
+    # Saúde e login são públicos; as demais rotas exigem login (401) e, conforme o perfil, negam (403).
+    publicos = {saude_controller, usuario_controller}
     for controller in CONTROLLERS:
-        app.include_router(controller.roteador, prefix=PREFIXO_API, responses=ERROS_COMUNS)
+        respostas = ERROS_COMUNS if controller in publicos else {**ERROS_COMUNS, **erros(401, 403)}
+        app.include_router(controller.roteador, prefix=PREFIXO_API, responses=respostas)
 
     return app
 

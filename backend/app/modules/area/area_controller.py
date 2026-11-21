@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN_OU_AUXILIAR
 from app.modules.area.area_repositorio import RepositorioArea
 from app.modules.area.area_schema import AreaAtualizacao, AreaCriacao, AreaResposta
 from app.modules.area.area_servico import ServicoArea
 from app.modules.motorista.motorista_repositorio import RepositorioMotorista
 from app.shared.enums import StatusCadastro
 
-roteador = APIRouter(prefix="/areas", tags=["Áreas"])
+roteador = APIRouter(prefix="/areas", tags=["Áreas"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_area(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoArea:

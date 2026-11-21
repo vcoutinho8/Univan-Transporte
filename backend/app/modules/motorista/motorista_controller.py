@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN, ADMIN_OU_AUXILIAR
 from app.config.empresa_atual import IdEmpresaAtual
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
 from app.modules.motorista.motorista_repositorio import RepositorioMotorista
@@ -15,7 +16,7 @@ from app.modules.motorista.motorista_servico import ServicoMotorista
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
 from app.shared.enums import StatusCadastro
 
-roteador = APIRouter(prefix="/motoristas", tags=["Motoristas"])
+roteador = APIRouter(prefix="/motoristas", tags=["Motoristas"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_motorista(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoMotorista:
@@ -50,7 +51,7 @@ def cadastrar_motorista(dados: MotoristaCriacao, servico: Servico, id_empresa: I
 
 
 @roteador.patch(
-    "/{id_motorista}", response_model=MotoristaResposta, summary="Alterar motorista", responses=erros(404, 409)
+    "/{id_motorista}", dependencies=[ADMIN], response_model=MotoristaResposta, summary="Alterar motorista", responses=erros(404, 409)
 )
 def atualizar_motorista(id_motorista: int, dados: MotoristaAtualizacao, servico: Servico):
     return servico.atualizar(id_motorista, dados)
@@ -58,7 +59,7 @@ def atualizar_motorista(id_motorista: int, dados: MotoristaAtualizacao, servico:
 
 @roteador.delete(
     "/{id_motorista}",
-    response_model=MotoristaResposta,
+    dependencies=[ADMIN], response_model=MotoristaResposta,
     summary="Inativar motorista (não apaga o registro)",
     responses=erros(404, 409),
 )

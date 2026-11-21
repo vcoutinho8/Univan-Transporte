@@ -23,6 +23,18 @@ class ErroNegocio(Exception):
             self.codigo_http = codigo_http
 
 
+class NaoAutenticado(ErroNegocio):
+    """Sem login, token inválido ou expirado."""
+
+    codigo_http = status.HTTP_401_UNAUTHORIZED
+
+
+class AcessoNegado(ErroNegocio):
+    """Logado, mas o perfil não tem permissão para a ação."""
+
+    codigo_http = status.HTTP_403_FORBIDDEN
+
+
 class RecursoNaoEncontrado(ErroNegocio):
     codigo_http = status.HTTP_404_NOT_FOUND
 
@@ -58,6 +70,10 @@ MENSAGENS_RESTRICOES = {
     ),
     "rota_dia_dia_semana_check": "O dia da semana deve estar entre 1 e 7.",
     "dia_sem_aula_data_fk_instituicao_key": "Este dia sem aula já foi cadastrado.",
+    "usuario_login_key": "Já existe um usuário com este login.",
+    "usuario_login_check": "Usuário inválido: use de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado.",
+    "usuario_fk_motorista_key": "Este motorista já tem um usuário.",
+    "usuario_motorista_check": "Usuário do perfil motorista precisa de um motorista (e só ele).",
     "viagem_fk_rota_data_sentido_key": "Já existe viagem desta rota nesta data e sentido.",
     "chamada_pkey": "Este estudante já está na chamada desta viagem.",
     "titulo_receber_fk_estudante_competencia_key": (
@@ -76,6 +92,8 @@ MENSAGENS_RESTRICOES = {
 # Este mapa leva as colunas ao nome da restrição, para reaproveitar MENSAGENS_RESTRICOES.
 RESTRICOES_UNIQUE_SQLITE = {
     "veiculo.placa": "veiculo_placa_key",
+    "usuario.login": "usuario_login_key",
+    "usuario.fk_motorista": "usuario_fk_motorista_key",
     "empresa.cnpj": "empresa_cnpj_key",
     "estudante.cpf": "estudante_cpf_key",
     "motorista.cpf": "motorista_cpf_key",

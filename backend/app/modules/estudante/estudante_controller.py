@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN, ADMIN_OU_AUXILIAR
 from app.modules.estudante.estudante_repositorio import RepositorioEstudante
 from app.modules.estudante.estudante_schema import (
     EstudanteAtualizacao,
@@ -17,7 +18,7 @@ from app.modules.estudante.estudante_servico import ServicoEstudante
 from app.modules.instituicao.instituicao_repositorio import RepositorioInstituicao
 from app.shared.enums import StatusCadastro
 
-roteador = APIRouter(prefix="/estudantes", tags=["Passageiros"])
+roteador = APIRouter(prefix="/estudantes", tags=["Passageiros"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_estudante(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoEstudante:
@@ -53,14 +54,14 @@ def cadastrar_estudante(dados: EstudanteCriacao, servico: Servico):
     return servico.cadastrar(dados)
 
 
-@roteador.patch("/{id_estudante}", response_model=EstudanteResposta, summary="Alterar passageiro", responses=erros(404, 409))
+@roteador.patch("/{id_estudante}", dependencies=[ADMIN], response_model=EstudanteResposta, summary="Alterar passageiro", responses=erros(404, 409))
 def atualizar_estudante(id_estudante: int, dados: EstudanteAtualizacao, servico: Servico):
     return servico.atualizar(id_estudante, dados)
 
 
 @roteador.delete(
     "/{id_estudante}",
-    response_model=EstudanteResposta,
+    dependencies=[ADMIN], response_model=EstudanteResposta,
     summary="Inativar passageiro (não apaga o registro)",
     responses=erros(404, 409),
 )

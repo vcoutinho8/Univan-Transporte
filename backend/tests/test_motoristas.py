@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.config.empresa_atual import obter_id_empresa_atual
 from app.main import app
+from tests.autenticacao import logar_como_admin
 from app.modules.empresa.empresa_model import Empresa
 from app.modules.motorista.motorista_controller import obter_servico_motorista
 from app.modules.motorista.motorista_model import Motorista
@@ -84,6 +85,7 @@ def ambiente():
     repositorio_motorista = RepositorioMotoristaFalso(repositorio_veiculo)
     servico = ServicoMotorista(repositorio_motorista, repositorio_veiculo, repositorio_empresa)
     app.dependency_overrides[obter_servico_motorista] = lambda: servico
+    logar_como_admin()
     app.dependency_overrides[obter_id_empresa_atual] = lambda: 1
     yield SimpleNamespace(cliente=TestClient(app), motoristas=repositorio_motorista)
     app.dependency_overrides.clear()

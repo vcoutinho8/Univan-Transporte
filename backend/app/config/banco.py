@@ -66,10 +66,29 @@ COLUNAS_NOVAS = (
 )
 
 
+# Tabelas criadas depois da primeira versão do script: num banco antigo, são criadas (com os dados
+# de teste delas) a partir do próprio docs/univan-sqlite.sql.
+TABELAS_NOVAS = ("usuario",)
+
+
+def _sql_da_tabela(tabela: str) -> str:
+    """CREATE TABLE e INSERTs da tabela, copiados de docs/univan-sqlite.sql."""
+    script = SCRIPT_SQLITE.read_text(encoding="utf-8")
+    inicio = script.index(f"CREATE TABLE {tabela} (")
+    criar = script[inicio : script.index(");", inicio) + 2]
+    inserts = [linha for linha in script.splitlines() if linha.startswith(f"INSERT INTO {tabela} VALUES")]
+    return "\n".join([criar, *inserts])
+
+
 def atualizar_estrutura(arquivo: Path) -> None:
-    """Adiciona ao banco existente as colunas de COLUNAS_NOVAS que ainda faltarem."""
+    """Completa um banco antigo: tabelas de TABELAS_NOVAS e colunas de COLUNAS_NOVAS que faltarem."""
     conexao = sqlite3.connect(arquivo)
     try:
+        existentes_tabelas = {linha[0] for linha in conexao.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        for tabela in TABELAS_NOVAS:
+            if existentes_tabelas and tabela not in existentes_tabelas:
+                log.warning("Banco %s: criando a tabela %s.", arquivo.name, tabela)
+                conexao.executescript(_sql_da_tabela(tabela))
         for tabela, coluna, tipo in COLUNAS_NOVAS:
             existentes = {linha[1] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
             if existentes and coluna not in existentes:

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
+from app.config.seguranca import ADMIN, ADMIN_OU_AUXILIAR
 from app.config.empresa_atual import IdEmpresaAtual
 from app.shared.enums import StatusCadastro
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
@@ -14,7 +15,7 @@ from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
 from app.modules.veiculo.veiculo_schema import VeiculoAtualizacao, VeiculoCriacao, VeiculoResposta
 from app.modules.veiculo.veiculo_servico import ServicoVeiculo
 
-roteador = APIRouter(prefix="/veiculos", tags=["Veículos"])
+roteador = APIRouter(prefix="/veiculos", tags=["Veículos"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_veiculo(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoVeiculo:
@@ -49,14 +50,14 @@ def cadastrar_veiculo(dados: VeiculoCriacao, servico: Servico, id_empresa: IdEmp
     return servico.cadastrar(dados, id_empresa)
 
 
-@roteador.patch("/{id_veiculo}", response_model=VeiculoResposta, summary="Alterar veículo", responses=erros(404, 409))
+@roteador.patch("/{id_veiculo}", dependencies=[ADMIN], response_model=VeiculoResposta, summary="Alterar veículo", responses=erros(404, 409))
 def atualizar_veiculo(id_veiculo: int, dados: VeiculoAtualizacao, servico: Servico):
     return servico.atualizar(id_veiculo, dados)
 
 
 @roteador.delete(
     "/{id_veiculo}",
-    response_model=VeiculoResposta,
+    dependencies=[ADMIN], response_model=VeiculoResposta,
     summary="Inativar veículo (não apaga o registro)",
     responses=erros(404, 409),
 )
