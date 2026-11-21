@@ -71,6 +71,11 @@ TAGS: list[dict[str, str]] = [
         "concluir (quem ficou pendente vira ausente), cancelar ou trocar motorista/veículo só naquele dia.",
     },
     {
+        "name": "Chamadas",
+        "description": "Aviso prévio do passageiro: quem vai e quem avisou que não vai em cada sentido do dia. "
+        "Quem avisa sai da fila do motorista; aviso com menos de 1 hora fica marcado como de última hora.",
+    },
+    {
         "name": "Dias sem aula",
         "description": "Feriados, recessos e férias acadêmicas, por dia ou período, para todas as instituições "
         "ou só uma. Nesses dias a geração de viagens não cria nada para as instituições afetadas.",

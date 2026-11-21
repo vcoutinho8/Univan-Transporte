@@ -77,7 +77,8 @@ export function umaRota(dados: Partial<Rota> = {}): Rota {
   }
 }
 
-export function umaInstituicao(id: number, nome: string, ponto: Coordenada): Instituicao {
+/** Instituição de exemplo; `parada` simula o ponto de parada ajustado na rua. */
+export function umaInstituicao(id: number, nome: string, ponto: Coordenada, parada: Coordenada | null = null): Instituicao {
   return {
     id,
     nome,
@@ -93,5 +94,8 @@ export function umaInstituicao(id: number, nome: string, ponto: Coordenada): Ins
       latitude: ponto[0],
       longitude: ponto[1],
     },
+    parada_latitude: parada?.[0] ?? null,
+    parada_longitude: parada?.[1] ?? null,
+    ponto_parada: parada ?? ponto,
   }
 }

@@ -56,6 +56,13 @@ describe('viagem do motorista num turno', () => {
     ])
   })
 
+  it('termina no ponto de parada da faculdade (na rua), não no endereço', () => {
+    const uvvNaRua = umaInstituicao(1, 'UVV', [-20.35, -40.29], [-20.3512, -40.2915])
+    const comParada = montarViagem(1, 'noite', rotas, [umaArea()], estudantes, [uvvNaRua, multivix])
+    expect(comParada.destinos.find((d) => d.instituicao.id === 1)?.ponto).toEqual([-20.3512, -40.2915])
+    expect(viagem.destinos.find((d) => d.instituicao.id === 1)?.ponto).toEqual([-20.35, -40.29]) // sem ajuste: endereço
+  })
+
   it('não mostra faculdade sem passageiro', () => {
     const soAna = montarViagem(1, 'noite', rotas, [umaArea()], [estudantes[1]], [uvv, multivix])
     expect(soAna.destinos.map((d) => d.instituicao.nome)).toEqual(['Multivix'])

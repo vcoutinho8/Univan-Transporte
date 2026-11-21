@@ -15,4 +15,13 @@ class RepositorioInstituicao:
         return list(self.sessao.scalars(consulta))
 
     def buscar_por_id(self, id_instituicao: int) -> Instituicao | None:
-        return self.sessao.get(Instituicao, id_instituicao)
+        return self.sessao.get(Instituicao, id_instituicao, options=[joinedload(Instituicao.endereco)])
+
+    def salvar(self, instituicao: Instituicao) -> Instituicao:
+        self.sessao.add(instituicao)
+        try:
+            self.sessao.commit()
+        except Exception:
+            self.sessao.rollback()
+            raise
+        return instituicao

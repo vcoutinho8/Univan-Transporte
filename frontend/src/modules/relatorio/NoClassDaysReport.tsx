@@ -194,7 +194,7 @@ export default function RelatorioDiasSemAulaTela() {
           </div>
         </Cartao>
       ) : (
-        <div className="grid min-h-[45vh] place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-8 text-center">
+        <div className="grid min-h-[13rem] place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-6 text-center">
           <div className="max-w-md">
             <span className={`mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-laranja/10 text-laranja ${gerando ? 'animate-pulse' : ''}`}>
               <Icone nome="viagem" className="h-8 w-8" />

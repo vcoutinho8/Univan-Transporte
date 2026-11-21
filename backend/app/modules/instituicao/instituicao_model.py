@@ -1,8 +1,9 @@
 """Tabela `instituicao`: a faculdade de destino."""
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.base import Base
@@ -19,5 +20,8 @@ class Instituicao(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(100))
     fk_endereco: Mapped[int] = mapped_column(ForeignKey("endereco.id"))
+    # Onde a van para, na rua. Vazio = usa a localização do endereço (que pode cair dentro do campus).
+    parada_latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    parada_longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
 
     endereco: Mapped["Endereco"] = relationship()

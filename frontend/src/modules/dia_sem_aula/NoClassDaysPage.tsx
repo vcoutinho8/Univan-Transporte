@@ -154,34 +154,34 @@ export default function PaginaCalendario() {
       />
 
       {/* Números do mês */}
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
           <p className="text-xs font-semibold text-slate-500">Dias sem aula no mês</p>
-          <p className="mt-1 text-2xl font-extrabold text-marinho tabular-nums">{datasDoMes.size}</p>
+          <p className="text-xl font-extrabold text-marinho tabular-nums">{datasDoMes.size}</p>
         </div>
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
           <p className="text-xs font-semibold text-slate-500">Dias úteis sem viagem</p>
-          <p className="mt-1 text-2xl font-extrabold text-marinho tabular-nums">{uteisDoMes}</p>
+          <p className="text-xl font-extrabold text-marinho tabular-nums">{uteisDoMes}</p>
         </div>
-        <div className="rounded-2xl bg-marinho p-4 text-white shadow-sm">
+        <div className="rounded-2xl bg-marinho px-4 py-3 text-white shadow-sm">
           <p className="text-xs font-semibold text-white/70">Próximo dia sem aula</p>
           {proximo ? (
-            <p className="mt-1 truncate text-lg font-extrabold">
+            <p className="truncate text-lg font-extrabold">
               {proximo.motivo}
               <span className="ml-2 text-sm font-semibold text-white/70">
                 {diasAte(proximo.inicio, hoje) <= 0 ? 'hoje' : `em ${diasAte(proximo.inicio, hoje)} dia(s)`}
               </span>
             </p>
           ) : (
-            <p className="mt-1 text-lg font-extrabold">Nenhum nos próximos 12 meses</p>
+            <p className="text-lg font-extrabold">Nenhum nos próximos 12 meses</p>
           )}
         </div>
       </div>
 
       <div className="grid items-start gap-5 xl:grid-cols-[1fr_22rem]">
         {/* Calendário */}
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 sm:p-6">
-          <header className="mb-5 flex items-center justify-between gap-3">
+        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 sm:px-6 sm:py-4">
+          <header className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-extrabold text-marinho">{nomeDoMes(mes)}</h2>
               <p className="text-xs text-slate-500">Clique num dia ou arraste para marcar um período.</p>
@@ -228,7 +228,7 @@ export default function PaginaCalendario() {
                   key={dia}
                   data-dia={dia}
                   title={registros.map((r) => (r.instituicao ? `${r.instituicao.nome}: ${r.motivo}` : r.motivo)).join(' · ') || undefined}
-                  className={`relative h-16 cursor-pointer px-0.5 transition-colors sm:h-24 ${
+                  className={`relative h-14 cursor-pointer px-0.5 transition-colors sm:h-[clamp(3.5rem,calc((100dvh-24.5rem)/6),6rem)] ${
                     posicao
                       ? `bg-laranja/15 ${posicao.abreLinha ? 'rounded-l-2xl' : ''} ${posicao.fechaLinha ? 'rounded-r-2xl' : ''}`
                       : ''
@@ -282,7 +282,7 @@ export default function PaginaCalendario() {
             })}
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-rose-500" /> Sem aula em todas</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-amber-400" /> Sem aula em algumas</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-marinho" /> Hoje</span>
@@ -295,7 +295,7 @@ export default function PaginaCalendario() {
         </section>
 
         {/* Lista do mês */}
-        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">
+        <section className="flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 xl:max-h-[calc(100dvh-14rem)]">
           <h2 className="border-b border-slate-100 px-5 py-4 font-bold text-marinho">Sem aula em {nomeDoMes(mes).toLowerCase()}</h2>
           {doMes.dados && doMes.dados.length === 0 && (
             <div className="px-6 py-10 text-center">
@@ -306,7 +306,7 @@ export default function PaginaCalendario() {
               <p className="mt-1 text-xs text-slate-500">Arraste no calendário para marcar férias ou feriados.</p>
             </div>
           )}
-          <ul className="divide-y divide-slate-100">
+          <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
             {doMes.dados?.map((p) => (
               <li key={p.ids[0]} className="group flex items-center gap-3 px-4 py-3">
                 <BlocoData iso={p.inicio} geral={!p.instituicao} />

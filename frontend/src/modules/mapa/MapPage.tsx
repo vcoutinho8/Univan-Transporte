@@ -78,6 +78,7 @@ export default function PaginaMapa() {
       rotas: rotas.dados ?? SEM_ROTAS,
       carregando: areas.carregando || estudantes.carregando || rotas.carregando,
       recarregar,
+      recarregarInstituicoes: instituicoes.recarregar,
     }
   }, [
     areas.dados,
@@ -89,6 +90,7 @@ export default function PaginaMapa() {
     estudantes.carregando,
     rotas.carregando,
     recarregar,
+    instituicoes.recarregar,
   ])
 
   const abaAtual = ABAS.find((a) => a.chave === aba)!

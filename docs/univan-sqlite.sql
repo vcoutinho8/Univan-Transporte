@@ -55,9 +55,12 @@ CREATE TABLE empresa (
 );
 
 CREATE TABLE instituicao (
-    id          INTEGER PRIMARY KEY,
-    nome        TEXT NOT NULL,
-    fk_endereco INTEGER NOT NULL REFERENCES endereco (id)
+    id               INTEGER PRIMARY KEY,
+    nome             TEXT NOT NULL,
+    fk_endereco      INTEGER NOT NULL REFERENCES endereco (id),
+    -- Ponto de parada na rua (onde a van para). Vazio = usa a localização do endereço.
+    parada_latitude  NUMERIC,
+    parada_longitude NUMERIC
 );
 
 -- ---------------------------------------------------------------- Frota e equipe
@@ -393,16 +396,16 @@ INSERT INTO estudante VALUES (40, 'Samuel Gobbi', 'Samu', '11122233340', '279988
 INSERT INTO estudante VALUES (41, 'Paula Rezende', NULL, '11122233341', '27998880041', NULL, 5, 'Publicidade', 'noite', 61, NULL, '17:32:00', 580.0, 5, 'ativo');
 
 -- instituicao
-INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11);
-INSERT INTO instituicao VALUES (2, 'UniSales - Centro Universitário Salesiano', 12);
-INSERT INTO instituicao VALUES (3, 'Multivix Vila Velha', 13);
-INSERT INTO instituicao VALUES (4, 'Faculdade Novo Milênio', 14);
-INSERT INTO instituicao VALUES (5, 'Estácio - Campus Vila Velha', 15);
-INSERT INTO instituicao VALUES (6, 'UFES - Campus Goiabeiras', 16);
-INSERT INTO instituicao VALUES (7, 'Emescam', 17);
-INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18);
-INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19);
-INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20);
+INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11, NULL, NULL);
+INSERT INTO instituicao VALUES (2, 'UniSales - Centro Universitário Salesiano', 12, NULL, NULL);
+INSERT INTO instituicao VALUES (3, 'Multivix Vila Velha', 13, NULL, NULL);
+INSERT INTO instituicao VALUES (4, 'Faculdade Novo Milênio', 14, NULL, NULL);
+INSERT INTO instituicao VALUES (5, 'Estácio - Campus Vila Velha', 15, NULL, NULL);
+INSERT INTO instituicao VALUES (6, 'UFES - Campus Goiabeiras', 16, NULL, NULL);
+INSERT INTO instituicao VALUES (7, 'Emescam', 17, NULL, NULL);
+INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18, NULL, NULL);
+INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19, NULL, NULL);
+INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20, NULL, NULL);
 
 -- motorista
 INSERT INTO motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', 'Cadu', '20130140155', '27991110001', '10120130194', '2028-03-15', 3200.00, 5, 'ativo');

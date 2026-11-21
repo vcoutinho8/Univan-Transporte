@@ -7,11 +7,15 @@ import AvisoSemResultado from '../../shared/components/NoResults.tsx'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
+import Modal from '../../shared/components/Modal.tsx'
+import { useAviso } from '../../shared/components/NoticeModal.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import { ErroApi } from '../../shared/services/api.ts'
 import { formatarHorario, iniciais } from '../../shared/utils/formatar.ts'
 import type { Coordenada } from '../area/types.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
+import { servicoInstituicao } from '../instituicao/institutionService.ts'
+import type { Instituicao } from '../instituicao/types.ts'
 import { PainelLateral, useDadosMapa } from '../mapa/mapContext.tsx'
 import { CamadaAreas, Enquadrar, LinhaDirecional, MarcadorInstituicao, MarcadorPassageiro } from '../mapa/MapLayers.tsx'
 import { coordenadaDo, corDoMotorista } from '../mapa/mapUtils.ts'
@@ -53,6 +57,36 @@ export default function AbaRotas() {
   const [trajetoInteiro, setTrajetoInteiro] = useState(false)
   const [aviso, setAviso] = useState<{ mensagem: string; tipo: 'erro' | 'sucesso' } | null>(null)
   const marcadores = useRef(new Map<number, L.Marker>())
+  // Ajuste do ponto de parada das faculdades: pinos arrastáveis + confirmação antes de salvar.
+  const [ajustandoParadas, setAjustandoParadas] = useState(false)
+  const [paradaPendente, setParadaPendente] = useState<{ instituicao: Instituicao; ponto: [number, number] } | null>(null)
+  const [versaoPinos, setVersaoPinos] = useState(0)
+  // Faculdade em foco no ajuste: o mapa aproxima nela, no nível de rua.
+  const [focoParada, setFocoParada] = useState<number | null>(null)
+  const [salvandoParada, setSalvandoParada] = useState(false)
+  const avisosParada = useAviso()
+
+  async function salvarParada(instituicao: Instituicao, ponto: [number, number] | null) {
+    setSalvandoParada(true)
+    try {
+      await servicoInstituicao.ajustarParada(instituicao.id, ponto)
+      await dados.recarregarInstituicoes()
+      setParadaPendente(null)
+      avisosParada.mostrar({
+        tipo: 'sucesso',
+        titulo: ponto ? 'Parada ajustada' : 'Parada voltou ao endereço',
+        descricao: ponto
+          ? `O trajeto de todas as rotas que vão para ${instituicao.nome} agora termina neste ponto da rua.`
+          : `${instituicao.nome} volta a usar a localização do endereço como parada.`,
+      })
+    } catch (e) {
+      setParadaPendente(null)
+      setVersaoPinos((v) => v + 1) // o pino volta para onde estava
+      avisosParada.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível ajustar a parada')
+    } finally {
+      setSalvandoParada(false)
+    }
+  }
 
   // Resumo de cada motorista: bairros e, por turno, quantas rotas e passageiros.
   const resumos = useMemo(
@@ -121,7 +155,14 @@ export default function AbaRotas() {
 
   const cor = corDoMotorista(motorista?.id)
   const bairrosDoMotorista = motorista ? ativas.filter((a) => a.fk_motorista === motorista.id) : []
-  const pontosEnquadrar: Coordenada[] = motorista
+  // Ajustando paradas: enquadra as faculdades, para os pinos ficarem à vista e perto o bastante para arrastar.
+  const pontosFaculdades = (viagem?.destinos ?? []).map((d) => d.instituicao.ponto_parada).filter((p): p is Coordenada => Boolean(p))
+  const pontoEmFoco = viagem?.destinos.find((d) => d.instituicao.id === focoParada)?.instituicao.ponto_parada ?? null
+  const pontosEnquadrar: Coordenada[] = ajustandoParadas && pontoEmFoco
+    ? [pontoEmFoco as Coordenada]
+    : ajustandoParadas && pontosFaculdades.length
+    ? pontosFaculdades
+    : motorista
     ? trajetoInteiro || sentido === 'volta' || sentido === 'ambas'
       ? [
           ...pontosIda,
@@ -237,6 +278,68 @@ export default function AbaRotas() {
               <Icone nome="seta" className="h-4 w-4 rotate-180 transition-transform group-hover:-translate-x-1" />
               Todos os motoristas
             </button>
+
+            {viagem && viagem.destinos.length > 0 && (
+              <div
+                className={`rounded-2xl p-3 ring-1 transition-colors ${
+                  ajustandoParadas ? 'bg-laranja/5 ring-laranja/40' : 'bg-white ring-slate-200/70'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAjustandoParadas(!ajustandoParadas)
+                    setFocoParada(null)
+                  }}
+                  aria-pressed={ajustandoParadas}
+                  className="flex w-full items-center gap-2 text-left text-sm font-bold text-marinho"
+                >
+                  <Icone nome="pino" className="h-4 w-4 text-laranja" />
+                  {ajustandoParadas ? 'Ajustando paradas das faculdades' : 'Ajustar paradas das faculdades'}
+                  <span
+                    className={`ml-auto rounded-full px-2 py-0.5 text-[11px] ${ajustandoParadas ? 'bg-laranja text-white' : 'bg-fundo text-slate-500'}`}
+                  >
+                    {ajustandoParadas ? 'Ligado' : 'Desligado'}
+                  </span>
+                </button>
+                {ajustandoParadas && (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs text-slate-600">
+                      Toque numa faculdade para aproximar o mapa nela e arraste o pino até a rua, em frente ao portão
+                      onde a van para. O trajeto de todas as rotas daquela faculdade passa a terminar ali.
+                    </p>
+                    <ul className="space-y-1">
+                      {viagem.destinos.map((d) => (
+                        <li key={d.rota.id} className="flex items-center gap-2 text-xs">
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: corDestino(d.rota.id) }} />
+                          <button
+                            type="button"
+                            onClick={() => setFocoParada(d.instituicao.id)}
+                            className={`min-w-0 flex-1 truncate text-left font-semibold hover:text-laranja hover:underline ${
+                              focoParada === d.instituicao.id ? 'text-laranja' : 'text-marinho'
+                            }`}
+                          >
+                            {d.instituicao.nome}
+                          </button>
+                          {d.instituicao.parada_latitude !== null ? (
+                            <button
+                              type="button"
+                              disabled={salvandoParada}
+                              onClick={() => void salvarParada(d.instituicao, null)}
+                              className="shrink-0 font-semibold text-slate-500 hover:text-laranja"
+                            >
+                              Voltar ao endereço
+                            </button>
+                          ) : (
+                            <span className="shrink-0 text-slate-400">no endereço</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             <Cartao className="animate-surgir">
               <div className="space-y-4 pt-5">
@@ -568,7 +671,8 @@ export default function AbaRotas() {
       {!carregando && (
         <Enquadrar
           pontos={pontosEnquadrar}
-          chave={`rotas-${idMotorista}-${turno}-${sentido}-${trajetoInteiro}-${paradasNoMapa.length}-${ativas.length}`}
+          chave={`rotas-${idMotorista}-${turno}-${sentido}-${trajetoInteiro}-${paradasNoMapa.length}-${ativas.length}-${ajustandoParadas}-${focoParada}`}
+          zoomMaximo={ajustandoParadas ? 18 : 16}
         />
       )}
       <CamadaAreas areas={ativas} idMotoristaDestaque={motorista?.id ?? null} mostrarNomes={!motorista} />
@@ -600,7 +704,13 @@ export default function AbaRotas() {
           )}
 
           {viagem.destinos.map((d) => (
-            <MarcadorInstituicao key={d.rota.id} instituicao={d.instituicao} cor={corDestino(d.rota.id)} />
+            <MarcadorInstituicao
+              key={`${d.rota.id}-${versaoPinos}-${d.instituicao.ponto_parada?.join(',')}`}
+              instituicao={d.instituicao}
+              cor={corDestino(d.rota.id)}
+              ajustavel={ajustandoParadas}
+              aoMover={(ponto) => setParadaPendente({ instituicao: d.instituicao, ponto })}
+            />
           ))}
 
           {(sentido === 'volta' ? paradasVoltaNoMapa : paradasNoMapa).map((p, idx) => {
@@ -634,6 +744,34 @@ export default function AbaRotas() {
           />
         ))
       )}
+      {paradaPendente && (
+        <Modal
+          titulo={`Mover a parada da ${paradaPendente.instituicao.nome}?`}
+          descricao="O trajeto de todas as rotas que vão para esta faculdade passa a terminar neste ponto. Confira se o pino está na rua, em frente ao portão onde a van para."
+          icone="pino"
+          aoFechar={() => {
+            setParadaPendente(null)
+            setVersaoPinos((v) => v + 1)
+          }}
+          acoes={
+            <>
+              <Botao
+                variante="secundario"
+                onClick={() => {
+                  setParadaPendente(null)
+                  setVersaoPinos((v) => v + 1)
+                }}
+              >
+                Cancelar
+              </Botao>
+              <Botao disabled={salvandoParada} onClick={() => void salvarParada(paradaPendente.instituicao, paradaPendente.ponto)}>
+                {salvandoParada ? 'Salvando...' : 'Salvar parada'}
+              </Botao>
+            </>
+          }
+        />
+      )}
+      {avisosParada.modal}
     </>
   )
 }

@@ -60,6 +60,8 @@ def criar_banco_sqlite(arquivo: Path, script: Path = SCRIPT_SQLITE) -> None:
 # Um banco criado antes delas ganha a coluna ao subir a API (os dados são mantidos).
 COLUNAS_NOVAS = (
     ("motorista", "apelido", "TEXT"),
+    ("instituicao", "parada_latitude", "NUMERIC"),
+    ("instituicao", "parada_longitude", "NUMERIC"),
     ("chamada", "horario_desembarque", "TEXT"),
 )
 

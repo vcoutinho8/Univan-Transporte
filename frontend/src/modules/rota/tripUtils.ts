@@ -67,11 +67,11 @@ export function montarViagem(
   const destinos: Destino[] = rotasDoTurno
     .map((rota) => {
       const instituicao = instituicoes.find((i) => i.id === rota.fk_instituicao)!
-      const { latitude, longitude } = instituicao?.endereco ?? {}
       return {
         instituicao,
         rota,
-        ponto: latitude != null && longitude != null ? ([latitude, longitude] as Coordenada) : null,
+        // A van para na rua (ponto de parada ajustado), não na localização do endereço.
+        ponto: (instituicao?.ponto_parada ?? null) as Coordenada | null,
         passageiros: paradas.filter((p) => p.rota.id === rota.id).length,
       }
     })

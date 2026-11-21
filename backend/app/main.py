@@ -15,6 +15,7 @@ from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER,
 from app.config.erros import registrar_tratadores_erro
 from app.config.registro_log import configurar_log, registrar_log_requisicoes
 from app.modules.area import area_controller
+from app.modules.chamada import chamada_controller
 from app.modules.dia_sem_aula import dia_sem_aula_controller
 from app.modules.empresa import empresa_controller
 from app.modules.estudante import estudante_controller
@@ -41,6 +42,7 @@ CONTROLLERS = (
     motorista_controller,
     rota_controller,
     viagem_controller,
+    chamada_controller,
     dia_sem_aula_controller,
     relatorio_controller,
 )

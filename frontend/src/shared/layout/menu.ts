@@ -98,9 +98,8 @@ export const MENU: GrupoMenu[] = [
         rotulo: 'Chamadas',
         icone: 'chamada',
         requisito: 'RF3',
-        descricao:
-          'Lista de passageiros esperados em cada viagem, com registro de presença, ausência e ocorrências.',
-        pronto: false,
+        descricao: 'Aviso prévio: quem vai e quem avisou que não vai em cada viagem do dia.',
+        pronto: true,
       },
     ],
   },

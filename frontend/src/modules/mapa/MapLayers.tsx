@@ -1,6 +1,6 @@
 import L from 'leaflet'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 
 import { formatarHorario, nomeCurto } from '../../shared/utils/formatar.ts'
 import type { Area, Coordenada } from '../area/types.ts'
@@ -154,21 +154,62 @@ export function MarcadorPassageiro({ estudante, posicao, variante = 'normal', nu
   )
 }
 
-export function MarcadorInstituicao({ instituicao, cor }: { instituicao: Instituicao; cor?: string }) {
+/**
+ * Faculdade no mapa, no ponto de parada (onde a van para na rua). No modo de ajuste o pino pode ser
+ * arrastado; quando o ponto foi ajustado, uma linha tracejada liga a parada ao endereço da faculdade.
+ */
+export function MarcadorInstituicao({
+  instituicao,
+  cor,
+  ajustavel = false,
+  aoMover,
+}: {
+  instituicao: Instituicao
+  cor?: string
+  ajustavel?: boolean
+  aoMover?: (ponto: [number, number]) => void
+}) {
+  const ponto = instituicao.ponto_parada
+  if (!ponto) return null
   const { latitude, longitude } = instituicao.endereco
-  if (latitude === null || longitude === null) return null
+  const ajustado = instituicao.parada_latitude !== null && latitude !== null && longitude !== null
   return (
-    <Marker position={[latitude, longitude]} icon={cor ? iconeInstituicao(cor) : ICONE_INSTITUICAO}>
+    <>
+      {ajustavel && ajustado && (
+        <>
+          <Polyline positions={[[latitude, longitude], ponto]} pathOptions={{ color: '#64748b', weight: 2, dashArray: '4 6' }} />
+          <CircleMarker center={[latitude, longitude]} radius={5} pathOptions={{ color: '#64748b', fillColor: '#ffffff', fillOpacity: 1, weight: 2 }}>
+            <Tooltip direction="top">Endereço de {instituicao.nome}</Tooltip>
+          </CircleMarker>
+        </>
+      )}
+    <Marker
+      position={ponto}
+      icon={cor ? iconeInstituicao(cor) : ICONE_INSTITUICAO}
+      draggable={ajustavel}
+      eventHandlers={
+        ajustavel && aoMover
+          ? {
+              dragend: (evento) => {
+                const { lat, lng } = (evento.target as L.Marker).getLatLng()
+                aoMover([Number(lat.toFixed(6)), Number(lng.toFixed(6))])
+              },
+            }
+          : undefined
+      }
+    >
       <Tooltip direction="top" className="etiqueta-nome">
-        {instituicao.nome}
+        {ajustavel ? `${instituicao.nome} · arraste até a rua` : instituicao.nome}
       </Tooltip>
       <Popup>
         <p className="font-bold text-marinho">{instituicao.nome}</p>
         <p className="text-slate-500">
           {instituicao.endereco.logradouro}, {instituicao.endereco.numero} · {instituicao.endereco.cidade}
         </p>
+        {instituicao.parada_latitude !== null && <p className="mt-1 text-xs text-slate-400">Parada ajustada na rua</p>}
       </Popup>
     </Marker>
+    </>
   )
 }
 

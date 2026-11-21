@@ -105,6 +105,7 @@ export default function PaginaVeiculos() {
 
       <Cartao
         semEspaco
+        preencherTela
         acoes={
           <div className="flex w-full flex-wrap items-center gap-3">
             <label className="relative min-w-56 flex-1">
@@ -135,9 +136,9 @@ export default function PaginaVeiculos() {
             <Alerta mensagem={veiculos.erro} />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-y border-slate-100 bg-fundo/60 text-xs font-bold text-slate-500 uppercase">
+              <thead className="sticky top-0 z-10 border-y border-slate-100 bg-[#f7f7f7] text-xs font-bold text-slate-500 uppercase">
                 <tr>
                   <th className="px-5 py-3">Placa</th>
                   <th className="px-5 py-3">Modelo</th>

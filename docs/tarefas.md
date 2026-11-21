@@ -44,12 +44,14 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Jornada do motorista | ✅ | Todas as rotas do motorista no turno e sentido saem juntas com um botão só (`/viagens/jornada/iniciar`); fila única de passageiros na ordem de embarque; concluída ao registrar o último |
 | Desembarque e fases da jornada | ✅ | Embarque → A caminho → Concluída. Na ida, "Todos desceram aqui" por faculdade (ou um a um); na volta, "Deixei em casa". Coluna nova `chamada.horario_desembarque` (adicionada sozinha em bancos antigos ao subir a API) |
 | Tela de viagens no celular | ✅ | Cartões empilhados, botões grandes, painel do motorista em tela cheia; link direto `?data=AAAA-MM-DD&turno=noite` |
+| Telas no notebook (1366×768) | ✅ | Listas com tabela rolando por dentro e paginação fixa; calendário e mapa cabem na tela sem rolar a página |
 | Semana e dias indisponíveis | ✅ | Faixa da semana com viagens, feriados e dias sem rota (`/viagens/calendario`); gerar num feriado ou fim de semana abre o modal "dia indisponível". Turnos: manhã e noite (a tarde só aparece se houver viagem) |
 | Limite para gerar viagens | ✅ | Só até o domingo da semana atual (dias passados continuam liberados); a tela bloqueia o botão e mostra quando a semana libera |
 | Aviso de filtro sem resultado | ✅ | Componente único (`NoResults.tsx`) com os filtros ativos e "Limpar filtros" em passageiros, motoristas, veículos, viagens e rotas do mapa |
 | Viagem = jornada do motorista | ✅ | Contagens da tela (semana, dia, turnos, situações) contam uma viagem por motorista, turno e sentido; destinos ficam ocultos no cartão até "Ver destinos" |
 | Avisos em modal | ✅ | Viagens e relatórios dão retorno só por modal (`NoticeModal.tsx`); nada de faixas no topo |
-| Aviso prévio ("não vou") | 🟡 | Quem tem chamada `nao_vai` não entra na fila do embarque (só na contagem). Falta a tela/API para o passageiro avisar (rotina `avisar_nao_vou` já existe no banco) |
+| Aviso prévio ("não vou") | ✅ | Tela Chamadas: o administrador registra que o passageiro não vai na ida, na volta ou nas duas (`/chamadas/aviso`); sai da fila do motorista. Aviso com menos de 1 hora é aceito e marcado como "última hora". "Vai sim" desfaz enquanto a viagem não terminou |
+| Ausência programada por período | ⬜ | "Vou viajar de 10 a 14/12": exige tabela nova, aplicada quando as viagens dos dias forem geradas |
 | Exibir passageiros esperados em cada viagem | ✅ | Gaveta de passageiros da viagem, na ordem de embarque |
 | Registrar presença, ausência e ocorrências | ✅ | Viagem em andamento: o próximo da fila fica em destaque (Embarcou / Não embarcou / Desfazer); o último registro conclui a viagem |
 | Passageiro avisa "não vou" | 🗄️ | `avisar_nao_vou(...)`, até 1h antes do horário previsto |
@@ -65,6 +67,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Cadastrar rota (motorista + instituição + turno) | ⬜ | Uma rota por combinação (restrição do banco) |
 | Dias da semana da rota | ⬜ | Tabela `rota_dia` |
 | Pontos de embarque com endereço e localização | ⬜ | `endereco` já tem latitude/longitude |
+| Ponto de parada da faculdade | ✅ | `instituicao.parada_latitude/longitude`: o administrador arrasta o pino até a rua (Mapa e rotas → Ajustar paradas); o trajeto termina ali. Até 1 km do endereço |
 | Sequência dos pontos e horários previstos | ⬜ | Hoje há `horario_embarque` por passageiro; ordem manual exige mudança no banco |
 | Associar motorista e veículo às viagens | ✅ | Troca de motorista/veículo só na viagem, com checagem de lotação |
 

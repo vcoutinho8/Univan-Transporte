@@ -19,7 +19,9 @@ export function BotaoLista(props: { ativo: boolean; cor: string; titulo: string;
 
 export function Alternador({ rotulo, ligado, aoMudar }: { rotulo: string; ligado: boolean; aoMudar: (valor: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 font-semibold text-marinho">
+    // `relative`: a caixa escondida (sr-only, posição absoluta) fica presa ao rótulo; sem isso ela
+    // "escapava" do painel com rolagem e esticava a página.
+    <label className="relative flex cursor-pointer items-center justify-between gap-3 font-semibold text-marinho">
       {rotulo}
       <input type="checkbox" className="peer sr-only" checked={ligado} onChange={(e) => aoMudar(e.target.checked)} />
       <span className="relative h-5 w-9 shrink-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-laranja peer-focus-visible:ring-2 peer-focus-visible:ring-laranja/40 after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-4" />

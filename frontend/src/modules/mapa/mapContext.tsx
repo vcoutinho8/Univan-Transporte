@@ -28,6 +28,8 @@ export interface DadosMapa {
   carregando: boolean
   /** Recarrega áreas, passageiros e rotas (depois de salvar algo que mexe na distribuição). */
   recarregar: () => Promise<void>
+  /** Recarrega as instituições (depois de mover um ponto de parada). */
+  recarregarInstituicoes: () => Promise<void>
 }
 
 interface ValorContexto {
