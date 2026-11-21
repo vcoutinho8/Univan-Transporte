@@ -44,6 +44,11 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Jornada do motorista | ✅ | Todas as rotas do motorista no turno e sentido saem juntas com um botão só (`/viagens/jornada/iniciar`); fila única de passageiros na ordem de embarque; concluída ao registrar o último |
 | Desembarque e fases da jornada | ✅ | Embarque → A caminho → Concluída. Na ida, "Todos desceram aqui" por faculdade (ou um a um); na volta, "Deixei em casa". Coluna nova `chamada.horario_desembarque` (adicionada sozinha em bancos antigos ao subir a API) |
 | Tela de viagens no celular | ✅ | Cartões empilhados, botões grandes, painel do motorista em tela cheia; link direto `?data=AAAA-MM-DD&turno=noite` |
+| Semana e dias indisponíveis | ✅ | Faixa da semana com viagens, feriados e dias sem rota (`/viagens/calendario`); gerar num feriado ou fim de semana abre o modal "dia indisponível". Turnos: manhã e noite (a tarde só aparece se houver viagem) |
+| Limite para gerar viagens | ✅ | Só até o domingo da semana atual (dias passados continuam liberados); a tela bloqueia o botão e mostra quando a semana libera |
+| Aviso de filtro sem resultado | ✅ | Componente único (`NoResults.tsx`) com os filtros ativos e "Limpar filtros" em passageiros, motoristas, veículos, viagens e rotas do mapa |
+| Viagem = jornada do motorista | ✅ | Contagens da tela (semana, dia, turnos, situações) contam uma viagem por motorista, turno e sentido; destinos ficam ocultos no cartão até "Ver destinos" |
+| Avisos em modal | ✅ | Viagens e relatórios dão retorno só por modal (`NoticeModal.tsx`); nada de faixas no topo |
 | Aviso prévio ("não vou") | 🟡 | Quem tem chamada `nao_vai` não entra na fila do embarque (só na contagem). Falta a tela/API para o passageiro avisar (rotina `avisar_nao_vou` já existe no banco) |
 | Exibir passageiros esperados em cada viagem | ✅ | Gaveta de passageiros da viagem, na ordem de embarque |
 | Registrar presença, ausência e ocorrências | ✅ | Viagem em andamento: o próximo da fila fica em destaque (Embarcou / Não embarcou / Desfazer); o último registro conclui a viagem |
@@ -51,7 +56,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Identificar passageiros ainda sem registro | 🗄️ | Chamadas com `status = pendente` |
 | Iniciar viagem | ✅ | `status = em_andamento`, grava `horario_saida`; não inicia viagem de dia futuro |
 | Encerrar viagem e guardar histórico | ✅ | `concluir_viagem(id)`; pendentes viram `ausente`. Também cancela viagem agendada |
-| Dias sem aula (feriados) | 🟡 | `gerar_dia` respeita `dia_sem_aula`; falta tela de cadastro |
+| Calendário (dias sem aula: feriados, recessos, férias) | ✅ | Tela Calendário: clique num dia ou arraste para marcar um período, para todas ou várias instituições; `gerar_dia` respeita. Remover apaga de verdade (não há coluna de status nessa tabela) |
 
 ## RF4 · Cadastro e edição de rotas
 
@@ -74,6 +79,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Relatório de frequência por passageiro | 🗄️ | View `vw_frequencia` |
 | Catálogo de relatórios | ✅ | Lista central agrupada por módulo (Passageiros → Passageiros ativos...), com busca e favoritos (o favorito sai do módulo e fica só em Favoritos) (guardados no navegador até existir login); planejados aparecem como "Em breve" |
 | Relatório de passageiros ativos | ✅ | Período obrigatório (presenças, faltas e avisos no período); abre vazio com os filtros; sem resultado mostra aviso; PDF A4 em pé (logo, período, indicadores, tabela com bairro e frequência), na tela e para baixar, ou CSV |
+| Relatório de dias sem aula | ✅ | Período e instituição; dias seguidos agrupados em períodos (período, motivo, quem fica sem aula); PDF e CSV |
 | Relatórios por período, rota e turno | ⬜ | Consultas sobre `viagem` e `chamada` |
 
 ## RF6 · Visualização geográfica

@@ -71,6 +71,11 @@ TAGS: list[dict[str, str]] = [
         "concluir (quem ficou pendente vira ausente), cancelar ou trocar motorista/veículo só naquele dia.",
     },
     {
+        "name": "Dias sem aula",
+        "description": "Feriados, recessos e férias acadêmicas, por dia ou período, para todas as instituições "
+        "ou só uma. Nesses dias a geração de viagens não cria nada para as instituições afetadas.",
+    },
+    {
         "name": "Relatórios",
         "description": "Consultas de acompanhamento, só leitura: passageiros ativos por instituição, "
         "turno, bairro e rota.",

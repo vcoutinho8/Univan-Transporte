@@ -1,13 +1,18 @@
 """Regras de negócio das viagens: gerar o dia, iniciar, concluir, cancelar e substituir."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.config.erros import ConflitoDeDados, DadosInvalidos, RecursoNaoEncontrado
 from app.modules.motorista.motorista_repositorio import RepositorioMotorista
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
 from app.modules.viagem.viagem_model import Viagem
 from app.modules.viagem.viagem_repositorio import RepositorioViagem
-from app.modules.viagem.viagem_schema import ContagemPassageiros, GeracaoResposta, SubstituicaoPedido
+from app.modules.viagem.viagem_schema import (
+    ContagemPassageiros,
+    DiaDoCalendario,
+    GeracaoResposta,
+    SubstituicaoPedido,
+)
 from app.shared.enums import Sentido, StatusCadastro, StatusChamada, StatusViagem, Turno
 
 ROTULO_STATUS = {
@@ -21,6 +26,11 @@ ROTULO_STATUS = {
 def agora() -> datetime:
     """Hora local, sem segundos fracionados (o banco guarda 'AAAA-MM-DD HH:MM:SS')."""
     return datetime.now().replace(microsecond=0)
+
+
+def fim_da_semana(dia: date) -> date:
+    """Domingo da semana do dia (a semana vai de segunda a domingo)."""
+    return dia + timedelta(days=7 - dia.isoweekday())
 
 
 class ServicoViagem:
@@ -77,7 +87,17 @@ class ServicoViagem:
     # ---------------------------------------------------------------- geração do dia
 
     def gerar_dia(self, dia: date) -> GeracaoResposta:
-        """Cria as viagens e chamadas do dia. Idempotente: rodar de novo só completa o que faltar."""
+        """Cria as viagens e chamadas do dia. Idempotente: rodar de novo só completa o que faltar.
+
+        Só até o fim da semana atual: gerar semanas à frente enche o banco de viagens que ainda
+        podem mudar (passageiro novo, rota alterada, feriado cadastrado depois).
+        """
+        limite = fim_da_semana(agora().date())
+        if dia > limite:
+            raise ConflitoDeDados(
+                f"Só dá para gerar viagens até o fim desta semana (domingo, {limite:%d/%m}). "
+                f"As viagens de {dia:%d/%m} ficam disponíveis a partir de {dia - timedelta(days=dia.isoweekday() - 1):%d/%m}."
+            )
         viagens_criadas, chamadas_criadas = self.repositorio.gerar_dia(dia)
 
         avisos = []
@@ -91,16 +111,52 @@ class ServicoViagem:
                 avisos.append(
                     f"A rota {rota.nome} não gerou viagem: o motorista {rota.motorista.nome} está sem veículo padrão."
                 )
-        if viagens_criadas == 0 and not avisos:
-            avisos.append(
-                "As viagens deste dia já tinham sido geradas."
-                if self.repositorio.existe_viagem_no_dia(dia)
-                else "Nenhuma rota ativa roda neste dia da semana."
-            )
+        indisponivel = None
+        if not self.repositorio.existe_viagem_no_dia(dia):
+            # Nenhuma viagem no dia: diz o porquê, para a tela explicar ao usuário.
+            if any(d.fk_instituicao is None for d in dias_sem_aula):
+                indisponivel = "feriado"
+            elif dia.isoweekday() >= 6:
+                indisponivel = "fim_de_semana"
+            else:
+                indisponivel = "sem_rotas"
+                avisos.append("Nenhuma rota ativa roda neste dia da semana.")
+        elif viagens_criadas == 0 and not avisos:
+            avisos.append("As viagens deste dia já tinham sido geradas.")
 
         return GeracaoResposta(
-            data=dia, viagens_criadas=viagens_criadas, chamadas_criadas=chamadas_criadas, avisos=avisos
+            data=dia,
+            viagens_criadas=viagens_criadas,
+            chamadas_criadas=chamadas_criadas,
+            avisos=avisos,
+            indisponivel=indisponivel,
         )
+
+    def calendario(self, inicio: date, fim: date) -> list[DiaDoCalendario]:
+        """Resumo de cada dia do período (no máximo 62 dias): viagens, rotas do dia e feriados."""
+        if fim < inicio:
+            raise DadosInvalidos("A data final é anterior à data inicial.")
+        if (fim - inicio).days > 61:
+            raise DadosInvalidos("Escolha no máximo 62 dias.")
+        viagens = self.repositorio.contar_viagens_por_dia(inicio, fim)
+        rotas = self.repositorio.contar_rotas_por_dia_semana()
+        feriados: dict[date, list] = {}
+        for d in self.repositorio.dias_sem_aula_no_periodo(inicio, fim):
+            feriados.setdefault(d.data, []).append(d)
+        dias = []
+        for n in range((fim - inicio).days + 1):
+            dia = inicio + timedelta(days=n)
+            do_dia = feriados.get(dia, [])
+            dias.append(
+                DiaDoCalendario(
+                    data=dia,
+                    viagens=viagens.get(dia, 0),
+                    rotas=rotas.get(dia.isoweekday(), 0),
+                    feriados=[f"{d.instituicao.nome}: {d.motivo}" if d.instituicao else d.motivo for d in do_dia],
+                    feriado_geral=any(d.fk_instituicao is None for d in do_dia),
+                )
+            )
+        return dias
 
     # ---------------------------------------------------------------- andamento
 

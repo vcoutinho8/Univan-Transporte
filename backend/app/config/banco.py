@@ -58,7 +58,10 @@ def criar_banco_sqlite(arquivo: Path, script: Path = SCRIPT_SQLITE) -> None:
 
 # Colunas criadas depois da primeira versão do script: (tabela, coluna, tipo).
 # Um banco criado antes delas ganha a coluna ao subir a API (os dados são mantidos).
-COLUNAS_NOVAS = (("chamada", "horario_desembarque", "TEXT"),)
+COLUNAS_NOVAS = (
+    ("motorista", "apelido", "TEXT"),
+    ("chamada", "horario_desembarque", "TEXT"),
+)
 
 
 def atualizar_estrutura(arquivo: Path) -> None:

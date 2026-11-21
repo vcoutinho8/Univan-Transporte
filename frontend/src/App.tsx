@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import PaginaCalendario from './modules/dia_sem_aula/NoClassDaysPage.tsx'
 import PaginaEstudantes from './modules/estudante/StudentsPage.tsx'
 import PaginaMapa from './modules/mapa/MapPage.tsx'
 import PaginaMotoristas from './modules/motorista/DriversPage.tsx'
@@ -24,6 +25,8 @@ export default function App() {
         <Route path="veiculos" element={<PaginaVeiculos />} />
         <Route path="mapa" element={<PaginaMapa />} />
         <Route path="viagens" element={<PaginaViagens />} />
+        <Route path="calendario" element={<PaginaCalendario />} />
+        <Route path="dias-sem-aula" element={<Navigate to="/calendario" replace />} />
         <Route path="relatorios" element={<PaginaRelatorios />} />
         <Route path="relatorios/:id" element={<PaginaRelatorio />} />
         {/* Bairros e rotas viraram abas da tela de mapa; os endereços antigos continuam valendo. */}

@@ -5,6 +5,7 @@ import Icone from '../../shared/components/Icon.tsx'
 import CabecalhoPagina from '../../shared/components/PageHeader.tsx'
 import PaginaNaoEncontrada from '../../shared/pages/NotFoundPage.tsx'
 import RelatorioEstudantesAtivos from './ActiveStudentsReport.tsx'
+import RelatorioDiasSemAulaTela from './NoClassDaysReport.tsx'
 import { buscarRelatorio } from './catalog.ts'
 import BotaoFavorito from './FavoriteButton.tsx'
 import { useFavoritos } from './useFavorites.ts'
@@ -12,6 +13,7 @@ import { useFavoritos } from './useFavorites.ts'
 /** Componente de cada relatório disponível, pelo `id` do catálogo. */
 const COMPONENTES: Record<string, ComponentType> = {
   'passageiros-ativos': RelatorioEstudantesAtivos,
+  'dias-sem-aula': RelatorioDiasSemAulaTela,
 }
 
 /** Tela de geração de um relatório: voltar ao catálogo, título, estrela de favorito e o relatório. */

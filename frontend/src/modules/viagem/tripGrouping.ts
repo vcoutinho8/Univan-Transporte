@@ -20,9 +20,16 @@ export function turnoInicial(viagens: Viagem[], hora: number): Turno {
   return ORDEM_TURNOS.find((t) => viagens.some((v) => v.rota.turno === t)) ?? agora
 }
 
+/** Viagens por turno, contadas como no cartão: uma por motorista e sentido (não uma por destino). */
 export function contarPorTurno(viagens: Viagem[]): Record<Turno, number> {
   const contagem = { manha: 0, tarde: 0, noite: 0 }
-  for (const v of viagens) contagem[v.rota.turno] += 1
+  const vistas = new Set<string>()
+  for (const v of viagens) {
+    const chave = `${v.rota.turno}|${v.motorista.id}|${v.sentido}`
+    if (vistas.has(chave)) continue
+    vistas.add(chave)
+    contagem[v.rota.turno] += 1
+  }
   return contagem
 }
 

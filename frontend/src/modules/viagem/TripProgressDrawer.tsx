@@ -109,6 +109,9 @@ export default function GavetaJornada({ chave, motorista, aoAtualizar, aoConclui
   const aBordo = fila.filter(estaABordo)
   const embarcados = fila.filter((c) => c.status === 'presente')
   const paradas = paradasDeDesembarque(fila, chave.sentido)
+  // Embarque: depois do passageiro da vez, os que faltam na ordem; e os já registrados, o último primeiro.
+  const proximos = fila.filter((c) => c.status === 'pendente' && c !== atual)
+  const registrados = fila.filter((c) => c.status !== 'pendente').reverse()
 
   async function concluir() {
     const concluida = await servicoViagem.concluirJornada(chave)
@@ -191,9 +194,14 @@ export default function GavetaJornada({ chave, motorista, aoAtualizar, aoConclui
                 </div>
 
                 {atual && (
-                  <div className="rounded-2xl border-2 border-laranja/40 bg-laranja/5 p-4 sm:p-5">
+                  <div
+                    key={`${atual.fk_viagem}-${atual.estudante.id}`}
+                    className="animate-entrar-fila rounded-2xl border-2 border-laranja/40 bg-laranja/5 p-4 sm:p-5"
+                  >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold tracking-wide text-laranja uppercase">{ida ? 'Buscar agora' : 'Embarque agora'}</p>
+                      <p className="text-xs font-bold tracking-wide text-laranja uppercase">
+                        {ida ? 'Buscar agora' : 'Embarque agora'} · {atendidos + 1} de {total}
+                      </p>
                       <span className="truncate rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-marinho ring-1 ring-slate-200">
                         {atual.instituicao.nome}
                       </span>
@@ -232,28 +240,57 @@ export default function GavetaJornada({ chave, motorista, aoAtualizar, aoConclui
                         Embarcou
                       </Botao>
                     </div>
+                    {proximos[0] && (
+                      <p className="mt-3 flex items-center gap-1.5 border-t border-laranja/20 pt-3 text-xs text-slate-500">
+                        <Icone nome="seta" className="h-3.5 w-3.5 shrink-0" />
+                        Depois: <strong className="truncate text-marinho">{proximos[0].estudante.nome}</strong>
+                        <span className="shrink-0">· {formatarHorario(proximos[0].horario_previsto)}</span>
+                      </p>
+                    )}
                   </div>
                 )}
 
-                <ul className="divide-y divide-slate-100">
-                  {fila.map((c) =>
-                    c === atual ? null : (
-                      <LinhaPassageiro
-                        key={`${c.fk_viagem}-${c.estudante.id}`}
-                        chamada={c}
-                        destaque={c.status === 'presente' ? 'ok' : c.status === 'ausente' ? 'falta' : 'pendente'}
-                        detalhe={
-                          c.status === 'presente'
-                            ? `Embarcou às ${formatarHoraDe(c.horario_embarque)} · ${c.instituicao.nome}`
-                            : c.status === 'ausente'
-                              ? `Não embarcou · ${c.instituicao.nome}`
-                              : `Previsto ${formatarHorario(c.horario_previsto)} · ${c.instituicao.nome}`
-                        }
-                        acao={c.status !== 'pendente' ? desfazer(c) : undefined}
-                      />
-                    ),
-                  )}
-                </ul>
+                {proximos.length > 0 && (
+                  <section>
+                    <h3 className="mb-1 text-xs font-bold tracking-wide text-slate-500 uppercase">Próximos ({proximos.length})</h3>
+                    <ol className="divide-y divide-slate-100">
+                      {proximos.map((c, i) => (
+                        <li key={`${c.fk_viagem}-${c.estudante.id}`} className="flex items-center gap-3 py-2.5">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fundo text-xs font-bold text-slate-500 tabular-nums">
+                            {atendidos + 2 + i}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-marinho">{c.estudante.nome}</p>
+                            <p className="truncate text-xs text-slate-500">
+                              {formatarHorario(c.horario_previsto)} · {ida ? c.estudante.endereco.bairro : c.instituicao.nome}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                )}
+
+                {registrados.length > 0 && (
+                  <section>
+                    <h3 className="mb-1 text-xs font-bold tracking-wide text-slate-500 uppercase">Já registrados ({registrados.length})</h3>
+                    <ul className="divide-y divide-slate-100">
+                      {registrados.map((c) => (
+                        <LinhaPassageiro
+                          key={`${c.fk_viagem}-${c.estudante.id}`}
+                          chamada={c}
+                          destaque={c.status === 'presente' ? 'ok' : 'falta'}
+                          detalhe={
+                            c.status === 'presente'
+                              ? `Embarcou às ${formatarHoraDe(c.horario_embarque)} · ${c.instituicao.nome}`
+                              : `Não embarcou · ${c.instituicao.nome}`
+                          }
+                          acao={desfazer(c)}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                )}
               </>
             )}
 
@@ -324,8 +361,9 @@ export default function GavetaJornada({ chave, motorista, aoAtualizar, aoConclui
                                       type="button"
                                       disabled={salvando}
                                       onClick={() => void registrar(() => servicoViagem.desembarque(c.fk_viagem, c.estudante.id))}
-                                      className={`${botaoPequeno} bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}
+                                      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-500/30 transition-colors hover:bg-emerald-600 disabled:opacity-50"
                                     >
+                                      <Icone nome="ok" className="h-4 w-4" />
                                       Desceu
                                     </button>
                                   ) : (

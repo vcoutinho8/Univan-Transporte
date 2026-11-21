@@ -14,9 +14,9 @@ FINADOS = "2026-11-02"  # feriado geral (dia_sem_aula sem instituição)
 SEMANA_UVV = "2026-11-06"  # sem aula só na UVV (instituição 1)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def hoje_e_segunda(monkeypatch):
-    """Faz a API achar que agora é a segunda de teste, às 7h."""
+    """Todos os testes daqui rodam como se agora fosse a segunda de teste, às 7h (semana de 23 a 29/11)."""
     monkeypatch.setattr(viagem_servico, "agora", lambda: datetime(2026, 11, 23, 7, 0, 0))
 
 
@@ -64,10 +64,38 @@ def test_feriado_e_domingo_nao_geram(cliente):  # noqa: F811
     feriado = _gerar(cliente, FINADOS)
     assert feriado["viagens_criadas"] == 0
     assert feriado["avisos"] == ["Sem aula em todas as instituições: Finados."]
+    assert feriado["indisponivel"] == "feriado"
 
     domingo = _gerar(cliente, DOMINGO)
     assert domingo["viagens_criadas"] == 0
-    assert domingo["avisos"] == ["Nenhuma rota ativa roda neste dia da semana."]
+    assert domingo["indisponivel"] == "fim_de_semana"
+
+
+def test_dia_com_viagem_nao_e_indisponivel(cliente):  # noqa: F811
+    assert _gerar(cliente, SEGUNDA)["indisponivel"] is None
+    de_novo = _gerar(cliente, SEGUNDA)
+    assert de_novo["indisponivel"] is None
+    assert de_novo["avisos"] == ["As viagens deste dia já tinham sido geradas."]
+
+
+def test_calendario_da_semana(cliente):  # noqa: F811
+    _gerar(cliente, SEGUNDA)
+    # Semana de 16 a 22/11/2026: feriado geral na sexta (20/11, Consciência Negra).
+    dias = cliente.get("/api/viagens/calendario", params={"inicio": "2026-11-16", "fim": "2026-11-22"}).json()
+    assert [d["data"] for d in dias][0] == "2026-11-16" and len(dias) == 7
+    sexta = next(d for d in dias if d["data"] == "2026-11-20")
+    assert sexta["feriado_geral"] is True and sexta["feriados"] == ["Dia da Consciência Negra"]
+    quinta = next(d for d in dias if d["data"] == "2026-11-19")
+    assert quinta["feriado_geral"] is False and quinta["feriados"][0].endswith("Jornada pedagógica IFES Guarapari")
+    domingo = next(d for d in dias if d["data"] == DOMINGO)
+    assert domingo["rotas"] == 0
+    assert all(d["rotas"] > 0 for d in dias[:5])  # segunda a sexta têm rota
+
+    semana_seguinte = cliente.get("/api/viagens/calendario", params={"inicio": SEGUNDA, "fim": SEGUNDA}).json()
+    assert semana_seguinte[0]["viagens"] > 0
+
+    assert cliente.get("/api/viagens/calendario", params={"inicio": "2026-11-22", "fim": "2026-11-16"}).status_code == 422
+    assert cliente.get("/api/viagens/calendario", params={"inicio": "2026-01-01", "fim": "2026-12-31"}).status_code == 422
 
 
 def test_sem_aula_numa_instituicao_so(cliente):  # noqa: F811
@@ -347,3 +375,31 @@ def test_banco_antigo_ganha_a_coluna_de_desembarque(tmp_path):
         assert "horario_desembarque" in colunas
         assert conexao.execute("SELECT count(*) FROM chamada").fetchone()[0] == 1  # dados mantidos
     preparar_banco(f"sqlite:///{arquivo}")  # segunda vez não falha
+
+
+def test_banco_antigo_ganha_o_apelido_do_motorista(tmp_path):
+    import sqlite3
+
+    from app.config.banco import preparar_banco
+
+    arquivo = tmp_path / "antigo.db"
+    with sqlite3.connect(arquivo) as conexao:
+        conexao.execute("CREATE TABLE motorista (id INTEGER PRIMARY KEY, nome TEXT)")
+    preparar_banco(f"sqlite:///{arquivo}")
+    with sqlite3.connect(arquivo) as conexao:
+        assert "apelido" in [linha[1] for linha in conexao.execute("PRAGMA table_info(motorista)")]
+
+
+def test_nao_gera_semanas_futuras(cliente):  # noqa: F811
+    # "Hoje" é segunda, 23/11: a semana vai até domingo, 29/11.
+    assert cliente.post("/api/viagens/gerar", json={"data": "2026-11-29"}).status_code == 200
+    resposta = cliente.post("/api/viagens/gerar", json={"data": "2026-11-30"})
+    assert resposta.status_code == 409
+    assert resposta.json()["mensagem"] == (
+        "Só dá para gerar viagens até o fim desta semana (domingo, 29/11). "
+        "As viagens de 30/11 ficam disponíveis a partir de 30/11."
+    )
+    quinta_seguinte = cliente.post("/api/viagens/gerar", json={"data": "2026-12-03"}).json()
+    assert "a partir de 30/11" in quinta_seguinte["mensagem"]
+    # Dias passados continuam liberados (para completar o histórico).
+    assert cliente.post("/api/viagens/gerar", json={"data": "2026-11-10"}).status_code == 200

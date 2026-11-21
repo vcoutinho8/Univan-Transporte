@@ -14,6 +14,7 @@ from app.modules.viagem.jornada_schema import JornadaPedido, JornadaResposta
 from app.modules.viagem.jornada_servico import ServicoJornada
 from app.modules.viagem.viagem_repositorio import RepositorioViagem
 from app.modules.viagem.viagem_schema import (
+    DiaDoCalendario,
     GeracaoPedido,
     GeracaoResposta,
     SubstituicaoPedido,
@@ -54,7 +55,16 @@ def listar_viagens(
     )
 
 
-# Rotas da jornada antes de "/{id_viagem}", senão "jornada" seria lido como id.
+# Rotas com nome fixo antes de "/{id_viagem}", senão "jornada" ou "calendario" seriam lidos como id.
+@roteador.get(
+    "/calendario",
+    response_model=list[DiaDoCalendario],
+    summary="Resumo de cada dia (viagens geradas, rotas do dia, feriados), para a faixa da semana",
+)
+def calendario(servico: Servico, inicio: date, fim: date):
+    return servico.calendario(inicio, fim)
+
+
 @roteador.get(
     "/jornada",
     response_model=JornadaResposta,

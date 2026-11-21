@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.dia_sem_aula.dia_sem_aula_schema import PeriodoSemAula
 from app.shared.enums import Turno
 
 
@@ -34,6 +35,18 @@ class EstudanteDoRelatorio(BaseModel):
     presencas: int = Field(default=0, description="Embarques no período.")
     faltas: int = Field(default=0, description="Faltas sem aviso no período.")
     avisos: int = Field(default=0, description="Avisos de 'não vou' no período.")
+
+
+class RelatorioDiasSemAula(BaseModel):
+    """Dias sem aula do período, agrupados em períodos seguidos."""
+
+    gerado_em: datetime
+    data_inicio: date
+    data_fim: date
+    total_dias: int = Field(description="Datas distintas sem aula (para alguma instituição).")
+    dias_uteis: int = Field(description="Dessas datas, as de segunda a sexta.")
+    gerais: int = Field(description="Datas sem aula para todas as instituições.")
+    periodos: list[PeriodoSemAula]
 
 
 class TotalPorInstituicao(BaseModel):

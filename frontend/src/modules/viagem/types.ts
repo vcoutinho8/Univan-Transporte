@@ -67,12 +67,27 @@ export interface ViagemDetalhe extends Viagem {
   chamadas: Chamada[]
 }
 
+/** Por que um dia não tem viagem nenhuma. */
+export type MotivoIndisponivel = 'feriado' | 'fim_de_semana' | 'sem_rotas'
+
 /** Resultado de "Gerar viagens do dia". */
 export interface ResultadoGeracao {
   data: string
   viagens_criadas: number
   chamadas_criadas: number
   avisos: string[]
+  /** Preenchido quando o dia não tem viagem nenhuma. */
+  indisponivel: MotivoIndisponivel | null
+}
+
+/** Resumo de um dia para a faixa da semana (DiaDoCalendario). */
+export interface DiaDoCalendario {
+  data: string
+  viagens: number
+  /** Rotas ativas que rodam nesse dia da semana. */
+  rotas: number
+  feriados: string[]
+  feriado_geral: boolean
 }
 
 export interface FiltrosViagem {

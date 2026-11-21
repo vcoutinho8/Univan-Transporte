@@ -1,5 +1,13 @@
 import { requisitar } from '../../shared/services/api.ts'
-import type { ChaveJornada, FiltrosViagem, Jornada, ResultadoGeracao, Viagem, ViagemDetalhe } from './types.ts'
+import type {
+  ChaveJornada,
+  DiaDoCalendario,
+  FiltrosViagem,
+  Jornada,
+  ResultadoGeracao,
+  Viagem,
+  ViagemDetalhe,
+} from './types.ts'
 
 export const servicoViagem = {
   /** Em ordem de saída. */
@@ -7,6 +15,10 @@ export const servicoViagem = {
 
   /** Com a lista de passageiros (chamadas) na ordem de embarque. */
   obter: (id: number) => requisitar<ViagemDetalhe>(`/viagens/${id}`),
+
+  /** Resumo de cada dia do período (viagens, rotas do dia, feriados). */
+  calendario: (inicio: string, fim: string) =>
+    requisitar<DiaDoCalendario[]>('/viagens/calendario', { parametros: { inicio, fim } }),
 
   /** Cria as viagens e chamadas do dia. Pode repetir: só completa o que faltar. */
   gerar: (data: string) => requisitar<ResultadoGeracao>('/viagens/gerar', { metodo: 'POST', corpo: { data } }),

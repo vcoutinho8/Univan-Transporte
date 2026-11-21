@@ -4,8 +4,8 @@ import { descreverGeracao } from './TripsPage.tsx'
 
 describe('descreverGeracao', () => {
   it('descreve viagens e passageiros no singular e no plural', () => {
-    expect(descreverGeracao(12, 40)).toBe('12 viagens criadas e 40 passageiros na chamada.')
-    expect(descreverGeracao(1, 1)).toBe('1 viagem criada e 1 passageiro na chamada.')
+    expect(descreverGeracao(12, 40)).toBe('12 viagens de motorista e 40 passageiros na chamada.')
+    expect(descreverGeracao(1, 1)).toBe('1 viagem de motorista e 1 passageiro na chamada.')
   })
 
   it('só passageiros novos, ou nada novo', () => {

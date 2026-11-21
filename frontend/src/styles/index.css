@@ -33,7 +33,19 @@
   --animate-girar: girar 0.45s linear infinite;
   --animate-fumaca: fumaca 1.4s ease-out infinite;
   --animate-piscar: piscar 3s ease-in-out infinite;
+  /* Fila de embarque: o passageiro da vez entra deslizando. */
+  --animate-entrar-fila: entrar-fila 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 
+  @keyframes entrar-fila {
+    from {
+      opacity: 0;
+      transform: translateX(24px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
   @keyframes surgir {
     from {
       opacity: 0;

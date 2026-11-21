@@ -8,7 +8,7 @@ import { formatarHoraDe, formatarHorario } from '../../shared/utils/formatar.ts'
 import { ROTULOS_TURNO } from '../estudante/types.ts'
 import { duracaoDaViagem } from './tripFlow.ts'
 import type { ResumoJornada } from './tripGrouping.ts'
-import type { Jornada } from './types.ts'
+import type { Jornada, MotivoIndisponivel } from './types.ts'
 
 /** Linha "rótulo ........ valor" dos quadros de resumo. */
 function Dado({ rotulo, valor }: { rotulo: string; valor: string }) {
@@ -158,5 +158,56 @@ export function ModalEncerrarAntes({
         </>
       }
     />
+  )
+}
+
+const TEXTOS_INDISPONIVEL: Record<MotivoIndisponivel, { titulo: string; descricao: string }> = {
+  feriado: {
+    titulo: 'Dia sem aula',
+    descricao: 'Este dia está marcado como feriado ou recesso para todas as instituições, então não há viagens para gerar.',
+  },
+  fim_de_semana: {
+    titulo: 'Fim de semana',
+    descricao: 'Nenhuma rota roda neste dia. As viagens são geradas só nos dias da semana em que cada rota funciona.',
+  },
+  sem_rotas: {
+    titulo: 'Nenhuma rota neste dia',
+    descricao: 'Nenhuma rota ativa está marcada para este dia da semana. Confira os dias de cada rota em Mapa e rotas, ou os feriados no Calendário.',
+  },
+}
+
+/** "Dia indisponível": explica por que o dia não tem viagem para gerar. */
+export function ModalDiaIndisponivel({
+  motivo,
+  dataPorExtenso,
+  detalhes,
+  aoFechar,
+}: {
+  motivo: MotivoIndisponivel
+  /** "Sábado, 21/11/2026" */
+  dataPorExtenso: string
+  /** Feriados do dia ou outros avisos da geração. */
+  detalhes: string[]
+  aoFechar: () => void
+}) {
+  const texto = TEXTOS_INDISPONIVEL[motivo]
+  return (
+    <Modal
+      titulo={texto.titulo}
+      descricao={`${dataPorExtenso} não está disponível para gerar viagens.`}
+      icone={motivo === 'feriado' ? 'viagem' : 'alerta'}
+      tom={motivo === 'feriado' ? 'vermelho' : 'marinho'}
+      aoFechar={aoFechar}
+      acoes={<Botao onClick={aoFechar}>Entendi</Botao>}
+    >
+      <p className="text-center text-sm text-slate-600">{texto.descricao}</p>
+      {detalhes.length > 0 && (
+        <ul className="mt-3 space-y-1 rounded-xl bg-fundo/60 px-4 py-3 text-sm text-marinho">
+          {detalhes.map((d) => (
+            <li key={d}>• {d}</li>
+          ))}
+        </ul>
+      )}
+    </Modal>
   )
 }

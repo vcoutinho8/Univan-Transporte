@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
+import AvisoSemResultado from '../../shared/components/NoResults.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import CabecalhoPagina from '../../shared/components/PageHeader.tsx'
@@ -59,6 +60,21 @@ export default function PaginaEstudantes() {
 
   const paginacao = usePaginacao(filtrados, `${busca}|${filtroTurno}|${filtroArea}|${filtroStatus}`)
   const areaPorId = useMemo(() => new Map((areas.dados ?? []).map((a) => [a.id, a])), [areas.dados])
+
+  // Filtros ativos, em texto, para o aviso de "nenhum passageiro" (o padrão "Ativos" não conta).
+  const filtrosAtivos = [
+    busca.trim() && `Busca: "${busca.trim()}"`,
+    filtroTurno && `Turno: ${ROTULOS_TURNO[filtroTurno]}`,
+    filtroArea === SEM_AREA ? 'Sem área' : filtroArea && `Bairro: ${areaPorId.get(Number(filtroArea))?.nome ?? ''}`,
+    filtroStatus !== 'ativo' && `Situação: ${filtroStatus === 'inativo' ? 'Inativos' : 'Todos'}`,
+  ].filter((f): f is string => Boolean(f))
+
+  function limparFiltros() {
+    setBusca('')
+    setFiltroTurno('')
+    setFiltroArea('')
+    setFiltroStatus('ativo')
+  }
 
   function fecharFormulario() {
     setFormulario({ modo: 'fechado' })
@@ -195,8 +211,8 @@ export default function PaginaEstudantes() {
                   ))}
                 {!estudantes.carregando && filtrados.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-slate-500">
-                      Nenhum passageiro encontrado.
+                    <td colSpan={6}>
+                      <AvisoSemResultado titulo="Nenhum passageiro encontrado" filtros={filtrosAtivos} aoLimpar={limparFiltros} />
                     </td>
                   </tr>
                 )}

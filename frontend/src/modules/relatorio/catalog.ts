@@ -1,6 +1,6 @@
 import type { NomeIcone } from '../../shared/components/Icon.tsx'
 
-export type CategoriaRelatorio = 'Passageiros' | 'Viagens' | 'Frequência' | 'Frota e motoristas' | 'Financeiro'
+export type CategoriaRelatorio = 'Passageiros' | 'Viagens' | 'Calendário' | 'Frequência' | 'Frota e motoristas' | 'Financeiro'
 
 export interface DefinicaoRelatorio {
   /** Também é o endereço: /relatorios/<id>. */
@@ -14,7 +14,7 @@ export interface DefinicaoRelatorio {
 }
 
 /** Ordem das seções no catálogo. */
-export const CATEGORIAS: CategoriaRelatorio[] = ['Passageiros', 'Viagens', 'Frequência', 'Frota e motoristas', 'Financeiro']
+export const CATEGORIAS: CategoriaRelatorio[] = ['Passageiros', 'Viagens', 'Calendário', 'Frequência', 'Frota e motoristas', 'Financeiro']
 
 /**
  * Todos os relatórios do módulo, prontos ou planejados. Para lançar um relatório novo: crie o
@@ -52,7 +52,7 @@ export const RELATORIOS: DefinicaoRelatorio[] = [
     id: 'viagens-periodo',
     titulo: 'Viagens por período',
     descricao: 'Total de viagens por situação, rota, turno, motorista e sentido.',
-    icone: 'viagem',
+    icone: 'mala',
     categoria: 'Viagens',
     disponivel: false,
   },
@@ -118,11 +118,11 @@ export const RELATORIOS: DefinicaoRelatorio[] = [
   },
   {
     id: 'dias-sem-aula',
-    titulo: 'Calendário de dias sem aula',
-    descricao: 'Feriados e recessos do período, por instituição.',
-    icone: 'escola',
-    categoria: 'Frota e motoristas',
-    disponivel: false,
+    titulo: 'Dias sem aula',
+    descricao: 'Feriados, recessos e férias acadêmicas do período, com os dias úteis sem viagem.',
+    icone: 'viagem',
+    categoria: 'Calendário',
+    disponivel: true,
   },
 
   // ---------------------------------------------------------------- Financeiro

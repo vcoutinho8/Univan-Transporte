@@ -2,6 +2,8 @@
 
 from datetime import date, datetime, time
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.enums import Sentido, StatusChamada, StatusViagem, Turno
@@ -15,11 +17,29 @@ class GeracaoPedido(BaseModel):
     data: date
 
 
+MotivoIndisponivel = Literal["feriado", "fim_de_semana", "sem_rotas"]
+
+
 class GeracaoResposta(BaseModel):
     data: date
     viagens_criadas: int = Field(description="Viagens novas. Gerar de novo o mesmo dia não duplica nada.")
     chamadas_criadas: int = Field(description="Passageiros incluídos nas viagens (status `pendente`).")
     avisos: list[str] = Field(description="Por que alguma rota não gerou viagem (feriado, motorista sem veículo...).")
+    indisponivel: MotivoIndisponivel | None = Field(
+        default=None,
+        description="Preenchido quando o dia não tem viagem nenhuma: feriado geral, fim de semana sem rota "
+        "ou nenhuma rota ativa naquele dia da semana.",
+    )
+
+
+class DiaDoCalendario(BaseModel):
+    """Resumo de um dia para a faixa da semana na tela de viagens."""
+
+    data: date
+    viagens: int = Field(description="Viagens do dia, contadas por motorista + turno + sentido (jornadas).")
+    rotas: int = Field(description="Rotas ativas que rodam nesse dia da semana.")
+    feriados: list[str] = Field(description="Dias sem aula: 'Finados' (geral) ou 'UVV: Semana acadêmica'.")
+    feriado_geral: bool = Field(description="Sem aula em todas as instituições.")
 
 
 class SubstituicaoPedido(BaseModel):

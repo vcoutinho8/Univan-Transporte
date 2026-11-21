@@ -80,9 +80,17 @@ export const MENU: GrupoMenu[] = [
       {
         para: '/viagens',
         rotulo: 'Viagens',
-        icone: 'viagem',
+        icone: 'mala',
         requisito: 'RF3',
         descricao: 'Criação e consulta das viagens por data e turno, com início e encerramento.',
+        pronto: true,
+      },
+      {
+        para: '/calendario',
+        rotulo: 'Calendário',
+        icone: 'viagem',
+        requisito: 'RF3',
+        descricao: 'Feriados, recessos e férias acadêmicas: nesses dias não há viagem.',
         pronto: true,
       },
       {

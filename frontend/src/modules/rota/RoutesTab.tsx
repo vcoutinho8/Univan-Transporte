@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { CircleMarker, Polyline } from 'react-leaflet'
 import { useSearchParams } from 'react-router-dom'
 
+import AvisoSemResultado from '../../shared/components/NoResults.tsx'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
@@ -236,7 +237,11 @@ export default function AbaRotas() {
             {viagem && turno && (
               <Cartao titulo={`Viagem da ${ROTULOS_TURNO[turno].toLowerCase()}`} className="animate-surgir">
                 {viagem.paradas.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhum passageiro nas rotas deste turno.</p>
+                  <AvisoSemResultado
+                    titulo="Nenhum passageiro nas rotas deste turno"
+                    filtros={[`Turno: ${ROTULOS_TURNO[turno]}`]}
+                    dica="Um passageiro entra na rota quando mora num bairro deste motorista, estuda na instituição da rota e tem o mesmo turno. Confira os bairros na aba Bairros ou escolha outro turno."
+                  />
                 ) : (
                   <ol className="relative space-y-2.5 before:absolute before:top-3 before:bottom-3 before:left-[13px] before:w-0.5 before:bg-slate-200">
                     {viagem.paradas.map((p, i) => {

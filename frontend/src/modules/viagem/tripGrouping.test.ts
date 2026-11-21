@@ -37,6 +37,9 @@ describe('turnos', () => {
     expect(turnoInicial(viagens, 19)).toBe('noite')
     expect(turnoInicial(viagens, 14)).toBe('manha')
     expect(contarPorTurno(viagens)).toEqual({ manha: 1, tarde: 0, noite: 1 })
+    // Mesmo motorista e sentido com dois destinos = uma viagem; a volta é outra.
+    const doCarlos = [umaViagem(1, 'noite'), umaViagem(2, 'noite'), umaViagem(3, 'noite', { sentido: 'volta' })]
+    expect(contarPorTurno(doCarlos).noite).toBe(2)
   })
 })
 

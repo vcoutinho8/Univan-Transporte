@@ -1,27 +1,36 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
+import AvisoSemResultado from '../../shared/components/NoResults.tsx'
+import { useAviso } from '../../shared/components/NoticeModal.tsx'
 import CabecalhoPagina from '../../shared/components/PageHeader.tsx'
 import RodapePaginacao from '../../shared/components/Pagination.tsx'
 import { usePaginacao } from '../../shared/hooks/usePagination.ts'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
-import { dataIso, diaDaSemana, formatarData, somarDias } from '../../shared/utils/formatar.ts'
+import { dataIso, diaDaSemana, formatarData } from '../../shared/utils/formatar.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
 import CartaoJornada from './JourneyCard.tsx'
 import FormularioSubstituicao from './SubstitutionForm.tsx'
 import { agruparJornadas, contarPorTurno, ORDEM_TURNOS, turnoInicial, type ResumoJornada } from './tripGrouping.ts'
-import { ModalIniciarJornada, ModalJornadaConcluida } from './TripModals.tsx'
+import { ModalDiaIndisponivel, ModalIniciarJornada, ModalJornadaConcluida } from './TripModals.tsx'
 import GavetaPassageirosViagem from './TripPassengersDrawer.tsx'
 import GavetaJornada from './TripProgressDrawer.tsx'
 import { servicoViagem } from './tripService.ts'
-import { ROTULOS_STATUS_VIAGEM, type Jornada, type Sentido, type StatusViagem, type Viagem } from './types.ts'
+import {
+  ROTULOS_STATUS_VIAGEM,
+  type Jornada,
+  type MotivoIndisponivel,
+  type Sentido,
+  type StatusViagem,
+  type Viagem,
+} from './types.ts'
+import { diasDaSemana, partesDoDia } from './semana.ts'
+import FaixaSemana from './WeekStrip.tsx'
 
-type Aviso = { mensagem: string; tipo: 'erro' | 'sucesso' | 'aviso' }
 
 /** O que está aberto por cima da tela. */
 type Sobreposicao =
@@ -29,17 +38,23 @@ type Sobreposicao =
   | { tipo: 'passageiros' | 'troca'; viagem: Viagem }
   | { tipo: 'iniciar' | 'andamento'; jornada: ResumoJornada }
   | { tipo: 'concluida'; jornada: Jornada }
+  | { tipo: 'indisponivel'; motivo: MotivoIndisponivel; detalhes: string[] }
 
 const SITUACOES: StatusViagem[] = ['agendada', 'em_andamento', 'concluida', 'cancelada']
 
-/** Texto curto para o resultado de "Gerar viagens do dia". */
+/** Texto do modal de "Gerar viagens do dia" (viagens = uma por motorista, turno e sentido). */
 export function descreverGeracao(viagens: number, passageiros: number): string {
   if (viagens === 0 && passageiros === 0) return 'Nenhuma viagem nova.'
   const partes = [
-    viagens > 0 && `${viagens} viage${viagens === 1 ? 'm criada' : 'ns criadas'}`,
+    viagens > 0 && `${viagens} viage${viagens === 1 ? 'm' : 'ns'} de motorista`,
     passageiros > 0 && `${passageiros} passageiro${passageiros === 1 ? '' : 's'} na chamada`,
   ].filter(Boolean)
   return `${partes.join(' e ')}.`
+}
+
+/** Quantas jornadas (motorista + turno + sentido) o dia tem. */
+function jornadasDoDia(viagens: Viagem[]): number {
+  return new Set(viagens.map((v) => `${v.motorista.id}|${v.rota.turno}|${v.sentido}`)).size
 }
 
 interface PropsSecao {
@@ -47,10 +62,13 @@ interface PropsSecao {
   jornadas: ResumoJornada[]
   chaveFiltros: string
   renderizar: (jornada: ResumoJornada, indice: number) => ReactNode
+  /** Filtros ativos (ex.: "Situação: Cancelada"), para o aviso quando nada aparece. */
+  filtros: string[]
+  aoLimpar: () => void
 }
 
 /** Ida ou volta do turno: os cartões dos motoristas, paginados. */
-function SecaoSentido({ sentido, jornadas, chaveFiltros, renderizar }: PropsSecao) {
+function SecaoSentido({ sentido, jornadas, chaveFiltros, renderizar, filtros, aoLimpar }: PropsSecao) {
   const paginacao = usePaginacao(jornadas, chaveFiltros)
   const ida = sentido === 'ida'
   return (
@@ -61,19 +79,24 @@ function SecaoSentido({ sentido, jornadas, chaveFiltros, renderizar }: PropsSeca
         </span>
         {ida ? 'Ida' : 'Volta'}
         <span className="text-sm font-normal text-slate-500">
-          · {jornadas.length} motorista{jornadas.length === 1 ? '' : 's'}
+          · {jornadas.length} viage{jornadas.length === 1 ? 'm' : 'ns'}
         </span>
       </h2>
       {jornadas.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-300 px-5 py-6 text-center text-sm text-slate-500">
-          Nenhuma {ida ? 'ida' : 'volta'} com esses filtros.
-        </p>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60">
+          <AvisoSemResultado
+            titulo={`Nenhuma ${ida ? 'ida' : 'volta'} encontrada`}
+            filtros={filtros}
+            aoLimpar={aoLimpar}
+            dica={filtros.length ? undefined : `Nenhum motorista tem ${ida ? 'ida' : 'volta'} neste turno.`}
+          />
+        </div>
       ) : (
         <div className="space-y-3">
           {paginacao.visiveis.map((j, i) => renderizar(j, i))}
           {paginacao.totalPaginas > 1 && (
             <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/70">
-              <RodapePaginacao paginacao={paginacao} rotulo="motorista(s)" />
+              <RodapePaginacao paginacao={paginacao} rotulo="viagem(ns)" />
             </div>
           )}
         </div>
@@ -96,9 +119,10 @@ export default function PaginaViagens() {
   )
   const [situacao, setSituacao] = useState<StatusViagem | ''>('')
   const [aberto, setAberto] = useState<Sobreposicao>({ tipo: 'nada' })
-  const [avisos, setAvisos] = useState<Aviso[]>([])
+  const avisos = useAviso()
   const [gerando, setGerando] = useState(false)
   const [ocupada, setOcupada] = useState<number | null>(null)
+  const [versaoCalendario, setVersaoCalendario] = useState(0)
 
   const viagens = useRequisicao(() => servicoViagem.listar({ data }), [data])
   const todas = useMemo(() => viagens.dados ?? [], [viagens.dados])
@@ -106,6 +130,8 @@ export default function PaginaViagens() {
   // Sem escolha do usuário, abre no turno do horário atual (ou no primeiro que tiver viagem).
   const turno = turnoEscolhido ?? turnoInicial(todas, new Date().getHours())
   const porTurno = contarPorTurno(todas)
+  // A operação trabalha com manhã e noite; a tarde só aparece se o dia tiver viagem à tarde.
+  const turnosVisiveis = ORDEM_TURNOS.filter((t) => t !== 'tarde' || porTurno.tarde > 0)
   const jornadas = useMemo(() => agruparJornadas(todas, turno), [todas, turno])
 
   const totais = useMemo(() => {
@@ -114,29 +140,44 @@ export default function PaginaViagens() {
     return contagem
   }, [jornadas])
 
+  const filtrosAtivos = situacao ? [`Situação: ${ROTULOS_STATUS_VIAGEM[situacao]}`] : []
   const filtrar = (lista: ResumoJornada[]) => (situacao ? lista.filter((j) => j.status === situacao) : lista)
-  const ehHoje = data === dataIso()
+  // Só dá para gerar até o fim da semana atual (a API recusa semanas futuras).
+  const limiteGeracao = diasDaSemana(dataIso())[6]
+  const semanaFutura = data > limiteGeracao
+  const liberaEm = diasDaSemana(data)[0]
+  const dataPorExtenso = `${diaDaSemana(data).replace(/^./, (c) => c.toUpperCase())}, ${formatarData(data)}`
   const chaveFiltros = `${data}|${turno}|${situacao}`
 
   function trocarDia(novo: string) {
     setData(novo)
-    setAvisos([])
   }
 
   async function gerar() {
     setGerando(true)
     try {
+      const antes = jornadasDoDia(todas)
       const resultado = await servicoViagem.gerar(data)
-      setAvisos([
-        {
-          mensagem: `${formatarData(data)}: ${descreverGeracao(resultado.viagens_criadas, resultado.chamadas_criadas)}`,
-          tipo: resultado.viagens_criadas > 0 || resultado.chamadas_criadas > 0 ? 'sucesso' : 'aviso',
-        },
-        ...resultado.avisos.map((mensagem) => ({ mensagem, tipo: 'aviso' as const })),
-      ])
+      setVersaoCalendario((v) => v + 1)
+      if (resultado.indisponivel) {
+        setAberto({ tipo: 'indisponivel', motivo: resultado.indisponivel, detalhes: resultado.avisos })
+        return
+      }
+      const depois = jornadasDoDia(await servicoViagem.listar({ data }))
       await viagens.recarregar()
+      const novas = depois - antes
+      const houveNovidade = resultado.viagens_criadas > 0 || resultado.chamadas_criadas > 0
+      const pendencias = resultado.avisos.filter((a) => a !== 'As viagens deste dia já tinham sido geradas.')
+      avisos.mostrar({
+        tipo: houveNovidade ? (pendencias.length ? 'aviso' : 'sucesso') : 'info',
+        titulo: houveNovidade ? 'Viagens do dia geradas' : 'Nada novo para gerar',
+        descricao: houveNovidade
+          ? `${dataPorExtenso}: ${descreverGeracao(Math.max(novas, 0), resultado.chamadas_criadas)}`
+          : `As viagens de ${dataPorExtenso.toLowerCase()} já estavam geradas e completas.`,
+        itens: pendencias,
+      })
     } catch (e) {
-      setAvisos([{ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', tipo: 'erro' }])
+      avisos.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível gerar as viagens')
     } finally {
       setGerando(false)
     }
@@ -147,10 +188,14 @@ export default function PaginaViagens() {
     setOcupada(v.id)
     try {
       await servicoViagem.cancelar(v.id)
-      setAvisos([{ mensagem: `Rota ${v.rota.nome} cancelada neste dia.`, tipo: 'sucesso' }])
       await viagens.recarregar()
+      avisos.mostrar({
+        tipo: 'sucesso',
+        titulo: 'Destino cancelado neste dia',
+        descricao: `${v.rota.instituicao.nome} (${v.sentido}) não será atendida em ${dataPorExtenso.toLowerCase()}.`,
+      })
     } catch (e) {
-      setAvisos([{ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', tipo: 'erro' }])
+      avisos.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível cancelar')
     } finally {
       setOcupada(null)
     }
@@ -159,7 +204,6 @@ export default function PaginaViagens() {
   /** Confirmou no modal: inicia todas as rotas e já abre a fila no primeiro passageiro. */
   async function iniciar(jornada: ResumoJornada) {
     await servicoViagem.iniciarJornada(jornada.chave)
-    setAvisos([])
     setAberto({ tipo: 'andamento', jornada })
     await viagens.recarregar()
   }
@@ -167,8 +211,12 @@ export default function PaginaViagens() {
   async function salvarTroca(viagem: Viagem, dados: { fk_motorista?: number; fk_veiculo?: number }) {
     await servicoViagem.substituir(viagem.id, dados)
     setAberto({ tipo: 'nada' })
-    setAvisos([{ mensagem: `Troca salva na rota ${viagem.rota.nome}.`, tipo: 'sucesso' }])
     await viagens.recarregar()
+    avisos.mostrar({
+      tipo: 'sucesso',
+      titulo: 'Troca salva',
+      descricao: `A troca vale só para ${viagem.rota.instituicao.nome} (${viagem.sentido}) neste dia; o cadastro da rota não muda.`,
+    })
   }
 
   const cartao = (jornada: ResumoJornada, indice: number) => (
@@ -191,106 +239,101 @@ export default function PaginaViagens() {
     <>
       <CabecalhoPagina
         titulo="Viagens"
-        descricao={`${diaDaSemana(data).replace(/^./, (c) => c.toUpperCase())}, ${formatarData(data)}`}
-        acoes={
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <div className="flex flex-1 items-center rounded-lg bg-white ring-1 ring-slate-300 sm:flex-none">
-              <button
-                type="button"
-                onClick={() => trocarDia(somarDias(data, -1))}
-                aria-label="Dia anterior"
-                className="rounded-l-lg px-2.5 py-2 text-marinho hover:bg-fundo"
-              >
-                <Icone nome="seta" className="h-4 w-4 rotate-180" />
-              </button>
-              <input
-                type="date"
-                aria-label="Data das viagens"
-                value={data}
-                onChange={(e) => e.target.value && trocarDia(e.target.value)}
-                className="min-w-0 flex-1 border-x border-slate-200 px-2 py-2 text-sm font-semibold text-marinho outline-none sm:py-1.5"
-              />
-              <button
-                type="button"
-                onClick={() => trocarDia(somarDias(data, 1))}
-                aria-label="Próximo dia"
-                className="rounded-r-lg px-2.5 py-2 text-marinho hover:bg-fundo"
-              >
-                <Icone nome="seta" className="h-4 w-4" />
-              </button>
-            </div>
-            {!ehHoje && (
-              <Botao variante="secundario" onClick={() => trocarDia(dataIso())}>
-                Hoje
-              </Botao>
-            )}
-            <Botao onClick={() => void gerar()} disabled={gerando} className="w-full sm:w-auto">
-              <Icone nome="mais" className="h-4 w-4" />
-              {gerando ? 'Gerando...' : 'Gerar viagens do dia'}
-            </Botao>
-          </div>
-        }
+        descricao="Gere as viagens do dia, acompanhe cada motorista e confirme embarque e desembarque dos passageiros."
       />
 
-      {avisos.length > 0 && (
-        <div className="mb-4 space-y-2 animate-surgir">
-          {avisos.map((aviso, i) => (
-            <Alerta
-              key={`${i}-${aviso.mensagem}`}
-              mensagem={aviso.mensagem}
-              tipo={aviso.tipo}
-              aoFechar={() => setAvisos((lista) => lista.filter((_, j) => j !== i))}
-            />
-          ))}
+      {/* Dia: faixa da semana + ação de gerar */}
+      <section className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 sm:p-5">
+        <FaixaSemana data={data} aoEscolher={trocarDia} versao={versaoCalendario} />
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <div>
+            <p className="text-lg font-extrabold text-marinho">{dataPorExtenso}</p>
+            <p className="text-sm text-slate-500">
+              {todas.length > 0
+                ? `${jornadasDoDia(todas)} viagens de motorista · ${todas.filter((v) => v.status !== 'cancelada').length} destinos`
+                : 'Nenhuma viagem gerada para este dia.'}
+            </p>
+          </div>
+          {semanaFutura ? (
+            <div className="flex w-full items-center gap-2 rounded-xl bg-fundo px-4 py-2.5 text-sm text-slate-600 sm:w-auto">
+              <Icone nome="relogio" className="h-4 w-4 shrink-0 text-slate-400" />
+              <span>
+                Semana futura: gere a partir de{' '}
+                <strong className="text-marinho">
+                  {partesDoDia(liberaEm).semana.toLowerCase()}, {formatarData(liberaEm).slice(0, 5)}
+                </strong>
+              </span>
+            </div>
+          ) : (
+            <Botao onClick={() => void gerar()} disabled={gerando} className="w-full sm:w-auto">
+              <Icone nome="mais" className="h-4 w-4" />
+              {gerando ? 'Gerando...' : todas.length > 0 ? 'Atualizar viagens do dia' : 'Gerar viagens do dia'}
+            </Botao>
+          )}
+        </div>
+      </section>
+
+
+      {/* Turno e situação */}
+      {todas.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          <div role="tablist" aria-label="Turno" className="flex w-full rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200/70 sm:w-auto">
+            {turnosVisiveis.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={turno === t}
+                onClick={() => setTurnoEscolhido(t)}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-colors sm:flex-none ${
+                  turno === t ? 'bg-marinho text-white shadow-sm' : 'text-slate-500 hover:bg-fundo hover:text-marinho'
+                }`}
+              >
+                {ROTULOS_TURNO[t]}
+                <span className={`rounded-full px-2 text-xs tabular-nums ${turno === t ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                  {porTurno[t]}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] sm:ml-auto" aria-label="Filtrar por situação">
+            {SITUACOES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSituacao(situacao === s ? '' : s)}
+                aria-pressed={situacao === s}
+                disabled={totais[s] === 0 && situacao !== s}
+                title={totais[s] === 0 ? `Nenhuma jornada ${ROTULOS_STATUS_VIAGEM[s].toLowerCase()} neste turno` : undefined}
+                className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  situacao === s
+                    ? 'bg-laranja text-white shadow-sm'
+                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:text-marinho'
+                }`}
+              >
+                {ROTULOS_STATUS_VIAGEM[s]}
+                <span
+                  className={`rounded-full px-1.5 text-xs tabular-nums ${situacao === s ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}
+                >
+                  {totais[s]}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Turno */}
-      <div role="tablist" aria-label="Turno" className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200/70">
-        {ORDEM_TURNOS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={turno === t}
-            onClick={() => setTurnoEscolhido(t)}
-            className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${
-              turno === t ? 'bg-marinho text-white shadow-sm' : 'text-slate-500 hover:bg-fundo hover:text-marinho'
-            }`}
-          >
-            {ROTULOS_TURNO[t]}
-            <span className={`rounded-full px-2 text-xs tabular-nums ${turno === t ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-              {porTurno[t]}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Situação das jornadas do turno (também filtra) */}
-      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        {SITUACOES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSituacao(situacao === s ? '' : s)}
-            aria-pressed={situacao === s}
-            className={`rounded-2xl bg-white px-3 py-2 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 sm:px-4 sm:py-2.5 ${
-              situacao === s ? 'ring-2 ring-laranja' : 'ring-slate-200/70'
-            }`}
-          >
-            <span className="text-xs font-semibold text-slate-500">{ROTULOS_STATUS_VIAGEM[s]}</span>
-            <span className="block text-xl font-extrabold text-marinho tabular-nums">{totais[s]}</span>
-          </button>
-        ))}
-      </div>
-
-      {viagens.erro && <Alerta mensagem={viagens.erro} />}
+      {viagens.erro && (
+        <Cartao>
+          <AvisoSemResultado titulo="Não foi possível carregar as viagens" filtros={[]} dica={viagens.erro} />
+        </Cartao>
+      )}
       {viagens.carregando && (
         <Cartao>
           <p className="py-6 text-center text-sm text-slate-500">Carregando...</p>
         </Cartao>
       )}
-      {!viagens.carregando && !viagens.erro && porTurno[turno] === 0 && (
+      {!viagens.carregando && !viagens.erro && todas.length > 0 && porTurno[turno] === 0 && (
         <Cartao>
           <p className="py-6 text-center text-sm text-slate-500">
             {todas.length === 0
@@ -301,8 +344,8 @@ export default function PaginaViagens() {
       )}
       {!viagens.carregando && !viagens.erro && porTurno[turno] > 0 && (
         <div className="space-y-8">
-          <SecaoSentido sentido="ida" jornadas={filtrar(jornadas.ida)} chaveFiltros={chaveFiltros} renderizar={cartao} />
-          <SecaoSentido sentido="volta" jornadas={filtrar(jornadas.volta)} chaveFiltros={chaveFiltros} renderizar={cartao} />
+          <SecaoSentido sentido="ida" jornadas={filtrar(jornadas.ida)} chaveFiltros={chaveFiltros} renderizar={cartao} filtros={filtrosAtivos} aoLimpar={() => setSituacao('')} />
+          <SecaoSentido sentido="volta" jornadas={filtrar(jornadas.volta)} chaveFiltros={chaveFiltros} renderizar={cartao} filtros={filtrosAtivos} aoLimpar={() => setSituacao('')} />
         </div>
       )}
 
@@ -319,6 +362,10 @@ export default function PaginaViagens() {
         />
       )}
       {aberto.tipo === 'concluida' && <ModalJornadaConcluida jornada={aberto.jornada} aoFechar={fechar} />}
+      {avisos.modal}
+      {aberto.tipo === 'indisponivel' && (
+        <ModalDiaIndisponivel motivo={aberto.motivo} dataPorExtenso={dataPorExtenso} detalhes={aberto.detalhes} aoFechar={fechar} />
+      )}
       {aberto.tipo === 'passageiros' && <GavetaPassageirosViagem viagem={aberto.viagem} aoFechar={fechar} />}
       {aberto.tipo === 'troca' && (
         <FormularioSubstituicao viagem={aberto.viagem} aoSalvar={(dados) => salvarTroca(aberto.viagem, dados)} aoCancelar={fechar} />

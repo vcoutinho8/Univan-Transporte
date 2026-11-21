@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 
-import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
+import { useAviso } from '../../shared/components/NoticeModal.tsx'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { baixarArquivo, criarPdf } from '../../shared/pdf/gerarPdf.ts'
 import { ErroApi } from '../../shared/services/api.ts'
@@ -82,10 +82,8 @@ const chaveDe = (f: Filtros) => JSON.stringify(f)
  */
 export default function RelatorioEstudantesAtivos() {
   const [filtros, setFiltros] = useState<Filtros>(filtrosIniciais)
-  /** Gerou, mas nenhum passageiro atende aos filtros: guarda a chave dos filtros usados. */
-  const [semResultado, setSemResultado] = useState<string | null>(null)
   const [gerando, setGerando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
+  const avisos = useAviso()
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const instituicoes = useRequisicao(() => servicoInstituicao.listar())
 
@@ -110,8 +108,6 @@ export default function RelatorioEstudantesAtivos() {
   async function gerar() {
     if (erroPeriodo) return
     setGerando(true)
-    setErro(null)
-    setSemResultado(null)
     try {
       const dados = await servicoRelatorio.estudantesAtivos({
         data_inicio: filtros.inicio,
@@ -122,8 +118,16 @@ export default function RelatorioEstudantesAtivos() {
       const situacao = filtros.situacao
       const estudantes = situacao ? dados.estudantes.filter(SITUACOES[situacao].aceita) : dados.estudantes
       if (estudantes.length === 0) {
-        setResultado(null)
-        setSemResultado(chaveDe(filtros))
+        avisos.mostrar({
+          tipo: 'aviso',
+          titulo: 'Nenhum passageiro atende a esses filtros',
+          descricao: 'A combinação escolhida não trouxe resultado, então não há relatório para gerar. Tente ampliar a busca:',
+          itens: [
+            ...(descricaoFiltros.length ? [`Tire um dos filtros (${descricaoFiltros.map((f) => f.valor).join(', ')}).`] : []),
+            'Troque a situação para "Com e sem bairro".',
+            'Confira se a instituição tem passageiros ativos nesse turno.',
+          ],
+        })
         return
       }
       const agora = new Date()
@@ -139,7 +143,7 @@ export default function RelatorioEstudantesAtivos() {
       )
       setResultado({ url: URL.createObjectURL(arquivo), arquivo, estudantes, chave: chaveDe(filtros), geradoEm })
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.mensagemCompleta : 'Não foi possível gerar o relatório. Tente de novo.')
+      avisos.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Tente de novo em instantes.', 'Não foi possível gerar o relatório')
     } finally {
       setGerando(false)
     }
@@ -258,7 +262,6 @@ export default function RelatorioEstudantesAtivos() {
               variante="secundario"
               onClick={() => {
                 setFiltros(filtrosIniciais())
-                setSemResultado(null)
               }}
             >
               Limpar filtros
@@ -271,32 +274,8 @@ export default function RelatorioEstudantesAtivos() {
         </div>
       </Cartao>
 
-      {erro && <Alerta mensagem={erro} aoFechar={() => setErro(null)} />}
-
       {/* Resultado, nenhum resultado ou espaço vazio */}
-      {semResultado && !resultado ? (
-        <div className="grid min-h-[45vh] place-items-center rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/60 p-8 text-center">
-          <div className="max-w-md">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 text-amber-600">
-              <Icone nome="alerta" className="h-8 w-8" />
-            </span>
-            <h2 className="mt-4 text-lg font-extrabold text-marinho">Nenhum passageiro atende a esses filtros</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              A combinação escolhida não trouxe resultado, então não há relatório para gerar. Tente ampliar a busca:
-            </p>
-            <ul className="mt-3 space-y-1 text-left text-sm text-slate-600">
-              {descricaoFiltros.length > 0 && (
-                <li>• Tire um dos filtros ({descricaoFiltros.map((f) => f.valor).join(', ')}).</li>
-              )}
-              <li>• Troque a situação para "Com e sem bairro".</li>
-              <li>• Confira se a instituição tem passageiros ativos nesse turno.</li>
-            </ul>
-            {semResultado !== chaveDe(filtros) && (
-              <p className="mt-3 text-xs font-semibold text-amber-700">Você mudou os filtros: clique em Gerar relatório de novo.</p>
-            )}
-          </div>
-        </div>
-      ) : resultado ? (
+      {resultado ? (
         <Cartao
           semEspaco
           titulo={`${resultado.estudantes.length} passageiro(s) · gerado em ${resultado.geradoEm}`}
@@ -315,12 +294,21 @@ export default function RelatorioEstudantesAtivos() {
             </div>
           }
         >
-          {desatualizado && (
-            <div className="px-5 pb-3">
-              <Alerta tipo="aviso" mensagem='Você mudou os filtros depois de gerar. Clique em "Gerar de novo" para atualizar o relatório.' />
-            </div>
-          )}
-          <iframe title="Relatório em PDF" src={resultado.url} className="h-[75vh] w-full rounded-b-2xl border-t border-slate-100" />
+          <div className="relative">
+            <iframe title="Relatório em PDF" src={resultado.url} className="h-[75vh] w-full rounded-b-2xl border-t border-slate-100" />
+            {desatualizado && (
+              <div className="absolute inset-0 grid place-items-center rounded-b-2xl bg-white/80 backdrop-blur-[1px]">
+                <div className="text-center">
+                  <p className="font-bold text-marinho">Os filtros mudaram</p>
+                  <p className="mt-1 text-sm text-slate-500">Gere de novo para ver o relatório atualizado.</p>
+                  <Botao className="mt-3" onClick={() => void gerar()} disabled={gerando}>
+                    <Icone nome="documento" className="h-4 w-4" />
+                    {gerando ? 'Gerando...' : 'Gerar de novo'}
+                  </Botao>
+                </div>
+              </div>
+            )}
+          </div>
         </Cartao>
       ) : (
         <div className="grid min-h-[45vh] place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-8 text-center">
@@ -345,6 +333,7 @@ export default function RelatorioEstudantesAtivos() {
           </div>
         </div>
       )}
+      {avisos.modal}
     </div>
   )
 }

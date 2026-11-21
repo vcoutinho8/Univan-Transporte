@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 
-from sqlalchemy import case, func, select, text
+from sqlalchemy import String, case, func, select, text
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config.rotinas import comandos_da_rotina
@@ -114,6 +114,40 @@ class RepositorioViagem:
                     RotaDia.dia_semana == dia.isoweekday(),
                 )
                 .order_by(Rota.nome)
+            )
+        )
+
+    def contar_viagens_por_dia(self, inicio: date, fim: date) -> dict[date, int]:
+        """Viagens por dia, contadas como jornadas: motorista + turno + sentido (o cartão da tela).
+
+        Um motorista que leva alunos para três faculdades na ida da noite faz uma viagem, não três.
+        """
+        jornada = func.distinct(Viagem.fk_motorista.cast(String) + "|" + Rota.turno.cast(String) + "|" + Viagem.sentido.cast(String))
+        linhas = self.sessao.execute(
+            select(Viagem.data, func.count(jornada))
+            .join(Rota, Rota.id == Viagem.fk_rota)
+            .where(Viagem.data.between(inicio, fim))
+            .group_by(Viagem.data)
+        )
+        return dict(linhas.all())
+
+    def contar_rotas_por_dia_semana(self) -> dict[int, int]:
+        """{dia da semana ISO: rotas ativas que rodam nele}."""
+        linhas = self.sessao.execute(
+            select(RotaDia.dia_semana, func.count())
+            .join(Rota, Rota.id == RotaDia.fk_rota)
+            .where(Rota.status == StatusCadastro.ATIVO)
+            .group_by(RotaDia.dia_semana)
+        )
+        return dict(linhas.all())
+
+    def dias_sem_aula_no_periodo(self, inicio: date, fim: date) -> list[DiaSemAula]:
+        return list(
+            self.sessao.scalars(
+                select(DiaSemAula)
+                .options(joinedload(DiaSemAula.instituicao))
+                .where(DiaSemAula.data.between(inicio, fim))
+                .order_by(DiaSemAula.data)
             )
         )
 

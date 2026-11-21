@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
+import AvisoSemResultado from '../../shared/components/NoResults.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import CabecalhoPagina from '../../shared/components/PageHeader.tsx'
@@ -156,8 +157,18 @@ export default function PaginaVeiculos() {
                 )}
                 {!veiculos.carregando && veiculosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                      Nenhum veículo encontrado.
+                    <td colSpan={6}>
+                      <AvisoSemResultado
+                        titulo="Nenhum veículo encontrado"
+                        filtros={[
+                          busca.trim() && `Busca: "${busca.trim()}"`,
+                          filtroStatus !== 'ativo' && `Situação: ${filtroStatus === 'inativo' ? 'Inativos' : 'Todos'}`,
+                        ].filter((f): f is string => Boolean(f))}
+                        aoLimpar={() => {
+                          setBusca('')
+                          setFiltroStatus('ativo')
+                        }}
+                      />
                     </td>
                   </tr>
                 )}

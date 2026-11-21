@@ -1,3 +1,4 @@
+import type { PeriodoSemAula } from '../dia_sem_aula/types.ts'
 import type { Turno } from '../estudante/types.ts'
 
 type Referencia = { id: number; nome: string }
@@ -48,4 +49,17 @@ export interface FiltrosRelatorioEstudantes {
   data_fim: string
   fk_instituicao?: number | ''
   turno?: Turno | ''
+}
+
+/** Relatório de dias sem aula (RelatorioDiasSemAula). */
+export interface RelatorioDiasSemAula {
+  gerado_em: string
+  data_inicio: string
+  data_fim: string
+  /** Datas distintas sem aula (para alguma instituição). */
+  total_dias: number
+  dias_uteis: number
+  /** Datas sem aula para todas as instituições. */
+  gerais: number
+  periodos: PeriodoSemAula[]
 }
