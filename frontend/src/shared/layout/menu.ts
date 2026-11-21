@@ -53,7 +53,7 @@ export const MENU: GrupoMenu[] = [
         icone: 'motorista',
         requisito: 'RF2',
         descricao: 'Cadastro de motoristas com CNH, validade da CNH e veículo padrão.',
-        pronto: false,
+        pronto: true,
       },
       {
         para: '/veiculos',

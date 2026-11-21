@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 import PaginaEstudantes from './modules/estudante/StudentsPage.tsx'
 import PaginaMapa from './modules/mapa/MapPage.tsx'
+import PaginaMotoristas from './modules/motorista/DriversPage.tsx'
 import PaginaPainel from './modules/painel/DashboardPage.tsx'
 import PaginaRelatorio from './modules/relatorio/ReportViewPage.tsx'
 import PaginaRelatorios from './modules/relatorio/ReportsPage.tsx'
@@ -19,6 +20,7 @@ export default function App() {
       <Route element={<LayoutPrincipal />}>
         <Route index element={<PaginaPainel />} />
         <Route path="passageiros" element={<PaginaEstudantes />} />
+        <Route path="motoristas" element={<PaginaMotoristas />} />
         <Route path="veiculos" element={<PaginaVeiculos />} />
         <Route path="mapa" element={<PaginaMapa />} />
         <Route path="viagens" element={<PaginaViagens />} />

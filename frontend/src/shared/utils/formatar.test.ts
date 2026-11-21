@@ -42,6 +42,13 @@ describe('valores de tela', () => {
     expect(formatarHorario(null)).toBe('—')
   })
 
+  it('mostra data no formato brasileiro', () => {
+    expect(formatarData('2028-03-15')).toBe('15/03/2028')
+    expect(formatarData('2028-03-15 10:00:00')).toBe('15/03/2028')
+    expect(formatarData(null)).toBe('—')
+    expect(formatarData('')).toBe('—')
+  })
+
   it('encurta nomes para as etiquetas do mapa', () => {
     expect(nomeCurto('Ana Beatriz Souza')).toBe('Ana S.')
     expect(nomeCurto('Ana Beatriz Souza', 'Bia')).toBe('Bia')

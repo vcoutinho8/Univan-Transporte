@@ -30,6 +30,12 @@ export function formatarCep(valor: string): string {
 const MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 export const formatarMoeda = (valor: number) => MOEDA.format(valor)
 
+/** "2028-03-15" → "15/03/2028" (sem passar por Date, para o fuso não mudar o dia). */
+export function formatarData(valor: string | null): string {
+  const partes = valor?.slice(0, 10).split('-')
+  return partes?.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : '—'
+}
+
 /** "17:40:00" → "17:40". */
 export const formatarHorario = (valor: string | null) => (valor ? valor.slice(0, 5) : '—')
 
@@ -44,12 +50,6 @@ export function dataIso(data = new Date()): string {
 export function somarDias(iso: string, dias: number): string {
   const [ano, mes, dia] = iso.split('-').map(Number)
   return dataIso(new Date(ano, mes - 1, dia + dias))
-}
-
-/** "2026-11-23" → "23/11/2026". */
-export function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.slice(0, 10).split('-')
-  return `${dia}/${mes}/${ano}`
 }
 
 const DIA_DA_SEMANA = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' })

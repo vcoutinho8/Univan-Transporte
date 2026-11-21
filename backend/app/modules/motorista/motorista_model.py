@@ -24,6 +24,7 @@ class Motorista(Base):
     fk_empresa: Mapped[int] = mapped_column(ForeignKey("empresa.id"))
     fk_veiculo: Mapped[int | None] = mapped_column(ForeignKey("veiculo.id"))
     nome: Mapped[str] = mapped_column(String(100))
+    apelido: Mapped[str | None] = mapped_column(String(30))
     cpf: Mapped[str] = mapped_column(String(11), unique=True)
     celular: Mapped[str | None] = mapped_column(String(15))
     cnh: Mapped[str] = mapped_column(String(11), unique=True)

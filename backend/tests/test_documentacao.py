@@ -8,6 +8,7 @@ from app.config.documentacao import TAGS
 from app.main import app
 from app.modules.area.area_schema import AreaAtualizacao, AreaCriacao
 from app.modules.estudante.estudante_schema import EstudanteAtualizacao, EstudanteCriacao
+from app.modules.motorista.motorista_schema import MotoristaAtualizacao, MotoristaCriacao
 from app.modules.rota.rota_schema import RotaAtualizacao, RotaCriacao
 from app.modules.veiculo.veiculo_schema import VeiculoAtualizacao, VeiculoCriacao
 
@@ -59,6 +60,7 @@ def test_corpos_de_cadastro_e_alteracao_tem_exemplo():
     for nome in (
         "VeiculoCriacao", "VeiculoAtualizacao", "EstudanteCriacao", "EstudanteAtualizacao",
         "AreaCriacao", "AreaAtualizacao", "RotaCriacao", "RotaAtualizacao",
+        "MotoristaCriacao", "MotoristaAtualizacao",
     ):
         assert esquemas[nome].get("examples"), nome
 
@@ -68,6 +70,7 @@ def test_corpos_de_cadastro_e_alteracao_tem_exemplo():
     [
         VeiculoCriacao, VeiculoAtualizacao, EstudanteCriacao, EstudanteAtualizacao,
         AreaCriacao, AreaAtualizacao, RotaCriacao, RotaAtualizacao,
+        MotoristaCriacao, MotoristaAtualizacao,
     ],
     ids=lambda m: m.__name__,
 )
