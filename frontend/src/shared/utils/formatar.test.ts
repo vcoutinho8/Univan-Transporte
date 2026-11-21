@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatarCelular, formatarCep, formatarCpf, formatarHorario, formatarMoeda, iniciais, nomeCurto } from './formatar.ts'
+import {
+  formatarCelular,
+  formatarCep,
+  formatarCpf,
+  formatarData,
+  formatarHorario,
+  formatarMoeda,
+  iniciais,
+  nomeCurto,
+} from './formatar.ts'
 
 describe('máscaras de documento e telefone', () => {
   it('formata CPF completo e enquanto digita', () => {
@@ -27,6 +36,13 @@ describe('valores de tela', () => {
     expect(formatarMoeda(550).replace(/\s/g, ' ')).toBe('R$ 550,00')
     expect(formatarHorario('17:40:00')).toBe('17:40')
     expect(formatarHorario(null)).toBe('—')
+  })
+
+  it('mostra data no formato brasileiro', () => {
+    expect(formatarData('2028-03-15')).toBe('15/03/2028')
+    expect(formatarData('2028-03-15 10:00:00')).toBe('15/03/2028')
+    expect(formatarData(null)).toBe('—')
+    expect(formatarData('')).toBe('—')
   })
 
   it('encurta nomes para as etiquetas do mapa', () => {

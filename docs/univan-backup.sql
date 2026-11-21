@@ -1050,16 +1050,16 @@ INSERT INTO public.instituicao VALUES (10, 'IFSC - Câmpus Urussanga', 20);
 -- Data for Name: motorista; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', '12345678901', '48991110001', '01234567801', '2028-03-15', 3200.00, 5, 'ativo');
-INSERT INTO public.motorista VALUES (2, 2, 2, 'João Pedro Rocha', '23456789012', '48991110002', '01234567802', '2027-08-20', 3000.00, 5, 'ativo');
-INSERT INTO public.motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', '34567890123', '48991110003', '01234567803', '2029-01-10', 3500.00, 10, 'ativo');
-INSERT INTO public.motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', '45678901234', '48991110004', '01234567804', '2027-11-30', 3100.00, 5, 'ativo');
-INSERT INTO public.motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', '56789012345', '48991110005', '01234567805', '2028-06-05', 3200.00, 5, 'ativo');
-INSERT INTO public.motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', '67890123456', '48991110006', '01234567806', '2027-04-18', 2900.00, 15, 'ativo');
-INSERT INTO public.motorista VALUES (7, 7, 7, 'Juliana Ferreira', '78901234567', '48991110007', '01234567807', '2029-09-22', 3000.00, 5, 'ativo');
-INSERT INTO public.motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', '89012345678', '48991110008', '01234567808', '2028-12-01', 3400.00, 10, 'ativo');
-INSERT INTO public.motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', '90123456789', '48991110009', '01234567809', '2027-07-14', 3000.00, 5, 'ativo');
-INSERT INTO public.motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', '01234567890', '48991110010', '01234567810', '2026-12-31', 2800.00, 5, 'inativo');
+INSERT INTO public.motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', '20130140155', '48991110001', '10120130194', '2028-03-15', 3200.00, 5, 'ativo');
+INSERT INTO public.motorista VALUES (2, 2, 2, 'João Pedro Rocha', '20230240216', '48991110002', '10220230209', '2027-08-20', 3000.00, 5, 'ativo');
+INSERT INTO public.motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', '20330340387', '48991110003', '10320330307', '2029-01-10', 3500.00, 10, 'ativo');
+INSERT INTO public.motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', '20430440448', '48991110004', '10420430413', '2027-11-30', 3100.00, 5, 'ativo');
+INSERT INTO public.motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', '20530540509', '48991110005', '10520530520', '2028-06-05', 3200.00, 5, 'ativo');
+INSERT INTO public.motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', '20630640670', '48991110006', '10620630636', '2027-04-18', 2900.00, 15, 'ativo');
+INSERT INTO public.motorista VALUES (7, 7, 7, 'Juliana Ferreira', '20730740730', '48991110007', '10720730742', '2029-09-22', 3000.00, 5, 'ativo');
+INSERT INTO public.motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', '20830840800', '48991110008', '10820830859', '2028-12-01', 3400.00, 10, 'ativo');
+INSERT INTO public.motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', '20930940962', '48991110009', '10920930965', '2027-07-14', 3000.00, 5, 'ativo');
+INSERT INTO public.motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', '21031041028', '48991110010', '11021031011', '2026-12-31', 2800.00, 5, 'inativo');
 
 
 --

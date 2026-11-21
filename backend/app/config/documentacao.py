@@ -22,7 +22,7 @@ Abra um grupo, escolha uma rota e clique em **Try it out** para chamar a API de 
   envie `PATCH` com `{"status": "ativo"}`. O histórico é sempre mantido.
 - **`PATCH` altera só o que vier no corpo.** Campo obrigatório não pode ser enviado como `null`.
 - **Campos desconhecidos são recusados** (422), para erros de digitação não passarem calados.
-- **Documentos sem máscara.** CPF, CEP, celular e placa podem chegar com pontuação
+- **Documentos sem máscara.** CPF, CNH, CEP, celular e placa podem chegar com pontuação
   (`111.222.333-01`, `qja-1b23`); a API guarda e devolve só letras e números.
 - **Datas e horários:** `AAAA-MM-DD` e `HH:MM` (ou `HH:MM:SS`). Coordenadas em graus decimais.
 - **Empresa da sessão.** Os cadastros entram na empresa de quem usa o sistema; enquanto o login
@@ -63,7 +63,12 @@ TAGS: list[dict[str, str]] = [
         "description": "Trajetos fixos: motorista + faculdade + turno, horários e dias da semana. "
         "Os passageiros de cada rota seguem a mesma regra da geração das viagens do dia.",
     },
-    {"name": "Motoristas", "description": "Consulta dos motoristas (o cadastro ainda não existe)."},
+    {
+        "name": "Motoristas",
+        "description": "Quem dirige (tabela `motorista`), com CPF, CNH e validade da CNH. Cadastrados na empresa "
+        "da sessão e ligados a um **veículo padrão**. CPF e CNH são conferidos pelos dígitos verificadores "
+        "e a CNH de um motorista ativo não pode estar vencida.",
+    },
     {"name": "Instituições", "description": "Faculdades de destino, com endereço e coordenadas."},
     {"name": "Empresas", "description": "Transportadoras cadastradas."},
     {"name": "Saúde", "description": "Verificação para monitoramento: a API e o banco estão no ar?"},

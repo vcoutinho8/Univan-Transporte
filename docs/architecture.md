@@ -201,7 +201,7 @@ O que é usado por todos os módulos fica em pastas comuns:
 | `empresa` | RF2 | Completo (só listagem) | Service + tipos |
 | `veiculo` | RF2 | **Completo (CRUD)** | **Tela completa** |
 | `estudante` (passageiros) | RF2 | Model | Menu "Em breve" |
-| `motorista` | RF2 | Model | Menu "Em breve" |
+| `motorista` | RF2 | **Completo (CRUD)** | **Tela completa** |
 | `endereco` | RF4 / RF6 | Model | — |
 | `instituicao` | RF2 | Model | — |
 | `area` | RF4 | Model | — |

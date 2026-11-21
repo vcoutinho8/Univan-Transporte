@@ -10,7 +10,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Código | Requisito | Situação |
 |---|---|---|
 | RF1 | Autenticação e controle de acesso | ⬜ |
-| RF2 | Gestão de cadastros | 🟡 veículos prontos |
+| RF2 | Gestão de cadastros | 🟡 veículos e motoristas prontos |
 | RF3 | Gerenciamento de viagens e chamadas | 🗄️ rotinas no banco |
 | RF4 | Cadastro e edição de rotas | ⬜ |
 | RF5 | Painel administrativo e relatórios | 🟡 painel pronto |
@@ -31,7 +31,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Veículos: listar, buscar, cadastrar, editar, inativar, reativar | ✅ | API + tela |
 | Empresas: listar | ✅ | Só API, usada no formulário de veículos |
 | Passageiros: cadastrar, editar, consultar, desativar | ⬜ | Model pronto. Área definida automaticamente pelo trigger |
-| Motoristas | ⬜ | Model pronto. CPF e CNH únicos, veículo padrão |
+| Motoristas: listar, buscar, cadastrar, editar, inativar, reativar | ✅ | API + tela |
 | Associar passageiro a rota e ponto de embarque | ⬜ | Hoje a rota é deduzida: área do motorista + instituição + turno |
 | Instituições e endereços | ⬜ | Necessários para o cadastro de passageiros |
 

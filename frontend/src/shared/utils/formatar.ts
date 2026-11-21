@@ -30,6 +30,12 @@ export function formatarCep(valor: string): string {
 const MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 export const formatarMoeda = (valor: number) => MOEDA.format(valor)
 
+/** "2028-03-15" → "15/03/2028" (sem passar por Date, para o fuso não mudar o dia). */
+export function formatarData(valor: string | null): string {
+  const partes = valor?.slice(0, 10).split('-')
+  return partes?.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : '—'
+}
+
 /** "17:40:00" → "17:40". */
 export const formatarHorario = (valor: string | null) => (valor ? valor.slice(0, 5) : '—')
 

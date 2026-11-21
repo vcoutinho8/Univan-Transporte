@@ -76,7 +76,8 @@ export default function PaginaPainel() {
           valor={dados?.motoristas_ativos}
           icone="motorista"
           tom="marinho"
-          detalhe="Equipe disponível"
+          detalhe="Ver motoristas"
+          para="/motoristas"
           atraso={160}
         />
         <CartaoIndicador

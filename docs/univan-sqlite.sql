@@ -82,6 +82,7 @@ CREATE TABLE motorista (
     fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     fk_veiculo    INTEGER REFERENCES veiculo (id),
     nome          TEXT NOT NULL,
+    apelido       TEXT,
     cpf           TEXT NOT NULL,
     celular       TEXT,
     cnh           TEXT NOT NULL,
@@ -403,16 +404,16 @@ INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19);
 INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20);
 
 -- motorista
-INSERT INTO motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', '12345678901', '27991110001', '01234567801', '2028-03-15', 3200.00, 5, 'ativo');
-INSERT INTO motorista VALUES (2, 2, 2, 'João Pedro Rocha', '23456789012', '27991110002', '01234567802', '2027-08-20', 3000.00, 5, 'ativo');
-INSERT INTO motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', '34567890123', '27991110003', '01234567803', '2029-01-10', 3500.00, 10, 'ativo');
-INSERT INTO motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', '45678901234', '27991110004', '01234567804', '2027-11-30', 3100.00, 5, 'ativo');
-INSERT INTO motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', '56789012345', '27991110005', '01234567805', '2028-06-05', 3200.00, 5, 'ativo');
-INSERT INTO motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', '67890123456', '27991110006', '01234567806', '2027-04-18', 2900.00, 15, 'ativo');
-INSERT INTO motorista VALUES (7, 7, 7, 'Juliana Ferreira', '78901234567', '27991110007', '01234567807', '2029-09-22', 3000.00, 5, 'ativo');
-INSERT INTO motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', '89012345678', '27991110008', '01234567808', '2028-12-01', 3400.00, 10, 'ativo');
-INSERT INTO motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', '90123456789', '27991110009', '01234567809', '2027-07-14', 3000.00, 5, 'ativo');
-INSERT INTO motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', '01234567890', '27991110010', '01234567810', '2026-12-31', 2800.00, 5, 'inativo');
+INSERT INTO motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', 'Cadu', '20130140155', '27991110001', '10120130194', '2028-03-15', 3200.00, 5, 'ativo');
+INSERT INTO motorista VALUES (2, 2, 2, 'João Pedro Rocha', 'JP', '20230240216', '27991110002', '10220230209', '2027-08-20', 3000.00, 5, 'ativo');
+INSERT INTO motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', 'Marcão', '20330340387', '27991110003', '10320330307', '2029-01-10', 3500.00, 10, 'ativo');
+INSERT INTO motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', NULL, '20430440448', '27991110004', '10420430413', '2027-11-30', 3100.00, 5, 'ativo');
+INSERT INTO motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', 'Fê', '20530540509', '27991110005', '10520530520', '2028-06-05', 3200.00, 5, 'ativo');
+INSERT INTO motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', 'Paulinho', '20630640670', '27991110006', '10620630636', '2027-04-18', 2900.00, 15, 'ativo');
+INSERT INTO motorista VALUES (7, 7, 7, 'Juliana Ferreira', NULL, '20730740730', '27991110007', '10720730742', '2029-09-22', 3000.00, 5, 'ativo');
+INSERT INTO motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', 'Dinho', '20830840800', '27991110008', '10820830859', '2028-12-01', 3400.00, 10, 'ativo');
+INSERT INTO motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', 'Beto', '20930940962', '27991110009', '10920930965', '2027-07-14', 3000.00, 5, 'ativo');
+INSERT INTO motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', NULL, '21031041028', '27991110010', '11021031011', '2026-12-31', 2800.00, 5, 'inativo');
 
 -- rota (motorista + instituição + turno; os passageiros vêm das áreas do motorista)
 INSERT INTO rota VALUES (1, 'Centro e Ipiranga → UVV (noite)', 1, 1, 'noite', '18:00:00', '22:40:00', 'ativo');
