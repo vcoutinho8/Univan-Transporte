@@ -189,6 +189,7 @@ CREATE TABLE chamada (
     horario_previsto TEXT,
     horario_aviso    TEXT,
     horario_embarque TEXT,
+    horario_desembarque TEXT,
     CONSTRAINT chamada_pkey PRIMARY KEY (fk_viagem, fk_estudante),
     CONSTRAINT chamada_status_check CHECK (status IN ('pendente', 'nao_vai', 'presente', 'ausente'))
 );
@@ -249,16 +250,16 @@ INSERT INTO area VALUES (9, 'Santa Mônica', '((-40.466803,-20.618756),(-40.4663
 INSERT INTO area VALUES (10, 'Aeroporto', '((-40.498415,-20.652573),(-40.496916,-20.653875),(-40.496627,-20.653317),(-40.494389,-20.651203),(-40.492314,-20.648744),(-40.490459,-20.647952),(-40.485453,-20.642325),(-40.489383,-20.638864),(-40.489343,-20.639223),(-40.489928,-20.639406),(-40.490238,-20.639838),(-40.491224,-20.640522),(-40.492498,-20.640798),(-40.493897,-20.640401),(-40.494494,-20.639399),(-40.494695,-20.639551),(-40.494930,-20.640000),(-40.494492,-20.641063),(-40.494726,-20.642509),(-40.495788,-20.643624),(-40.496455,-20.645437),(-40.496381,-20.648328),(-40.496551,-20.649047),(-40.497218,-20.650702),(-40.498142,-20.652334))', 5, 'ativo');
 
 -- chamada
-INSERT INTO chamada VALUES (1, 1, 'presente', '17:40:00', NULL, '2026-10-29 17:41:00');
-INSERT INTO chamada VALUES (2, 2, 'presente', '17:45:00', NULL, '2026-10-29 17:46:00');
-INSERT INTO chamada VALUES (3, 3, 'nao_vai', '17:50:00', '2026-10-29 14:20:00', NULL);
-INSERT INTO chamada VALUES (4, 4, 'presente', '17:15:00', NULL, '2026-10-29 17:16:00');
-INSERT INTO chamada VALUES (5, 5, 'ausente', '17:55:00', NULL, NULL);
-INSERT INTO chamada VALUES (6, 6, 'presente', '17:00:00', NULL, '2026-10-29 17:02:00');
-INSERT INTO chamada VALUES (7, 7, 'presente', '06:10:00', NULL, '2026-10-29 06:11:00');
-INSERT INTO chamada VALUES (8, 8, 'nao_vai', '06:30:00', '2026-10-28 21:00:00', NULL);
-INSERT INTO chamada VALUES (9, 9, 'pendente', '12:20:00', NULL, NULL);
-INSERT INTO chamada VALUES (10, 10, 'pendente', '12:00:00', NULL, NULL);
+INSERT INTO chamada VALUES (1, 1, 'presente', '17:40:00', NULL, '2026-10-29 17:41:00', NULL);
+INSERT INTO chamada VALUES (2, 2, 'presente', '17:45:00', NULL, '2026-10-29 17:46:00', NULL);
+INSERT INTO chamada VALUES (3, 3, 'nao_vai', '17:50:00', '2026-10-29 14:20:00', NULL, NULL);
+INSERT INTO chamada VALUES (4, 4, 'presente', '17:15:00', NULL, '2026-10-29 17:16:00', NULL);
+INSERT INTO chamada VALUES (5, 5, 'ausente', '17:55:00', NULL, NULL, NULL);
+INSERT INTO chamada VALUES (6, 6, 'presente', '17:00:00', NULL, '2026-10-29 17:02:00', NULL);
+INSERT INTO chamada VALUES (7, 7, 'presente', '06:10:00', NULL, '2026-10-29 06:11:00', NULL);
+INSERT INTO chamada VALUES (8, 8, 'nao_vai', '06:30:00', '2026-10-28 21:00:00', NULL, NULL);
+INSERT INTO chamada VALUES (9, 9, 'pendente', '12:20:00', NULL, NULL, NULL);
+INSERT INTO chamada VALUES (10, 10, 'pendente', '12:00:00', NULL, NULL, NULL);
 
 -- dia_sem_aula
 INSERT INTO dia_sem_aula VALUES (1, '2026-11-02', NULL, 'Finados');

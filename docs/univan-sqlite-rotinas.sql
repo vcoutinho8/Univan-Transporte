@@ -89,10 +89,13 @@ WHERE fk_estudante = :estudante
 -- -----------------------------------------------------------------------------
 -- concluir_viagem(:viagem, :momento)
 -- Conclui a viagem e transforma em 'ausente' quem continuou 'pendente'.
+-- Quem embarcou e não teve o desembarque confirmado desce na chegada (:momento).
 -- -----------------------------------------------------------------------------
 
 UPDATE viagem SET status = 'concluida', horario_chegada = :momento WHERE id = :viagem;
 UPDATE chamada SET status = 'ausente' WHERE fk_viagem = :viagem AND status = 'pendente';
+UPDATE chamada SET horario_desembarque = :momento
+WHERE fk_viagem = :viagem AND status = 'presente' AND horario_desembarque IS NULL;
 
 
 -- -----------------------------------------------------------------------------

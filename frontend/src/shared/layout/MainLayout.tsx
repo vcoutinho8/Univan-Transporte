@@ -12,9 +12,14 @@ export default function LayoutPrincipal() {
 
   return (
     <div className="min-h-screen">
-      <MenuLateral aberto={menuAberto} aoFechar={() => setMenuAberto(false)} />
-      <div className="lg:pl-64">
-        <BarraSuperior aoAbrirMenu={() => setMenuAberto(true)} />
+      {/* Na impressão (relatórios) saem o menu e a barra: fica só o conteúdo. */}
+      <div className="print:hidden">
+        <MenuLateral aberto={menuAberto} aoFechar={() => setMenuAberto(false)} />
+      </div>
+      <div className="lg:pl-64 print:pl-0">
+        <div className="print:hidden">
+          <BarraSuperior aoAbrirMenu={() => setMenuAberto(true)} />
+        </div>
         <main key={pathname} className="mx-auto max-w-[96rem] animate-surgir px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
           <Outlet />
         </main>

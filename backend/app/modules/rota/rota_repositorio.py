@@ -11,7 +11,7 @@ from app.shared.enums import StatusCadastro
 _RELACOES = (joinedload(Rota.motorista), joinedload(Rota.instituicao), selectinload(Rota.dias))
 
 
-def _passageiros_da_rota() -> Select:
+def passageiros_da_rota() -> Select:
     """Regra de quem a rota leva, a mesma da rotina gerar_dia (docs/univan-sqlite-rotinas.sql):
     passageiros ativos que moram numa área ativa do motorista da rota, da mesma instituição e
     do mesmo turno. Devolve pares (id da rota, estudante)."""
@@ -53,13 +53,13 @@ class RepositorioRota:
         )
 
     def contar_passageiros(self) -> dict[int, int]:
-        sub = _passageiros_da_rota().subquery()
+        sub = passageiros_da_rota().subquery()
         linhas = self.sessao.execute(select(sub.c.id, func.count()).group_by(sub.c.id))
         return dict(linhas.all())
 
     def passageiros(self, id_rota: int) -> list[Estudante]:
         consulta = (
-            _passageiros_da_rota()
+            passageiros_da_rota()
             .where(Rota.id == id_rota)
             .options(
                 joinedload(Estudante.instituicao), joinedload(Estudante.endereco), joinedload(Estudante.area)

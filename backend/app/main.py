@@ -20,9 +20,11 @@ from app.modules.estudante import estudante_controller
 from app.modules.instituicao import instituicao_controller
 from app.modules.motorista import motorista_controller
 from app.modules.painel import painel_controller
+from app.modules.relatorio import relatorio_controller
 from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
 from app.modules.veiculo import veiculo_controller
+from app.modules.viagem import viagem_controller
 
 PREFIXO_API = "/api"
 
@@ -37,6 +39,8 @@ CONTROLLERS = (
     area_controller,
     motorista_controller,
     rota_controller,
+    viagem_controller,
+    relatorio_controller,
 )
 
 
@@ -54,7 +58,7 @@ def criar_aplicacao() -> FastAPI:
     app = FastAPI(
         lifespan=ciclo_de_vida,
         title=configuracoes.nome_aplicacao,
-        summary="Gestão de transporte universitário: passageiros, frota, bairros e rotas.",
+        summary="Gestão de transporte universitário: passageiros, frota, bairros, rotas, viagens e relatórios.",
         description=DESCRICAO,
         version="0.3.0",
         openapi_tags=TAGS,

@@ -56,8 +56,27 @@ def criar_banco_sqlite(arquivo: Path, script: Path = SCRIPT_SQLITE) -> None:
         conexao.close()
 
 
+# Colunas criadas depois da primeira versão do script: (tabela, coluna, tipo).
+# Um banco criado antes delas ganha a coluna ao subir a API (os dados são mantidos).
+COLUNAS_NOVAS = (("chamada", "horario_desembarque", "TEXT"),)
+
+
+def atualizar_estrutura(arquivo: Path) -> None:
+    """Adiciona ao banco existente as colunas de COLUNAS_NOVAS que ainda faltarem."""
+    conexao = sqlite3.connect(arquivo)
+    try:
+        for tabela, coluna, tipo in COLUNAS_NOVAS:
+            existentes = {linha[1] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
+            if existentes and coluna not in existentes:
+                log.warning("Banco %s: adicionando a coluna %s.%s.", arquivo.name, tabela, coluna)
+                conexao.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+        conexao.commit()
+    finally:
+        conexao.close()
+
+
 def preparar_banco(url: str) -> None:
-    """Se o arquivo do banco ainda não existir, cria a partir do script."""
+    """Se o arquivo do banco ainda não existir, cria a partir do script; se existir, completa a estrutura."""
     endereco = make_url(url)
     if endereco.database in (None, "", ":memory:"):
         return
@@ -65,6 +84,8 @@ def preparar_banco(url: str) -> None:
     if not arquivo.exists():
         log.warning("Banco %s não encontrado. Criando a partir de %s.", arquivo, SCRIPT_SQLITE.name)
         criar_banco_sqlite(arquivo)
+    else:
+        atualizar_estrutura(arquivo)
 
 
 configuracoes = obter_configuracoes()

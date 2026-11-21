@@ -11,9 +11,9 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 |---|---|---|
 | RF1 | Autenticação e controle de acesso | ⬜ |
 | RF2 | Gestão de cadastros | 🟡 veículos prontos |
-| RF3 | Gerenciamento de viagens e chamadas | 🗄️ rotinas no banco |
+| RF3 | Gerenciamento de viagens e chamadas | ✅ viagens e chamada passageiro a passageiro |
 | RF4 | Cadastro e edição de rotas | ⬜ |
-| RF5 | Painel administrativo e relatórios | 🟡 painel pronto |
+| RF5 | Painel administrativo e relatórios | 🟡 painel e relatório de passageiros ativos |
 | RF6 | Visualização geográfica | ⬜ |
 
 ## RF1 · Autenticação e controle de acesso
@@ -39,14 +39,19 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Criar viagens por data e turno | 🗄️ | `gerar_dia(data)` cria viagens e chamadas `pendente` |
-| Exibir passageiros esperados em cada viagem | 🗄️ | Tabela `chamada` |
-| Registrar presença, ausência e ocorrências | ⬜ | Presença: `status = presente` + `horario_embarque` |
+| Criar viagens por data e turno | ✅ | Tela Viagens: "Gerar viagens do dia" roda `gerar_dia` (avisa feriado e motorista sem veículo) |
+| Viagens por turno, ida e volta | ✅ | Botões de turno; ida e volta separadas; um cartão por motorista (jornada), paginado |
+| Jornada do motorista | ✅ | Todas as rotas do motorista no turno e sentido saem juntas com um botão só (`/viagens/jornada/iniciar`); fila única de passageiros na ordem de embarque; concluída ao registrar o último |
+| Desembarque e fases da jornada | ✅ | Embarque → A caminho → Concluída. Na ida, "Todos desceram aqui" por faculdade (ou um a um); na volta, "Deixei em casa". Coluna nova `chamada.horario_desembarque` (adicionada sozinha em bancos antigos ao subir a API) |
+| Tela de viagens no celular | ✅ | Cartões empilhados, botões grandes, painel do motorista em tela cheia; link direto `?data=AAAA-MM-DD&turno=noite` |
+| Aviso prévio ("não vou") | 🟡 | Quem tem chamada `nao_vai` não entra na fila do embarque (só na contagem). Falta a tela/API para o passageiro avisar (rotina `avisar_nao_vou` já existe no banco) |
+| Exibir passageiros esperados em cada viagem | ✅ | Gaveta de passageiros da viagem, na ordem de embarque |
+| Registrar presença, ausência e ocorrências | ✅ | Viagem em andamento: o próximo da fila fica em destaque (Embarcou / Não embarcou / Desfazer); o último registro conclui a viagem |
 | Passageiro avisa "não vou" | 🗄️ | `avisar_nao_vou(...)`, até 1h antes do horário previsto |
 | Identificar passageiros ainda sem registro | 🗄️ | Chamadas com `status = pendente` |
-| Iniciar viagem | ⬜ | `status = em_andamento`, grava `horario_saida` |
-| Encerrar viagem e guardar histórico | 🗄️ | `concluir_viagem(id)`; pendentes viram `ausente` |
-| Dias sem aula (feriados) | 🗄️ | `gerar_dia` já respeita a tabela `dia_sem_aula` |
+| Iniciar viagem | ✅ | `status = em_andamento`, grava `horario_saida`; não inicia viagem de dia futuro |
+| Encerrar viagem e guardar histórico | ✅ | `concluir_viagem(id)`; pendentes viram `ausente`. Também cancela viagem agendada |
+| Dias sem aula (feriados) | 🟡 | `gerar_dia` respeita `dia_sem_aula`; falta tela de cadastro |
 
 ## RF4 · Cadastro e edição de rotas
 
@@ -56,7 +61,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Dias da semana da rota | ⬜ | Tabela `rota_dia` |
 | Pontos de embarque com endereço e localização | ⬜ | `endereco` já tem latitude/longitude |
 | Sequência dos pontos e horários previstos | ⬜ | Hoje há `horario_embarque` por passageiro; ordem manual exige mudança no banco |
-| Associar motorista e veículo às viagens | 🟡 | `viagem` já guarda motorista e veículo do dia; falta tela de substituição |
+| Associar motorista e veículo às viagens | ✅ | Troca de motorista/veículo só na viagem, com checagem de lotação |
 
 ## RF5 · Painel administrativo e relatórios
 
@@ -67,6 +72,8 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Alerta de passageiros sem área | ✅ | Endereço fora de todas as áreas |
 | Histórico de chamadas | ⬜ | |
 | Relatório de frequência por passageiro | 🗄️ | View `vw_frequencia` |
+| Catálogo de relatórios | ✅ | Lista central agrupada por módulo (Passageiros → Passageiros ativos...), com busca e favoritos (o favorito sai do módulo e fica só em Favoritos) (guardados no navegador até existir login); planejados aparecem como "Em breve" |
+| Relatório de passageiros ativos | ✅ | Período obrigatório (presenças, faltas e avisos no período); abre vazio com os filtros; sem resultado mostra aviso; PDF A4 em pé (logo, período, indicadores, tabela com bairro e frequência), na tela e para baixar, ou CSV |
 | Relatórios por período, rota e turno | ⬜ | Consultas sobre `viagem` e `chamada` |
 
 ## RF6 · Visualização geográfica
@@ -103,6 +110,9 @@ telas para isso no MVP.
 - Tabela de usuários e perfis (RF1).
 - Ordem de parada manual por passageiro (RF4).
 - Endereço de embarque diferente na volta.
+- ~~Desembarque por passageiro~~ (feito: `chamada.horario_desembarque`).
 - Área com mais de um motorista (tabela `motorista_area`).
 
 Essas mudanças devem ser discutidas antes de implementar, e o dump em `docs/` atualizado junto.
+
+Colocar o endereço do motorista como point de referência nas rotas para auxiliar na imagem

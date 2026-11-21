@@ -1,0 +1,165 @@
+import Botao from '../../shared/components/Button.tsx'
+import Icone from '../../shared/components/Icon.tsx'
+import { formatarHoraDe, formatarHorario, iniciais } from '../../shared/utils/formatar.ts'
+import type { ResumoJornada } from './tripGrouping.ts'
+import { ROTULOS_STATUS_VIAGEM, type StatusViagem, type Viagem } from './types.ts'
+
+export const CORES_STATUS_VIAGEM: Record<StatusViagem, string> = {
+  agendada: 'bg-marinho/10 text-marinho',
+  em_andamento: 'bg-laranja/15 text-laranja',
+  concluida: 'bg-emerald-100 text-emerald-700',
+  cancelada: 'bg-slate-200 text-slate-500',
+}
+
+export function EtiquetaStatusViagem({ status, aCaminho = false }: { status: StatusViagem; aCaminho?: boolean }) {
+  return (
+    <span
+      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
+        aCaminho ? 'bg-sky-100 text-sky-700' : CORES_STATUS_VIAGEM[status]
+      }`}
+    >
+      {aCaminho ? 'A caminho' : ROTULOS_STATUS_VIAGEM[status]}
+    </span>
+  )
+}
+
+interface Propriedades {
+  jornada: ResumoJornada
+  indice: number
+  ocupado: boolean
+  aoIniciar: () => void
+  aoAcompanhar: () => void
+  aoVerPassageiros: (v: Viagem) => void
+  aoTrocar: (v: Viagem) => void
+  aoCancelar: (v: Viagem) => void
+}
+
+/**
+ * Cartão da jornada de um motorista (ex.: a ida da noite do Carlos): um botão só para iniciar
+ * todas as rotas dele e, embaixo, cada rota com a faculdade, os passageiros e as ações da rota.
+ */
+export default function CartaoJornada({
+  jornada,
+  indice,
+  ocupado,
+  aoIniciar,
+  aoAcompanhar,
+  aoVerPassageiros,
+  aoTrocar,
+  aoCancelar,
+}: Propriedades) {
+  const ida = jornada.chave.sentido === 'ida'
+  const { passageiros } = jornada
+  const fila = passageiros.total - passageiros.nao_vai
+  const registrados = passageiros.presente + passageiros.ausente
+  // Em andamento sem ninguém pendente: o embarque acabou, faltam os desembarques.
+  const aCaminho = jornada.status === 'em_andamento' && passageiros.pendente === 0
+  const saida = jornada.viagens.map((v) => v.horario_saida).filter(Boolean).sort()[0] ?? null
+
+  return (
+    <article
+      className="animate-surgir overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70"
+      style={{ animationDelay: `${Math.min(indice * 40, 240)}ms` }}
+    >
+      {/* Cabeçalho: motorista, saída e ação principal */}
+      <header className="px-4 py-4 sm:px-5">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-marinho text-sm font-extrabold text-white">
+            {iniciais(jornada.motorista.nome)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold text-marinho">{jornada.motorista.nome}</p>
+            <p className="truncate text-xs text-slate-500">
+              {jornada.veiculos.map((v) => `${v.placa} · ${v.modelo}`).join(' / ')}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-lg leading-tight font-extrabold text-marinho tabular-nums">{formatarHorario(jornada.horario_previsto)}</p>
+            <p className="text-[11px] text-slate-500">{saida ? `saiu ${formatarHoraDe(saida)}` : 'saída prevista'}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <EtiquetaStatusViagem status={jornada.status} aCaminho={aCaminho} />
+          <span className="text-sm text-slate-600">
+            <strong className="text-marinho tabular-nums">
+              {jornada.status === 'agendada' ? fila : registrados}/{fila}
+            </strong>{' '}
+            {jornada.status === 'agendada' ? 'a buscar' : 'registrados'} · {jornada.viagens.length} destino(s)
+          </span>
+          {passageiros.nao_vai > 0 && (
+            <span className="text-xs font-semibold text-amber-600">{passageiros.nao_vai} avisaram que não vão</span>
+          )}
+          <div className="w-full sm:ml-auto sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
+            {jornada.status === 'agendada' && (
+              <Botao onClick={aoIniciar} disabled={ocupado} className="py-3 sm:py-2">
+                <Icone nome="van" className="h-4 w-4" />
+                {ida ? 'Iniciar ida' : 'Iniciar volta'}
+              </Botao>
+            )}
+            {jornada.status === 'em_andamento' && (
+              <Botao onClick={aoAcompanhar} className="py-3 sm:py-2">
+                <Icone nome="van" className="h-4 w-4" />
+                {aCaminho ? 'Confirmar desembarques' : 'Continuar embarque'}
+              </Botao>
+            )}
+            {jornada.status === 'concluida' && (
+              <Botao variante="secundario" onClick={aoAcompanhar}>
+                Ver passageiros
+              </Botao>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Destinos da jornada: uma linha por rota (faculdade) */}
+      <ul className="divide-y divide-slate-100 border-t border-slate-100 bg-fundo/30">
+        {jornada.viagens.map((v) => (
+          <li key={v.id} className="flex items-start gap-3 px-4 py-3 text-sm sm:px-5">
+            <span className="w-11 shrink-0 pt-0.5 font-semibold text-slate-600 tabular-nums">{formatarHorario(v.horario_previsto)}</span>
+            <div className="min-w-0 flex-1">
+              <p className={`font-semibold ${v.status === 'cancelada' ? 'text-slate-400 line-through' : 'text-marinho'}`}>
+                {v.rota.instituicao.nome}
+              </p>
+              <p className="truncate text-xs text-slate-400">{v.rota.nome}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button
+                  type="button"
+                  onClick={() => aoVerPassageiros(v)}
+                  className="py-1 text-xs font-semibold text-slate-600 tabular-nums hover:text-laranja hover:underline"
+                >
+                  {v.passageiros.total - v.passageiros.nao_vai} passageiro(s)
+                </button>
+                {v.status !== jornada.status && <EtiquetaStatusViagem status={v.status} />}
+                {v.substituicao && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">substituição</span>
+                )}
+                {(v.status === 'agendada' || v.status === 'em_andamento') && (
+                  <button
+                    type="button"
+                    onClick={() => aoTrocar(v)}
+                    aria-label={`Trocar motorista ou veículo de ${v.rota.nome}`}
+                    className="flex items-center gap-1 py-1 text-xs font-semibold text-slate-500 hover:text-marinho"
+                  >
+                    <Icone nome="troca" className="h-3.5 w-3.5" />
+                    Trocar
+                  </button>
+                )}
+                {v.status === 'agendada' && (
+                  <button
+                    type="button"
+                    onClick={() => aoCancelar(v)}
+                    disabled={ocupado}
+                    className="py-1 text-xs font-semibold text-red-500 hover:underline disabled:opacity-50"
+                  >
+                    Cancelar rota
+                  </button>
+                )}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </article>
+  )
+}

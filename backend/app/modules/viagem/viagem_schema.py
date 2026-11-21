@@ -1,0 +1,123 @@
+"""Schemas de entrada e saída das viagens."""
+
+from datetime import date, datetime, time
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.shared.enums import Sentido, StatusChamada, StatusViagem, Turno
+
+
+class GeracaoPedido(BaseModel):
+    """Dia para gerar as viagens (rotina `gerar_dia` do banco)."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"examples": [{"data": "2026-11-23"}]})
+
+    data: date
+
+
+class GeracaoResposta(BaseModel):
+    data: date
+    viagens_criadas: int = Field(description="Viagens novas. Gerar de novo o mesmo dia não duplica nada.")
+    chamadas_criadas: int = Field(description="Passageiros incluídos nas viagens (status `pendente`).")
+    avisos: list[str] = Field(description="Por que alguma rota não gerou viagem (feriado, motorista sem veículo...).")
+
+
+class SubstituicaoPedido(BaseModel):
+    """Troca do motorista e/ou do veículo só nesta viagem (os cadastros não mudam)."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"examples": [{"fk_veiculo": 3}]})
+
+    fk_motorista: int | None = Field(default=None, gt=0)
+    fk_veiculo: int | None = Field(default=None, gt=0)
+
+
+class Referencia(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+
+
+class RotaDaViagem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    turno: Turno
+    instituicao: Referencia
+
+
+class VeiculoDaViagem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    placa: str
+    modelo: str
+    capacidade: int
+
+
+class ContagemPassageiros(BaseModel):
+    """Situação das chamadas da viagem."""
+
+    total: int = 0
+    pendente: int = 0
+    presente: int = 0
+    ausente: int = 0
+    nao_vai: int = 0
+
+
+class ViagemResposta(BaseModel):
+    """Viagem com rota, motorista e veículo do dia e o resumo dos passageiros."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    data: date
+    sentido: Sentido
+    status: StatusViagem
+    horario_previsto: time | None = Field(description="Horário de ida ou de volta da rota, conforme o sentido.")
+    horario_saida: datetime | None
+    horario_chegada: datetime | None
+    rota: RotaDaViagem
+    motorista: Referencia
+    veiculo: VeiculoDaViagem
+    substituicao: bool = Field(description="Motorista ou veículo diferente do cadastro da rota.")
+    passageiros: ContagemPassageiros
+
+
+class EnderecoDaChamada(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    logradouro: str
+    numero: str | None
+    complemento: str | None
+    bairro: str
+
+
+class EstudanteDaChamada(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    apelido: str | None
+    celular: str
+    endereco: EnderecoDaChamada
+
+
+class ChamadaResposta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    estudante: EstudanteDaChamada
+    status: StatusChamada
+    horario_previsto: time | None
+    horario_aviso: datetime | None
+    horario_embarque: datetime | None
+    horario_desembarque: datetime | None = Field(
+        default=None, description="Desceu no destino (faculdade na ida, casa na volta)."
+    )
+
+
+class ViagemDetalhe(ViagemResposta):
+    """Viagem com a lista de passageiros esperados, na ordem do horário previsto."""
+
+    chamadas: list[ChamadaResposta]

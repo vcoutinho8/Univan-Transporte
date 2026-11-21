@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 
 DESCRICAO = """
 API do **UniVan**, sistema de gestão de transporte universitário: passageiros, veículos,
-bairros (áreas atendidas por cada motorista), rotas e o painel da operação.
+bairros (áreas atendidas por cada motorista), rotas, viagens do dia, relatórios e o painel da
+operação.
 
 ## Como usar esta página
 Abra um grupo, escolha uma rota e clique em **Try it out** para chamar a API de verdade
@@ -62,6 +63,17 @@ TAGS: list[dict[str, str]] = [
         "name": "Rotas",
         "description": "Trajetos fixos: motorista + faculdade + turno, horários e dias da semana. "
         "Os passageiros de cada rota seguem a mesma regra da geração das viagens do dia.",
+    },
+    {
+        "name": "Viagens",
+        "description": "Cada ida ou volta de uma rota num dia. **Gerar** cria as viagens e a lista de "
+        "passageiros (chamada) do dia, respeitando os dias da rota e os feriados. Depois: iniciar, "
+        "concluir (quem ficou pendente vira ausente), cancelar ou trocar motorista/veículo só naquele dia.",
+    },
+    {
+        "name": "Relatórios",
+        "description": "Consultas de acompanhamento, só leitura: passageiros ativos por instituição, "
+        "turno, bairro e rota.",
     },
     {"name": "Motoristas", "description": "Consulta dos motoristas (o cadastro ainda não existe)."},
     {"name": "Instituições", "description": "Faculdades de destino, com endereço e coordenadas."},

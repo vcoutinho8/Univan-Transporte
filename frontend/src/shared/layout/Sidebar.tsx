@@ -45,7 +45,8 @@ export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
                   <li key={item.para}>
                     <NavLink
                       to={item.para}
-                      end
+                      // Só o Painel ("/") exige endereço exato; /relatorios/x mantém "Relatórios" marcado.
+                      end={item.para === '/'}
                       onClick={aoFechar}
                       className={({ isActive }) =>
                         `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${

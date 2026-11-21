@@ -33,6 +33,8 @@ class Chamada(Base):
     horario_previsto: Mapped[time | None]
     horario_aviso: Mapped[datetime | None]
     horario_embarque: Mapped[datetime | None]
+    # Confirmação de que o passageiro desceu no destino (faculdade na ida, casa na volta).
+    horario_desembarque: Mapped[datetime | None]
 
     viagem: Mapped["Viagem"] = relationship(back_populates="chamadas")
     estudante: Mapped["Estudante"] = relationship()

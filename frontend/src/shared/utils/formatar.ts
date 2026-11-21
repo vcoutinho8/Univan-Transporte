@@ -33,6 +33,36 @@ export const formatarMoeda = (valor: number) => MOEDA.format(valor)
 /** "17:40:00" → "17:40". */
 export const formatarHorario = (valor: string | null) => (valor ? valor.slice(0, 5) : '—')
 
+/** Data local no formato da API: AAAA-MM-DD (sem passar por UTC, que muda o dia à noite). */
+export function dataIso(data = new Date()): string {
+  const mes = String(data.getMonth() + 1).padStart(2, '0')
+  const dia = String(data.getDate()).padStart(2, '0')
+  return `${data.getFullYear()}-${mes}-${dia}`
+}
+
+/** Soma dias a uma data AAAA-MM-DD ("2026-11-30", 1 → "2026-12-01"). */
+export function somarDias(iso: string, dias: number): string {
+  const [ano, mes, dia] = iso.split('-').map(Number)
+  return dataIso(new Date(ano, mes - 1, dia + dias))
+}
+
+/** "2026-11-23" → "23/11/2026". */
+export function formatarData(iso: string): string {
+  const [ano, mes, dia] = iso.slice(0, 10).split('-')
+  return `${dia}/${mes}/${ano}`
+}
+
+const DIA_DA_SEMANA = new Intl.DateTimeFormat('pt-BR', { weekday: 'long' })
+
+/** "2026-11-23" → "segunda-feira". */
+export function diaDaSemana(iso: string): string {
+  const [ano, mes, dia] = iso.split('-').map(Number)
+  return DIA_DA_SEMANA.format(new Date(ano, mes - 1, dia))
+}
+
+/** Hora de um momento da API: "2026-11-23T07:05:00" → "07:05". */
+export const formatarHoraDe = (momento: string | null) => (momento ? momento.slice(11, 16) : '—')
+
 /** Primeiro nome + inicial do último ("Ana Beatriz Souza" → "Ana S."), para etiquetas no mapa. */
 export function nomeCurto(nome: string, apelido?: string | null): string {
   if (apelido) return apelido
