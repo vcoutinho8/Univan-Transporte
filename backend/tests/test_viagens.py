@@ -186,7 +186,7 @@ def test_substitui_motorista_e_veiculo(cliente):  # noqa: F811
     assert rota["fk_motorista"] == viagem["motorista"]["id"]
 
 
-def test_recusa_substituicao_invalida(cliente):  # noqa: F811
+def test_recusa_substituicao_invalida(cliente, fabrica):  # noqa: F811
     _gerar(cliente, SEGUNDA)
     viagem = _viagem_com_passageiros(cliente)
     url = f"/api/viagens/{viagem['id']}"
@@ -196,8 +196,15 @@ def test_recusa_substituicao_invalida(cliente):  # noqa: F811
     assert cliente.patch(url, json={"fk_veiculo": 10}).json()["mensagem"] == "O veículo MLD9012 está inativo."
     assert cliente.patch(url, json={"fk_veiculo": 999}).status_code == 422
 
-    pequeno = cliente.post("/api/veiculos", json={"placa": "ZZZ1A11", "modelo": "Carro", "capacidade": 1}).json()
-    resposta = cliente.patch(url, json={"fk_veiculo": pequeno["id"]})
+    # O cadastro não aceita menos de 5 lugares; o veículo apertado entra direto no banco para testar a regra.
+    from app.modules.veiculo.veiculo_model import Veiculo
+
+    with fabrica() as sessao:
+        pequeno = Veiculo(fk_empresa=1, placa="ZZZ1A11", modelo="Carro", capacidade=1)
+        sessao.add(pequeno)
+        sessao.commit()
+        id_pequeno = pequeno.id
+    resposta = cliente.patch(url, json={"fk_veiculo": id_pequeno})
     assert resposta.status_code == 422
     assert resposta.json()["mensagem"].startswith("O veículo ZZZ1A11 tem 1 lugares")
 
