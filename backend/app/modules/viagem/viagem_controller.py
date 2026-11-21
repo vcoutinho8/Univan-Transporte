@@ -140,6 +140,18 @@ def gerar_viagens_do_dia(dados: GeracaoPedido, servico: Servico):
     return servico.gerar_dia(dados.data)
 
 
+@roteador.post(
+    "/gerar-semana",
+    response_model=list[GeracaoResposta],
+    summary="Gerar e sincronizar automaticamente as viagens e chamadas da semana inteira",
+    description="Usada pela tela de viagens ao abrir: só completa o que faltar (pode repetir). "
+    "Qualquer perfil logado pode chamar, para todos verem a semana; gerar o dia, cancelar e trocar continuam só do admin.",
+    responses=erros(409),
+)
+def gerar_viagens_da_semana(dados: GeracaoPedido, servico: Servico):
+    return servico.gerar_semana(dados.data)
+
+
 @roteador.get(
     "/{id_viagem}",
     dependencies=[DONO],

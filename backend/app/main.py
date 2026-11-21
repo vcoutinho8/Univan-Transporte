@@ -3,13 +3,13 @@
 Executar (a partir de backend/):  uvicorn app.main:app --reload
 """
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.modules as _registro_models  # noqa: F401  (registra todos os models)
-from app.config.banco import preparar_banco
+from app.config.banco import obter_sessao, preparar_banco
 from app.config.configuracoes import obter_configuracoes
 from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS, erros
 from app.config.erros import registrar_tratadores_erro
@@ -21,13 +21,17 @@ from app.modules.empresa import empresa_controller
 from app.modules.estudante import estudante_controller
 from app.modules.instituicao import instituicao_controller
 from app.modules.motorista import motorista_controller
+from app.modules.motorista.motorista_repositorio import RepositorioMotorista
 from app.modules.painel import painel_controller
 from app.modules.relatorio import relatorio_controller
 from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
 from app.modules.usuario import usuario_controller
 from app.modules.veiculo import veiculo_controller
+from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
 from app.modules.viagem import viagem_controller
+from app.modules.viagem.viagem_repositorio import RepositorioViagem
+from app.modules.viagem.viagem_servico import ServicoViagem
 
 PREFIXO_API = "/api"
 
@@ -54,6 +58,13 @@ CONTROLLERS = (
 async def ciclo_de_vida(_: FastAPI):
     # Na primeira execução com SQLite, cria o arquivo do banco a partir de docs/univan-sqlite.sql.
     preparar_banco(obter_configuracoes().url_banco_resolvida)
+    # Gera/sincroniza automaticamente as viagens da semana atual ao iniciar a API.
+    with closing(next(obter_sessao())) as sessao:
+        ServicoViagem(
+            RepositorioViagem(sessao),
+            RepositorioMotorista(sessao),
+            RepositorioVeiculo(sessao),
+        ).gerar_semana()
     yield
 
 

@@ -1,9 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { pode } from '../../shared/auth/permissoes.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
-import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
@@ -15,24 +14,29 @@ import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
 import { dataIso, diaDaSemana, formatarData } from '../../shared/utils/formatar.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
+import { servicoMotorista } from '../motorista/driverService.ts'
+import { servicoVeiculo } from '../veiculo/vehicleService.ts'
 import CartaoJornada from './JourneyCard.tsx'
 import FormularioSubstituicao from './SubstitutionForm.tsx'
 import { agruparJornadas, contarPorTurno, ORDEM_TURNOS, turnoInicial, type ResumoJornada } from './tripGrouping.ts'
-import { ModalDiaIndisponivel, ModalIniciarJornada, ModalJornadaConcluida } from './TripModals.tsx'
+import {
+  ModalCompartilharWhatsApp,
+  ModalIniciarJornada,
+  ModalJornadaConcluida,
+} from './TripModals.tsx'
 import GavetaPassageirosViagem from './TripPassengersDrawer.tsx'
 import GavetaJornada from './TripProgressDrawer.tsx'
 import { servicoViagem } from './tripService.ts'
 import {
   ROTULOS_STATUS_VIAGEM,
   type Jornada,
-  type MotivoIndisponivel,
   type Sentido,
   type StatusViagem,
   type Viagem,
 } from './types.ts'
-import { diasDaSemana, partesDoDia } from './semana.ts'
+import { diasDaSemana, inicioDaSemana, partesDoDia } from './semana.ts'
 import FaixaSemana from './WeekStrip.tsx'
-
+import { montarMensagemChamada } from './whatsappChamada.ts'
 
 /** O que está aberto por cima da tela. */
 type Sobreposicao =
@@ -40,7 +44,7 @@ type Sobreposicao =
   | { tipo: 'passageiros' | 'troca'; viagem: Viagem }
   | { tipo: 'iniciar' | 'andamento'; jornada: ResumoJornada }
   | { tipo: 'concluida'; jornada: Jornada }
-  | { tipo: 'indisponivel'; motivo: MotivoIndisponivel; detalhes: string[] }
+  | { tipo: 'whatsapp'; mensagem: string }
 
 const SITUACOES: StatusViagem[] = ['agendada', 'em_andamento', 'concluida', 'cancelada']
 
@@ -108,9 +112,8 @@ function SecaoSentido({ sentido, jornadas, chaveFiltros, renderizar, filtros, ao
 }
 
 /**
- * Tela de viagens (RF3). Escolhe o dia e o turno; dentro do turno, a ida e a volta trazem um
- * cartão por motorista (a "jornada"): todas as rotas dele saem juntas com um botão só, e a fila
- * de passageiros é única. Quem avisou que não vai (aviso prévio) não entra no embarque.
+ * Tela de viagens (RF3). As viagens da semana são geradas e sincronizadas automaticamente;
+ * basta escolher o dia e o turno para acompanhar cada motorista e confirmar embarques.
  */
 export default function PaginaViagens() {
   const perfil = useSessao().usuario?.perfil
@@ -125,12 +128,46 @@ export default function PaginaViagens() {
   const [situacao, setSituacao] = useState<StatusViagem | ''>('')
   const [aberto, setAberto] = useState<Sobreposicao>({ tipo: 'nada' })
   const avisos = useAviso()
-  const [gerando, setGerando] = useState(false)
+  const [sincronizandoSemana, setSincronizandoSemana] = useState(false)
   const [ocupada, setOcupada] = useState<number | null>(null)
+  const [preparandoWhatsApp, setPreparandoWhatsApp] = useState<string | null>(null)
   const [versaoCalendario, setVersaoCalendario] = useState(0)
 
   const viagens = useRequisicao(() => servicoViagem.listar({ data }), [data])
+  const motoristas = useRequisicao(() => servicoMotorista.listar())
+  const veiculos = useRequisicao(() => servicoVeiculo.listar())
   const todas = useMemo(() => viagens.dados ?? [], [viagens.dados])
+
+  // Só gera até o fim da semana atual (a API recusa semanas futuras).
+  const limiteGeracao = diasDaSemana(dataIso())[6]
+  const semanaFutura = data > limiteGeracao
+  const liberaEm = diasDaSemana(data)[0]
+  const segundaSemana = inicioDaSemana(data)
+
+  // Gera e sincroniza automaticamente todos os dias da semana ao abrir ou trocar de semana.
+  useEffect(() => {
+    if (semanaFutura) return
+    let cancelado = false
+    setSincronizandoSemana(true)
+    servicoViagem
+      .gerarSemana(segundaSemana)
+      .then((resultados) => {
+        if (cancelado) return
+        setVersaoCalendario((v) => v + 1)
+        const houveNovidade = resultados.some((r) => r.viagens_criadas > 0 || r.chamadas_criadas > 0)
+        if (houveNovidade) void viagens.recarregar()
+      })
+      .catch(() => {
+        // Falhas de rede já são exibidas pela consulta principal de viagens.
+      })
+      .finally(() => {
+        if (!cancelado) setSincronizandoSemana(false)
+      })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segundaSemana, semanaFutura])
 
   // Sem escolha do usuário, abre no turno do horário atual (ou no primeiro que tiver viagem).
   const turno = turnoEscolhido ?? turnoInicial(todas, new Date().getHours())
@@ -147,45 +184,11 @@ export default function PaginaViagens() {
 
   const filtrosAtivos = situacao ? [`Situação: ${ROTULOS_STATUS_VIAGEM[situacao]}`] : []
   const filtrar = (lista: ResumoJornada[]) => (situacao ? lista.filter((j) => j.status === situacao) : lista)
-  // Só dá para gerar até o fim da semana atual (a API recusa semanas futuras).
-  const limiteGeracao = diasDaSemana(dataIso())[6]
-  const semanaFutura = data > limiteGeracao
-  const liberaEm = diasDaSemana(data)[0]
   const dataPorExtenso = `${diaDaSemana(data).replace(/^./, (c) => c.toUpperCase())}, ${formatarData(data)}`
   const chaveFiltros = `${data}|${turno}|${situacao}`
 
   function trocarDia(novo: string) {
     setData(novo)
-  }
-
-  async function gerar() {
-    setGerando(true)
-    try {
-      const antes = jornadasDoDia(todas)
-      const resultado = await servicoViagem.gerar(data)
-      setVersaoCalendario((v) => v + 1)
-      if (resultado.indisponivel) {
-        setAberto({ tipo: 'indisponivel', motivo: resultado.indisponivel, detalhes: resultado.avisos })
-        return
-      }
-      const depois = jornadasDoDia(await servicoViagem.listar({ data }))
-      await viagens.recarregar()
-      const novas = depois - antes
-      const houveNovidade = resultado.viagens_criadas > 0 || resultado.chamadas_criadas > 0
-      const pendencias = resultado.avisos.filter((a) => a !== 'As viagens deste dia já tinham sido geradas.')
-      avisos.mostrar({
-        tipo: houveNovidade ? (pendencias.length ? 'aviso' : 'sucesso') : 'info',
-        titulo: houveNovidade ? 'Viagens do dia geradas' : 'Nada novo para gerar',
-        descricao: houveNovidade
-          ? `${dataPorExtenso}: ${descreverGeracao(Math.max(novas, 0), resultado.chamadas_criadas)}`
-          : `As viagens de ${dataPorExtenso.toLowerCase()} já estavam geradas e completas.`,
-        itens: pendencias,
-      })
-    } catch (e) {
-      avisos.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível gerar as viagens')
-    } finally {
-      setGerando(false)
-    }
   }
 
   async function cancelarRota(v: Viagem) {
@@ -224,20 +227,48 @@ export default function PaginaViagens() {
     })
   }
 
-  const cartao = (jornada: ResumoJornada, indice: number) => (
-    <CartaoJornada
-      key={`${jornada.chave.sentido}-${jornada.motorista.id}`}
-      jornada={jornada}
-      indice={indice}
-      ocupado={jornada.viagens.some((v) => v.id === ocupada)}
-      aoIniciar={() => setAberto({ tipo: 'iniciar', jornada })}
-      aoAcompanhar={() => setAberto({ tipo: 'andamento', jornada })}
-      aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
-      aoTrocar={podeGerar ? (v) => setAberto({ tipo: 'troca', viagem: v }) : undefined}
-      aoCancelar={podeGerar ? (v) => void cancelarRota(v) : undefined}
-      somenteLeitura={!podeOperar}
-    />
-  )
+  async function prepararChamadaWhatsApp(jornada: ResumoJornada) {
+    const chave = `${jornada.chave.sentido}-${jornada.motorista.id}`
+    setPreparandoWhatsApp(chave)
+    try {
+      const detalhes = await Promise.all(jornada.viagens.map((v) => servicoViagem.obter(v.id)))
+      const motoristaCompleto = motoristas.dados?.find((m) => m.id === jornada.motorista.id) ?? null
+      const mensagem = montarMensagemChamada({
+        jornada,
+        detalhes,
+        motoristaCompleto,
+        veiculosCompletos: veiculos.dados ?? [],
+      })
+      setAberto({ tipo: 'whatsapp', mensagem })
+    } catch (e) {
+      avisos.erro(
+        e instanceof ErroApi ? e.mensagemCompleta : 'Não foi possível buscar a lista de passageiros.',
+        'Erro ao gerar chamada',
+      )
+    } finally {
+      setPreparandoWhatsApp(null)
+    }
+  }
+
+  const cartao = (jornada: ResumoJornada, indice: number) => {
+    const chave = `${jornada.chave.sentido}-${jornada.motorista.id}`
+    return (
+      <CartaoJornada
+        key={chave}
+        jornada={jornada}
+        indice={indice}
+        ocupado={jornada.viagens.some((v) => v.id === ocupada)}
+        carregandoWhatsApp={preparandoWhatsApp === chave}
+        aoIniciar={() => setAberto({ tipo: 'iniciar', jornada })}
+        aoAcompanhar={() => setAberto({ tipo: 'andamento', jornada })}
+        aoCompartilharWhatsApp={() => void prepararChamadaWhatsApp(jornada)}
+        aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
+        aoTrocar={podeGerar ? (v) => setAberto({ tipo: 'troca', viagem: v }) : undefined}
+        aoCancelar={podeGerar ? (v) => void cancelarRota(v) : undefined}
+        somenteLeitura={!podeOperar}
+      />
+    )
+  }
 
   const fechar = () => setAberto({ tipo: 'nada' })
 
@@ -247,44 +278,40 @@ export default function PaginaViagens() {
         titulo="Viagens"
         descricao={
           podeGerar
-            ? 'Gere as viagens do dia, acompanhe cada motorista e confirme embarque e desembarque dos passageiros.'
+            ? 'Acompanhe as viagens da semana, gerencie cada motorista e confirme embarque e desembarque dos passageiros.'
             : perfil === 'motorista'
               ? 'Suas viagens do dia: inicie a ida ou a volta e confirme o embarque e o desembarque.'
               : 'Acompanhe as viagens do dia de cada motorista (somente visualização).'
         }
       />
 
-      {/* Dia: faixa da semana + ação de gerar */}
+      {/* Dia: faixa da semana + resumo do dia */}
       <section className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 sm:p-5">
         <FaixaSemana data={data} aoEscolher={trocarDia} versao={versaoCalendario} />
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <div>
             <p className="text-lg font-extrabold text-marinho">{dataPorExtenso}</p>
             <p className="text-sm text-slate-500">
-              {todas.length > 0
-                ? `${jornadasDoDia(todas)} viagens de motorista · ${todas.filter((v) => v.status !== 'cancelada').length} destinos`
-                : 'Nenhuma viagem gerada para este dia.'}
+              {sincronizandoSemana && todas.length === 0
+                ? 'Sincronizando viagens da semana...'
+                : todas.length > 0
+                  ? `${jornadasDoDia(todas)} viagens de motorista · ${todas.filter((v) => v.status !== 'cancelada').length} destinos`
+                  : 'Nenhuma viagem programada para este dia.'}
             </p>
           </div>
-          {!podeGerar ? null : semanaFutura ? (
+          {semanaFutura && (
             <div className="flex w-full items-center gap-2 rounded-xl bg-fundo px-4 py-2.5 text-sm text-slate-600 sm:w-auto">
               <Icone nome="relogio" className="h-4 w-4 shrink-0 text-slate-400" />
               <span>
-                Semana futura: gere a partir de{' '}
+                Semana futura: viagens disponíveis a partir de{' '}
                 <strong className="text-marinho">
                   {partesDoDia(liberaEm).semana.toLowerCase()}, {formatarData(liberaEm).slice(0, 5)}
                 </strong>
               </span>
             </div>
-          ) : (
-            <Botao onClick={() => void gerar()} disabled={gerando} className="w-full sm:w-auto">
-              <Icone nome="mais" className="h-4 w-4" />
-              {gerando ? 'Gerando...' : todas.length > 0 ? 'Atualizar viagens do dia' : 'Gerar viagens do dia'}
-            </Botao>
           )}
         </div>
       </section>
-
 
       {/* Turno e situação */}
       {todas.length > 0 && (
@@ -340,19 +367,24 @@ export default function PaginaViagens() {
           <AvisoSemResultado titulo="Não foi possível carregar as viagens" filtros={[]} dica={viagens.erro} />
         </Cartao>
       )}
-      {viagens.carregando && (
+      {(viagens.carregando || (sincronizandoSemana && todas.length === 0)) && (
         <Cartao>
-          <p className="py-6 text-center text-sm text-slate-500">Carregando...</p>
+          <p className="py-6 text-center text-sm text-slate-500">Carregando viagens...</p>
+        </Cartao>
+      )}
+      {!viagens.carregando && !sincronizandoSemana && !viagens.erro && todas.length === 0 && (
+        <Cartao>
+          <p className="py-6 text-center text-sm text-slate-500">
+            {semanaFutura
+              ? 'As viagens desta semana futura ainda não foram liberadas.'
+              : 'Nenhuma viagem ativa neste dia (feriado, fim de semana ou sem rotas cadastradas).'}
+          </p>
         </Cartao>
       )}
       {!viagens.carregando && !viagens.erro && todas.length > 0 && porTurno[turno] === 0 && (
         <Cartao>
           <p className="py-6 text-center text-sm text-slate-500">
-            {todas.length === 0
-              ? podeGerar
-                ? 'Nenhuma viagem neste dia. Clique em "Gerar viagens do dia" para criá-las a partir das rotas.'
-                : 'Nenhuma viagem neste dia. O administrador gera as viagens a partir das rotas.'
-              : `Nenhuma viagem no turno da ${ROTULOS_TURNO[turno].toLowerCase()} neste dia.`}
+            Nenhuma viagem no turno da {ROTULOS_TURNO[turno].toLowerCase()} neste dia.
           </p>
         </Cartao>
       )}
@@ -377,12 +409,12 @@ export default function PaginaViagens() {
       )}
       {aberto.tipo === 'concluida' && <ModalJornadaConcluida jornada={aberto.jornada} aoFechar={fechar} />}
       {avisos.modal}
-      {aberto.tipo === 'indisponivel' && (
-        <ModalDiaIndisponivel motivo={aberto.motivo} dataPorExtenso={dataPorExtenso} detalhes={aberto.detalhes} aoFechar={fechar} />
-      )}
       {aberto.tipo === 'passageiros' && <GavetaPassageirosViagem viagem={aberto.viagem} aoFechar={fechar} />}
       {aberto.tipo === 'troca' && (
         <FormularioSubstituicao viagem={aberto.viagem} aoSalvar={(dados) => salvarTroca(aberto.viagem, dados)} aoCancelar={fechar} />
+      )}
+      {aberto.tipo === 'whatsapp' && (
+        <ModalCompartilharWhatsApp mensagem={aberto.mensagem} aoFechar={fechar} />
       )}
     </>
   )

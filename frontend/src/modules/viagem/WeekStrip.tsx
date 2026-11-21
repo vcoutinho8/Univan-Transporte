@@ -23,9 +23,8 @@ function situacaoDoDia(
   if (dia.feriado_geral) return { texto: 'Feriado', tom: 'feriado' }
   if (dia.viagens > 0) return { texto: `${dia.viagens} viag.`, tom: 'ok' }
   if (dia.rotas === 0) return { texto: 'Sem rota', tom: 'vazio' }
-  // Semanas futuras ainda não podem ser geradas (a API recusa).
   if (futuro) return { texto: 'Futura', tom: 'vazio' }
-  return { texto: 'A gerar', tom: 'pendente' }
+  return { texto: 'Sincronizando', tom: 'pendente' }
 }
 
 /**
@@ -128,7 +127,7 @@ export default function FaixaSemana({ data, aoEscolher, versao }: Propriedades) 
                             : 'text-slate-400'
                   }`}
                 >
-                  {situacao.texto || ' '}
+                  {situacao.texto || ' '}
                 </span>
                 {dia === hoje && !ativo && <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-laranja" />}
               </button>
@@ -141,7 +140,6 @@ export default function FaixaSemana({ data, aoEscolher, versao }: Propriedades) 
       </div>
       <p className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-slate-500 sm:hidden">
         <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Com viagens</span>
-        <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-laranja" /> A gerar</span>
         <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Feriado</span>
       </p>
     </div>
