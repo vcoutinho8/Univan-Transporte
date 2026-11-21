@@ -15,7 +15,7 @@ const VEICULOS_EXEMPLO: Veiculo[] = [
     cor: 'Branca',
     capacidade: 20,
     status: 'ativo',
-    empresa: { id: 1, razao_social: 'Vale Sul', nome_fantasia: 'Vale Sul', cnpj: '11222333000101' },
+    empresa: { id: 1, razao_social: 'Vale Sul', nome_fantasia: 'Vale Sul' },
   },
 ]
 
