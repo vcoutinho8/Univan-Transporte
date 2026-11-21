@@ -23,6 +23,10 @@ export const servicoViagem = {
   /** Cria as viagens e chamadas do dia. Pode repetir: só completa o que faltar. */
   gerar: (data: string) => requisitar<ResultadoGeracao>('/viagens/gerar', { metodo: 'POST', corpo: { data } }),
 
+  /** Gera e sincroniza automaticamente todos os dias da semana da data informada. */
+  gerarSemana: (data: string) =>
+    requisitar<ResultadoGeracao[]>('/viagens/gerar-semana', { metodo: 'POST', corpo: { data } }),
+
   /** Todas as rotas do motorista no turno e sentido, com a fila única de passageiros. */
   jornada: (chave: ChaveJornada) => requisitar<Jornada>('/viagens/jornada', { parametros: { ...chave } }),
 

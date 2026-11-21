@@ -28,6 +28,11 @@ def agora() -> datetime:
     return datetime.now().replace(microsecond=0)
 
 
+def inicio_da_semana(dia: date) -> date:
+    """Segunda-feira da semana do dia (a semana vai de segunda a domingo)."""
+    return dia - timedelta(days=dia.isoweekday() - 1)
+
+
 def fim_da_semana(dia: date) -> date:
     """Domingo da semana do dia (a semana vai de segunda a domingo)."""
     return dia + timedelta(days=7 - dia.isoweekday())
@@ -84,7 +89,7 @@ class ServicoViagem:
             por_status = contagens.get(viagem.id, {})
             viagem.passageiros = ContagemPassageiros(total=sum(por_status.values()), **por_status)
 
-    # ---------------------------------------------------------------- geração do dia
+    # ---------------------------------------------------------------- geração do dia e da semana
 
     def gerar_dia(self, dia: date) -> GeracaoResposta:
         """Cria as viagens e chamadas do dia. Idempotente: rodar de novo só completa o que faltar.
@@ -131,6 +136,23 @@ class ServicoViagem:
             avisos=avisos,
             indisponivel=indisponivel,
         )
+
+    def gerar_semana(self, dia_referencia: date | None = None) -> list[GeracaoResposta]:
+        """Gera ou sincroniza todos os dias (segunda a domingo) da semana da data informada."""
+        hoje = agora().date()
+        alvo = dia_referencia or hoje
+        limite = fim_da_semana(hoje)
+        segunda = inicio_da_semana(alvo)
+        if segunda > limite:
+            return []
+
+        resultados: list[GeracaoResposta] = []
+        for offset in range(7):
+            dia = segunda + timedelta(days=offset)
+            if dia > limite:
+                break
+            resultados.append(self.gerar_dia(dia))
+        return resultados
 
     def calendario(self, inicio: date, fim: date) -> list[DiaDoCalendario]:
         """Resumo de cada dia do período (no máximo 62 dias): viagens, rotas do dia e feriados."""
@@ -238,14 +260,12 @@ class ServicoViagem:
         if chamada.status != StatusChamada.PENDENTE:
             raise ConflitoDeDados("Este passageiro já foi registrado nesta viagem.")
         chamada.status = StatusChamada.AUSENTE
+        chamada.horario_embarque = None
         self.repositorio.salvar_chamada(chamada)
         return self.obter(id_viagem, com_chamadas=True)
 
     def desfazer_registro(self, id_viagem: int, id_estudante: int) -> Viagem:
-        """Desfaz o último registro do passageiro (só com a viagem em andamento).
-
-        Se ele já desembarcou, volta a "a bordo"; se embarcou ou faltou, volta a pendente.
-        """
+        """Desfaz o último registro do passageiro (só com a viagem em andamento)."""
         chamada = self._chamada_em_andamento(id_viagem, id_estudante)
         if chamada.status == StatusChamada.PRESENTE and chamada.horario_desembarque is not None:
             chamada.horario_desembarque = None
