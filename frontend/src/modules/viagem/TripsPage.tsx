@@ -13,10 +13,17 @@ import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
 import { dataIso, diaDaSemana, formatarData } from '../../shared/utils/formatar.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
+import { servicoMotorista } from '../motorista/driverService.ts'
+import { servicoVeiculo } from '../veiculo/vehicleService.ts'
 import CartaoJornada from './JourneyCard.tsx'
 import FormularioSubstituicao from './SubstitutionForm.tsx'
 import { agruparJornadas, contarPorTurno, ORDEM_TURNOS, turnoInicial, type ResumoJornada } from './tripGrouping.ts'
-import { ModalDiaIndisponivel, ModalIniciarJornada, ModalJornadaConcluida } from './TripModals.tsx'
+import {
+  ModalCompartilharWhatsApp,
+  ModalDiaIndisponivel,
+  ModalIniciarJornada,
+  ModalJornadaConcluida,
+} from './TripModals.tsx'
 import GavetaPassageirosViagem from './TripPassengersDrawer.tsx'
 import GavetaJornada from './TripProgressDrawer.tsx'
 import { servicoViagem } from './tripService.ts'
@@ -30,7 +37,7 @@ import {
 } from './types.ts'
 import { diasDaSemana, partesDoDia } from './semana.ts'
 import FaixaSemana from './WeekStrip.tsx'
-
+import { montarMensagemChamada } from './whatsappChamada.ts'
 
 /** O que está aberto por cima da tela. */
 type Sobreposicao =
@@ -39,6 +46,7 @@ type Sobreposicao =
   | { tipo: 'iniciar' | 'andamento'; jornada: ResumoJornada }
   | { tipo: 'concluida'; jornada: Jornada }
   | { tipo: 'indisponivel'; motivo: MotivoIndisponivel; detalhes: string[] }
+  | { tipo: 'whatsapp'; mensagem: string }
 
 const SITUACOES: StatusViagem[] = ['agendada', 'em_andamento', 'concluida', 'cancelada']
 
@@ -122,9 +130,12 @@ export default function PaginaViagens() {
   const avisos = useAviso()
   const [gerando, setGerando] = useState(false)
   const [ocupada, setOcupada] = useState<number | null>(null)
+  const [preparandoWhatsApp, setPreparandoWhatsApp] = useState<string | null>(null)
   const [versaoCalendario, setVersaoCalendario] = useState(0)
 
   const viagens = useRequisicao(() => servicoViagem.listar({ data }), [data])
+  const motoristas = useRequisicao(() => servicoMotorista.listar())
+  const veiculos = useRequisicao(() => servicoVeiculo.listar())
   const todas = useMemo(() => viagens.dados ?? [], [viagens.dados])
 
   // Sem escolha do usuário, abre no turno do horário atual (ou no primeiro que tiver viagem).
@@ -219,19 +230,47 @@ export default function PaginaViagens() {
     })
   }
 
-  const cartao = (jornada: ResumoJornada, indice: number) => (
-    <CartaoJornada
-      key={`${jornada.chave.sentido}-${jornada.motorista.id}`}
-      jornada={jornada}
-      indice={indice}
-      ocupado={jornada.viagens.some((v) => v.id === ocupada)}
-      aoIniciar={() => setAberto({ tipo: 'iniciar', jornada })}
-      aoAcompanhar={() => setAberto({ tipo: 'andamento', jornada })}
-      aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
-      aoTrocar={(v) => setAberto({ tipo: 'troca', viagem: v })}
-      aoCancelar={(v) => void cancelarRota(v)}
-    />
-  )
+  async function prepararChamadaWhatsApp(jornada: ResumoJornada) {
+    const chave = `${jornada.chave.sentido}-${jornada.motorista.id}`
+    setPreparandoWhatsApp(chave)
+    try {
+      const detalhes = await Promise.all(jornada.viagens.map((v) => servicoViagem.obter(v.id)))
+      const motoristaCompleto = motoristas.dados?.find((m) => m.id === jornada.motorista.id) ?? null
+      const mensagem = montarMensagemChamada({
+        jornada,
+        detalhes,
+        motoristaCompleto,
+        veiculosCompletos: veiculos.dados ?? [],
+      })
+      setAberto({ tipo: 'whatsapp', mensagem })
+    } catch (e) {
+      avisos.erro(
+        e instanceof ErroApi ? e.mensagemCompleta : 'Não foi possível buscar a lista de passageiros.',
+        'Erro ao gerar chamada',
+      )
+    } finally {
+      setPreparandoWhatsApp(null)
+    }
+  }
+
+  const cartao = (jornada: ResumoJornada, indice: number) => {
+    const chave = `${jornada.chave.sentido}-${jornada.motorista.id}`
+    return (
+      <CartaoJornada
+        key={chave}
+        jornada={jornada}
+        indice={indice}
+        ocupado={jornada.viagens.some((v) => v.id === ocupada)}
+        carregandoWhatsApp={preparandoWhatsApp === chave}
+        aoIniciar={() => setAberto({ tipo: 'iniciar', jornada })}
+        aoAcompanhar={() => setAberto({ tipo: 'andamento', jornada })}
+        aoCompartilharWhatsApp={() => void prepararChamadaWhatsApp(jornada)}
+        aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
+        aoTrocar={(v) => setAberto({ tipo: 'troca', viagem: v })}
+        aoCancelar={(v) => void cancelarRota(v)}
+      />
+    )
+  }
 
   const fechar = () => setAberto({ tipo: 'nada' })
 
@@ -272,7 +311,6 @@ export default function PaginaViagens() {
           )}
         </div>
       </section>
-
 
       {/* Turno e situação */}
       {todas.length > 0 && (
@@ -369,6 +407,9 @@ export default function PaginaViagens() {
       {aberto.tipo === 'passageiros' && <GavetaPassageirosViagem viagem={aberto.viagem} aoFechar={fechar} />}
       {aberto.tipo === 'troca' && (
         <FormularioSubstituicao viagem={aberto.viagem} aoSalvar={(dados) => salvarTroca(aberto.viagem, dados)} aoCancelar={fechar} />
+      )}
+      {aberto.tipo === 'whatsapp' && (
+        <ModalCompartilharWhatsApp mensagem={aberto.mensagem} aoFechar={fechar} />
       )}
     </>
   )

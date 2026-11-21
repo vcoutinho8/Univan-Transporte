@@ -29,8 +29,10 @@ interface Propriedades {
   jornada: ResumoJornada
   indice: number
   ocupado: boolean
+  carregandoWhatsApp?: boolean
   aoIniciar: () => void
   aoAcompanhar: () => void
+  aoCompartilharWhatsApp: () => void
   aoVerPassageiros: (v: Viagem) => void
   aoTrocar: (v: Viagem) => void
   aoCancelar: (v: Viagem) => void
@@ -44,8 +46,10 @@ export default function CartaoJornada({
   jornada,
   indice,
   ocupado,
+  carregandoWhatsApp = false,
   aoIniciar,
   aoAcompanhar,
+  aoCompartilharWhatsApp,
   aoVerPassageiros,
   aoTrocar,
   aoCancelar,
@@ -94,21 +98,35 @@ export default function CartaoJornada({
           {passageiros.nao_vai > 0 && (
             <span className="text-xs font-semibold text-amber-600">{passageiros.nao_vai} avisaram que não vão</span>
           )}
-          <div className="w-full sm:ml-auto sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+            {jornada.status !== 'cancelada' && (
+              <button
+                type="button"
+                onClick={aoCompartilharWhatsApp}
+                disabled={carregandoWhatsApp}
+                title="Gerar chamada formatada para enviar no grupo do WhatsApp"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 transition-colors hover:bg-emerald-100 disabled:opacity-50 sm:flex-initial sm:py-2"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-current" aria-hidden="true">
+                  <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.82 14.01c-.24.68-1.41 1.3-1.95 1.38-.5.07-1.13.1-1.82-.12-.42-.13-.96-.31-1.65-.61-2.91-1.26-4.81-4.19-4.96-4.38-.14-.19-1.18-1.57-1.18-3 0-1.43.75-2.13 1.01-2.42.27-.29.58-.36.77-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.82 2.01.89 2.16.07.14.12.31.02.5-.1.19-.15.31-.29.48-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.29.75 1.24 1.61 2.01 1.11.99 2.04 1.3 2.33 1.44.29.15.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.65-.15.27.1 1.69.8 1.98.94.29.15.48.22.55.34.07.12.07.69-.17 1.37z" />
+                </svg>
+                {carregandoWhatsApp ? 'Preparando...' : 'WhatsApp'}
+              </button>
+            )}
             {jornada.status === 'agendada' && (
-              <Botao onClick={aoIniciar} disabled={ocupado} className="py-3 sm:py-2">
+              <Botao onClick={aoIniciar} disabled={ocupado} className="flex-1 py-3 sm:flex-initial sm:py-2">
                 <Icone nome="van" className="h-4 w-4" />
                 {ida ? 'Iniciar ida' : 'Iniciar volta'}
               </Botao>
             )}
             {jornada.status === 'em_andamento' && (
-              <Botao onClick={aoAcompanhar} className="py-3 sm:py-2">
+              <Botao onClick={aoAcompanhar} className="flex-1 py-3 sm:flex-initial sm:py-2">
                 <Icone nome="van" className="h-4 w-4" />
                 {aCaminho ? 'Confirmar desembarques' : 'Continuar embarque'}
               </Botao>
             )}
             {jornada.status === 'concluida' && (
-              <Botao variante="secundario" onClick={aoAcompanhar}>
+              <Botao variante="secundario" onClick={aoAcompanhar} className="flex-1 sm:flex-initial">
                 Ver passageiros
               </Botao>
             )}

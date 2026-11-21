@@ -9,6 +9,7 @@ import { ROTULOS_TURNO } from '../estudante/types.ts'
 import { duracaoDaViagem } from './tripFlow.ts'
 import type { ResumoJornada } from './tripGrouping.ts'
 import type { Jornada, MotivoIndisponivel } from './types.ts'
+import { abrirWhatsAppComMensagem } from './whatsappChamada.ts'
 
 /** Linha "rótulo ........ valor" dos quadros de resumo. */
 function Dado({ rotulo, valor }: { rotulo: string; valor: string }) {
@@ -208,6 +209,53 @@ export function ModalDiaIndisponivel({
           ))}
         </ul>
       )}
+    </Modal>
+  )
+}
+
+/** Prévia da chamada formatada antes de abrir o grupo do WhatsApp ou copiar o texto. */
+export function ModalCompartilharWhatsApp({
+  mensagem,
+  aoFechar,
+}: {
+  mensagem: string
+  aoFechar: () => void
+}) {
+  const [copiado, setCopiado] = useState(false)
+
+  async function copiar() {
+    await navigator.clipboard.writeText(mensagem)
+    setCopiado(true)
+    window.setTimeout(() => setCopiado(false), 2500)
+  }
+
+  return (
+    <Modal
+      titulo="Chamada para o WhatsApp"
+      descricao="Confira a mensagem gerada abaixo. Ao abrir o WhatsApp, basta escolher o grupo da van e enviar."
+      icone="compartilhar"
+      tom="verde"
+      aoFechar={aoFechar}
+      acoes={
+        <>
+          <Botao variante="secundario" onClick={aoFechar}>
+            Fechar
+          </Botao>
+          <Botao variante="secundario" onClick={() => void copiar()}>
+            {copiado ? 'Texto copiado!' : 'Copiar texto'}
+          </Botao>
+          <Botao
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => abrirWhatsAppComMensagem(mensagem)}
+          >
+            Abrir WhatsApp
+          </Botao>
+        </>
+      }
+    >
+      <pre className="max-h-72 overflow-y-auto rounded-xl bg-fundo/80 p-4 font-sans text-xs leading-relaxed whitespace-pre-wrap text-marinho ring-1 ring-slate-200/80">
+        {mensagem}
+      </pre>
     </Modal>
   )
 }
