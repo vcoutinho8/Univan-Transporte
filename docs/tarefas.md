@@ -9,7 +9,7 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 
 | Código | Requisito | Situação |
 |---|---|---|
-| RF1 | Autenticação e controle de acesso | ⬜ |
+| RF1 | Autenticação e controle de acesso | ✅ login por usuário e senha, perfis admin, auxiliar e motorista |
 | RF2 | Gestão de cadastros | 🟡 veículos e motoristas prontos |
 | RF3 | Gerenciamento de viagens e chamadas | ✅ viagens e chamada passageiro a passageiro |
 | RF4 | Cadastro e edição de rotas | ⬜ |
@@ -20,9 +20,12 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Login de usuários | ⬜ | O banco **não tem tabela de usuários**; precisa ser criada |
-| Perfis administrador e motorista | ⬜ | Hoje a barra superior mostra "Administrador" fixo |
-| Restrição de acesso por perfil | ⬜ | Motorista deve ver só as próprias viagens e chamadas |
+| Login de usuários | ✅ | Tabela `usuario`; entra com **usuário e senha** (ex.: `admin` / `123456` nos dados de teste). Senha com hash scrypt e sal; token assinado (8 h, `SESSION_MINUTES`); 5 senhas erradas bloqueiam o usuário por 5 min; mesma mensagem para usuário inexistente e senha errada |
+| Perfis | ✅ | **admin** (tudo, menos a "Minha rota"), **auxiliar** (apoio: cadastra e consulta, não edita nem inativa; viagens só visualiza; mapa, calendário, chamadas e relatórios completos) e **motorista** (Minha rota, as próprias viagens e chamadas) |
+| Restrição de acesso por perfil | ✅ | A API confere em toda rota (401 sem login, 403 sem permissão) e o motorista só enxerga/opera o que é dele; a tela esconde menus e botões que o perfil não usa e mostra "Sem acesso" se abrir o endereço direto |
+| Usuários de teste | ✅ | `admin`, `auxiliar`, `motorista` (Carlos) e `joao` (João Pedro), todos com a senha `123456`: **troque em produção** e defina `SECRET_KEY` |
+| Tela de gestão de usuários | ⬜ | Criar, inativar e trocar senha pela tela (hoje só pelo banco) |
+| Cadastro de universidades e de modelos de veículo | ⬜ | Só o admin poderá (regra já definida) |
 
 ## RF2 · Gestão de cadastros
 
@@ -75,8 +78,9 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Painel com indicadores | ✅ | Passageiros, motoristas, veículos e rotas ativos |
-| Viagens do dia por situação | ✅ | Agendadas, em andamento, concluídas, canceladas |
+| Painel com indicadores | ✅ | Saudação com o nome de quem entrou; passageiros, motoristas, veículos e rotas ativos |
+| Operação de hoje | ✅ | Uma linha por motorista e sentido: rodando, próximas, atrasadas (agendada que passou da hora) e concluídas |
+| Chamadas de hoje e pontos de atenção | ✅ | Confirmados e quem não vai; passageiros sem área ou sem localização e CNH vencida ou vencendo |
 | Alerta de passageiros sem área | ✅ | Endereço fora de todas as áreas |
 | Histórico de chamadas | ⬜ | |
 | Relatório de frequência por passageiro | 🗄️ | View `vw_frequencia` |
@@ -89,7 +93,8 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Pontos de embarque em mapa interativo | ⬜ | Leaflet + OpenStreetMap |
+| Pontos de embarque em mapa interativo | ✅ | Leaflet + OpenStreetMap |
+| Minha rota (motorista) | ✅ | Mapa com o trajeto até as paradas que faltam, próxima parada com **Navegar** (Google Maps), ligar e WhatsApp, posição pelo GPS (opcional) e embarque a um toque |
 | Consulta de endereços e sequência das paradas | ⬜ | Depende do RF4 |
 
 ## Requisitos não funcionais
