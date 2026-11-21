@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import { pode } from '../../shared/auth/permissoes.ts'
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
@@ -29,6 +31,8 @@ const SEM_AREA = 'sem-area'
 
 /** Tela de passageiros (RF2): lista com busca e filtros, cadastro, edição, inativação e reativação. */
 export default function PaginaEstudantes() {
+  // Editar, inativar e reativar: só o administrador (o auxiliar consulta e cadastra).
+  const podeEditar = pode(useSessao().usuario?.perfil, 'cadastro.editar')
   const [parametros, setParametros] = useSearchParams()
   const [filtroStatus, setFiltroStatus] = useState<StatusCadastro | ''>('ativo')
   const [filtroTurno, setFiltroTurno] = useState<Turno | ''>('')
@@ -280,27 +284,31 @@ export default function PaginaEstudantes() {
                                 <Icone nome="pino" className="h-4 w-4" />
                               </Link>
                             )}
-                            <Botao
-                              variante="fantasma"
-                              className="px-2"
-                              title="Editar"
-                              aria-label={`Editar ${estudante.nome}`}
-                              onClick={() => setFormulario({ modo: 'editar', estudante })}
-                            >
-                              <Icone nome="editar" className="h-4 w-4" />
-                            </Botao>
-                            {estudante.status === 'ativo' ? (
-                              <Botao variante="perigo" className="px-3 py-1.5" onClick={() => inativar(estudante)}>
-                                Inativar
-                              </Botao>
-                            ) : (
-                              <Botao
-                                variante="secundario"
-                                className="px-3 py-1.5"
-                                onClick={() => void executar(() => servicoEstudante.reativar(estudante.id), `${estudante.nome} reativado(a).`)}
-                              >
-                                Reativar
-                              </Botao>
+                            {podeEditar && (
+                              <>
+                                <Botao
+                                  variante="fantasma"
+                                  className="px-2"
+                                  title="Editar"
+                                  aria-label={`Editar ${estudante.nome}`}
+                                  onClick={() => setFormulario({ modo: 'editar', estudante })}
+                                >
+                                  <Icone nome="editar" className="h-4 w-4" />
+                                </Botao>
+                                {estudante.status === 'ativo' ? (
+                                  <Botao variante="perigo" className="px-3 py-1.5" onClick={() => inativar(estudante)}>
+                                    Inativar
+                                  </Botao>
+                                ) : (
+                                  <Botao
+                                    variante="secundario"
+                                    className="px-3 py-1.5"
+                                    onClick={() => void executar(() => servicoEstudante.reativar(estudante.id), `${estudante.nome} reativado(a).`)}
+                                  >
+                                    Reativar
+                                  </Botao>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>

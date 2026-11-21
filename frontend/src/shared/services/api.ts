@@ -1,3 +1,4 @@
+import { gravarSessao, lerSessao } from '../auth/sessao.ts'
 import type { RespostaErroApi } from '../types/api.ts'
 
 /** Comunicação centralizada com a API. Todos os services usam `requisitar`. */
@@ -33,9 +34,14 @@ export async function requisitar<T>(
 
   let resposta: Response
   try {
+    const cabecalhos: Record<string, string> = {}
+    if (opcoes.corpo !== undefined) cabecalhos['Content-Type'] = 'application/json'
+    // Toda requisição vai com o token de quem entrou (a API recusa as que não têm).
+    const sessao = lerSessao()
+    if (sessao) cabecalhos.Authorization = `Bearer ${sessao.token}`
     resposta = await fetch(url, {
       method: opcoes.metodo ?? 'GET',
-      headers: opcoes.corpo !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: cabecalhos,
       body: opcoes.corpo !== undefined ? JSON.stringify(opcoes.corpo) : undefined,
     })
   } catch {
@@ -43,6 +49,8 @@ export async function requisitar<T>(
   }
 
   const corpo = resposta.status === 204 ? null : await resposta.json().catch(() => null)
+  // Sessão expirada ou inválida (fora do próprio login): sai e volta para a tela de login.
+  if (resposta.status === 401 && caminho !== '/auth/login' && lerSessao()) gravarSessao(null)
   if (!resposta.ok) {
     throw new ErroApi(resposta.status, corpo ?? { mensagem: 'Erro inesperado no servidor.' })
   }

@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { pode } from '../../shared/auth/permissoes.ts'
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
@@ -111,6 +113,9 @@ function SecaoSentido({ sentido, jornadas, chaveFiltros, renderizar, filtros, ao
  * de passageiros é única. Quem avisou que não vai (aviso prévio) não entra no embarque.
  */
 export default function PaginaViagens() {
+  const perfil = useSessao().usuario?.perfil
+  const podeGerar = pode(perfil, 'viagem.gerar') // admin: gerar o dia, trocar e cancelar
+  const podeOperar = pode(perfil, 'viagem.operar') // admin e motorista: iniciar e embarcar
   // ?data=AAAA-MM-DD&turno=noite abre direto no dia e turno (ex.: link mandado ao motorista).
   const [parametros] = useSearchParams()
   const [data, setData] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(parametros.get('data') ?? '') ? parametros.get('data')! : dataIso()))
@@ -228,8 +233,9 @@ export default function PaginaViagens() {
       aoIniciar={() => setAberto({ tipo: 'iniciar', jornada })}
       aoAcompanhar={() => setAberto({ tipo: 'andamento', jornada })}
       aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
-      aoTrocar={(v) => setAberto({ tipo: 'troca', viagem: v })}
-      aoCancelar={(v) => void cancelarRota(v)}
+      aoTrocar={podeGerar ? (v) => setAberto({ tipo: 'troca', viagem: v }) : undefined}
+      aoCancelar={podeGerar ? (v) => void cancelarRota(v) : undefined}
+      somenteLeitura={!podeOperar}
     />
   )
 
@@ -239,7 +245,13 @@ export default function PaginaViagens() {
     <>
       <CabecalhoPagina
         titulo="Viagens"
-        descricao="Gere as viagens do dia, acompanhe cada motorista e confirme embarque e desembarque dos passageiros."
+        descricao={
+          podeGerar
+            ? 'Gere as viagens do dia, acompanhe cada motorista e confirme embarque e desembarque dos passageiros.'
+            : perfil === 'motorista'
+              ? 'Suas viagens do dia: inicie a ida ou a volta e confirme o embarque e o desembarque.'
+              : 'Acompanhe as viagens do dia de cada motorista (somente visualização).'
+        }
       />
 
       {/* Dia: faixa da semana + ação de gerar */}
@@ -254,7 +266,7 @@ export default function PaginaViagens() {
                 : 'Nenhuma viagem gerada para este dia.'}
             </p>
           </div>
-          {semanaFutura ? (
+          {!podeGerar ? null : semanaFutura ? (
             <div className="flex w-full items-center gap-2 rounded-xl bg-fundo px-4 py-2.5 text-sm text-slate-600 sm:w-auto">
               <Icone nome="relogio" className="h-4 w-4 shrink-0 text-slate-400" />
               <span>
@@ -337,7 +349,9 @@ export default function PaginaViagens() {
         <Cartao>
           <p className="py-6 text-center text-sm text-slate-500">
             {todas.length === 0
-              ? 'Nenhuma viagem neste dia. Clique em "Gerar viagens do dia" para criá-las a partir das rotas.'
+              ? podeGerar
+                ? 'Nenhuma viagem neste dia. Clique em "Gerar viagens do dia" para criá-las a partir das rotas.'
+                : 'Nenhuma viagem neste dia. O administrador gera as viagens a partir das rotas.'
               : `Nenhuma viagem no turno da ${ROTULOS_TURNO[turno].toLowerCase()} neste dia.`}
           </p>
         </Cartao>

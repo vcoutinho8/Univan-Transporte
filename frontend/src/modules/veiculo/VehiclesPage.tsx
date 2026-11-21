@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 
+import { pode } from '../../shared/auth/permissoes.ts'
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
@@ -23,6 +25,8 @@ type EstadoFormulario = { modo: 'fechado' } | { modo: 'novo' } | { modo: 'editar
 
 /** Tela de veículos (RF2): lista com busca e filtro, cadastro, edição, inativação e reativação. */
 export default function PaginaVeiculos() {
+  // Editar, inativar e reativar: só o administrador (o auxiliar consulta e cadastra).
+  const podeEditar = pode(useSessao().usuario?.perfil, 'cadastro.editar')
   const [filtroStatus, setFiltroStatus] = useState<StatusCadastro | ''>('ativo')
   const [busca, setBusca] = useState('')
   const [formulario, setFormulario] = useState<EstadoFormulario>({ modo: 'fechado' })
@@ -207,23 +211,27 @@ export default function PaginaVeiculos() {
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex justify-end gap-2">
-                            <Botao
-                              variante="fantasma"
-                              className="px-2"
-                              aria-label={`Editar ${veiculo.placa}`}
-                              title="Editar"
-                              onClick={() => setFormulario({ modo: 'editar', veiculo })}
-                            >
-                              <Icone nome="editar" className="h-4 w-4" />
-                            </Botao>
-                            {veiculo.status === 'ativo' ? (
-                              <Botao variante="perigo" className="px-3 py-1.5" onClick={() => inativar(veiculo)}>
-                                Inativar
-                              </Botao>
-                            ) : (
-                              <Botao variante="secundario" className="px-3 py-1.5" onClick={() => reativar(veiculo)}>
-                                Reativar
-                              </Botao>
+                            {podeEditar && (
+                              <>
+                                <Botao
+                                  variante="fantasma"
+                                  className="px-2"
+                                  aria-label={`Editar ${veiculo.placa}`}
+                                  title="Editar"
+                                  onClick={() => setFormulario({ modo: 'editar', veiculo })}
+                                >
+                                  <Icone nome="editar" className="h-4 w-4" />
+                                </Botao>
+                                {veiculo.status === 'ativo' ? (
+                                  <Botao variante="perigo" className="px-3 py-1.5" onClick={() => inativar(veiculo)}>
+                                    Inativar
+                                  </Botao>
+                                ) : (
+                                  <Botao variante="secundario" className="px-3 py-1.5" onClick={() => reativar(veiculo)}>
+                                    Reativar
+                                  </Botao>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>

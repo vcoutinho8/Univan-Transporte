@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
+import RotaProtegida from '../auth/RotaProtegida.tsx'
 import MenuLateral from './Sidebar.tsx'
 import BarraSuperior from './Topbar.tsx'
 
@@ -21,7 +22,9 @@ export default function LayoutPrincipal() {
           <BarraSuperior aoAbrirMenu={() => setMenuAberto(true)} />
         </div>
         <main key={pathname} className="mx-auto max-w-[96rem] animate-surgir px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-          <Outlet />
+          <RotaProtegida>
+            <Outlet />
+          </RotaProtegida>
         </main>
       </div>
     </div>

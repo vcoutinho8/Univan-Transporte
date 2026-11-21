@@ -32,8 +32,11 @@ interface Propriedades {
   aoIniciar: () => void
   aoAcompanhar: () => void
   aoVerPassageiros: (v: Viagem) => void
-  aoTrocar: (v: Viagem) => void
-  aoCancelar: (v: Viagem) => void
+  /** Sem as ações abaixo o botão some (perfil sem permissão). */
+  aoTrocar?: (v: Viagem) => void
+  aoCancelar?: (v: Viagem) => void
+  /** Só visualização (auxiliar): sem iniciar nem registrar embarque; vê os passageiros. */
+  somenteLeitura?: boolean
 }
 
 /**
@@ -49,6 +52,7 @@ export default function CartaoJornada({
   aoVerPassageiros,
   aoTrocar,
   aoCancelar,
+  somenteLeitura = false,
 }: Propriedades) {
   const ida = jornada.chave.sentido === 'ida'
   // Destinos começam ocultos: o cartão mostra a viagem do motorista; as rotas ficam a um clique.
@@ -95,19 +99,24 @@ export default function CartaoJornada({
             <span className="text-xs font-semibold text-amber-600">{passageiros.nao_vai} avisaram que não vão</span>
           )}
           <div className="w-full sm:ml-auto sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
-            {jornada.status === 'agendada' && (
+            {somenteLeitura && jornada.status !== 'cancelada' && (
+              <Botao variante="secundario" onClick={() => aoVerPassageiros(jornada.viagens[0])}>
+                Ver passageiros
+              </Botao>
+            )}
+            {!somenteLeitura && jornada.status === 'agendada' && (
               <Botao onClick={aoIniciar} disabled={ocupado} className="py-3 sm:py-2">
                 <Icone nome="van" className="h-4 w-4" />
                 {ida ? 'Iniciar ida' : 'Iniciar volta'}
               </Botao>
             )}
-            {jornada.status === 'em_andamento' && (
+            {!somenteLeitura && jornada.status === 'em_andamento' && (
               <Botao onClick={aoAcompanhar} className="py-3 sm:py-2">
                 <Icone nome="van" className="h-4 w-4" />
                 {aCaminho ? 'Confirmar desembarques' : 'Continuar embarque'}
               </Botao>
             )}
-            {jornada.status === 'concluida' && (
+            {!somenteLeitura && jornada.status === 'concluida' && (
               <Botao variante="secundario" onClick={aoAcompanhar}>
                 Ver passageiros
               </Botao>
@@ -167,7 +176,7 @@ export default function CartaoJornada({
                   {v.substituicao && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">substituição</span>
                   )}
-                  {(v.status === 'agendada' || v.status === 'em_andamento') && (
+                  {aoTrocar && (v.status === 'agendada' || v.status === 'em_andamento') && (
                     <button
                       type="button"
                       onClick={() => aoTrocar(v)}
@@ -178,7 +187,7 @@ export default function CartaoJornada({
                       Trocar
                     </button>
                   )}
-                  {v.status === 'agendada' && (
+                  {aoCancelar && v.status === 'agendada' && (
                     <button
                       type="button"
                       onClick={() => aoCancelar(v)}

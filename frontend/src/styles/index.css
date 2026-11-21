@@ -304,3 +304,181 @@ body {
 .mapa-desenhando {
   cursor: crosshair;
 }
+
+/* Minha rota: a próxima parada pulsa; a posição do motorista é um ponto azul. */
+.pino-proxima {
+  animation: pino-pulsar 1.6s ease-in-out infinite;
+}
+@keyframes pino-pulsar {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(242 96 12 / 0.55), 0 6px 14px -4px rgb(16 45 64 / 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgb(242 96 12 / 0), 0 6px 14px -4px rgb(16 45 64 / 0.55);
+  }
+}
+.pino-feito {
+  background: #94a3b8;
+  opacity: 0.75;
+}
+
+/* Login: estrada de linhas laranja correndo, van balançando, faróis e estrelas. */
+.login-faixa {
+  stroke-dasharray: 22 30;
+  animation: login-correr 1.2s linear infinite;
+}
+.login-faixa-centro {
+  stroke-dasharray: 26 34;
+  animation-duration: 0.8s;
+}
+@keyframes login-correr {
+  to {
+    stroke-dashoffset: -52;
+  }
+}
+.login-van,
+.login-sombra {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: login-balanco 0.9s ease-in-out infinite;
+}
+.login-sombra {
+  transform-origin: center;
+  animation-name: login-sombra;
+}
+@keyframes login-balanco {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes login-sombra {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleX(0.94);
+    opacity: 0.3;
+  }
+}
+.login-farol {
+  animation: login-farol 2.4s ease-in-out infinite;
+}
+@keyframes login-farol {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.login-estrela {
+  animation: login-piscar 3s ease-in-out infinite;
+}
+@keyframes login-piscar {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+.login-van {
+  transform-origin: 50% 100%;
+  animation-name: login-correndo;
+}
+@keyframes login-correndo {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2.5px) rotate(-0.6deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-1.5px) rotate(0.4deg);
+  }
+}
+.login-roda {
+  animation: login-girar 0.45s linear infinite;
+}
+@keyframes login-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.login-vento {
+  transform-box: fill-box;
+  animation: login-vento 0.9s ease-in infinite;
+}
+@keyframes login-vento {
+  0% {
+    transform: translateX(-30px) scaleX(0.3);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(70px) scaleX(1);
+    opacity: 0;
+  }
+}
+.login-rastro {
+  animation: login-rastro 0.9s ease-in-out infinite;
+}
+@keyframes login-rastro {
+  0%,
+  100% {
+    transform: translateX(8px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(20px);
+    opacity: 1;
+  }
+}
+/* Parallax: o pai define --px e --py (de -1 a 1) conforme o mouse. */
+.login-parallax-fundo,
+.login-parallax-van {
+  transition: transform 0.4s ease-out;
+}
+.login-parallax-fundo {
+  transform: translate(calc(var(--px, 0) * -6px), calc(var(--py, 0) * -4px));
+}
+.login-parallax-van {
+  transform: translate(calc(var(--px, 0) * 10px), calc(var(--py, 0) * 5px));
+}
+/* Acelerando (digitando ou entrando): tudo mais rápido. */
+.login-rapido .login-faixa {
+  animation-duration: 0.45s !important;
+}
+.login-rapido .login-roda {
+  animation-duration: 0.18s;
+}
+.login-rapido .login-vento {
+  animation-duration: 0.45s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-rastro,
+  .login-roda,
+  .login-vento,
+  .login-faixa,
+  .login-van,
+  .login-sombra,
+  .login-farol,
+  .login-estrela {
+    animation: none;
+  }
+}

@@ -10,15 +10,21 @@ import PaginaRelatorio from './modules/relatorio/ReportViewPage.tsx'
 import PaginaRelatorios from './modules/relatorio/ReportsPage.tsx'
 import PaginaVeiculos from './modules/veiculo/VehiclesPage.tsx'
 import PaginaViagens from './modules/viagem/TripsPage.tsx'
+import PaginaMinhaRota from './modules/viagem/MyRoutePage.tsx'
 import LayoutPrincipal from './shared/layout/MainLayout.tsx'
 import { ITENS_MENU } from './shared/layout/menu.ts'
 import PaginaEmConstrucao from './shared/pages/ComingSoonPage.tsx'
+import PaginaLogin from './shared/pages/LoginPage.tsx'
 import PaginaNaoEncontrada from './shared/pages/NotFoundPage.tsx'
 
-/** Rotas da interface. Cada tela pronta aponta para a página do seu módulo. */
+/**
+ * Rotas da interface. O login fica fora do layout; o resto exige sessão (o LayoutPrincipal
+ * confere e também barra as telas que o perfil não abre).
+ */
 export default function App() {
   return (
     <Routes>
+      <Route path="login" element={<PaginaLogin />} />
       <Route element={<LayoutPrincipal />}>
         <Route index element={<PaginaPainel />} />
         <Route path="passageiros" element={<PaginaEstudantes />} />
@@ -26,6 +32,7 @@ export default function App() {
         <Route path="veiculos" element={<PaginaVeiculos />} />
         <Route path="mapa" element={<PaginaMapa />} />
         <Route path="viagens" element={<PaginaViagens />} />
+        <Route path="minha-rota" element={<PaginaMinhaRota />} />
         <Route path="calendario" element={<PaginaCalendario />} />
         <Route path="chamadas" element={<PaginaChamadas />} />
         <Route path="dias-sem-aula" element={<Navigate to="/calendario" replace />} />

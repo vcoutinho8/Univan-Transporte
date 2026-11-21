@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import { pode } from '../../shared/auth/permissoes.ts'
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
@@ -25,6 +27,8 @@ type EstadoFormulario = { modo: 'fechado' } | { modo: 'novo' } | { modo: 'editar
 
 /** Tela de motoristas (RF2): lista com busca e filtros, cadastro, edição, inativação e reativação. */
 export default function PaginaMotoristas() {
+  // Editar, inativar e reativar: só o administrador (o auxiliar consulta e cadastra).
+  const podeEditar = pode(useSessao().usuario?.perfil, 'cadastro.editar')
   const [parametros, setParametros] = useSearchParams()
   const [filtroStatus, setFiltroStatus] = useState<StatusCadastro | ''>('ativo')
   const [filtroCnh, setFiltroCnh] = useState<SituacaoCnh | ''>('')
@@ -334,32 +338,36 @@ export default function PaginaMotoristas() {
                               <Icone nome="rota" className="h-4 w-4" />
                             </Link>
 
-                            <Botao
-                              variante="fantasma"
-                              className="px-2"
-                              title="Editar"
-                              aria-label={`Editar ${motorista.nome}`}
-                              onClick={() => setFormulario({ modo: 'editar', motorista })}
-                            >
-                              <Icone nome="editar" className="h-4 w-4" />
-                            </Botao>
+                            {podeEditar && (
+                              <>
+                                <Botao
+                                  variante="fantasma"
+                                  className="px-2"
+                                  title="Editar"
+                                  aria-label={`Editar ${motorista.nome}`}
+                                  onClick={() => setFormulario({ modo: 'editar', motorista })}
+                                >
+                                  <Icone nome="editar" className="h-4 w-4" />
+                                </Botao>
 
-                            {motorista.status === 'ativo' ? (
-                              <Botao
-                                variante="perigo"
-                                className="px-3 py-1.5"
-                                onClick={() => inativar(motorista)}
-                              >
-                                Inativar
-                              </Botao>
-                            ) : (
-                              <Botao
-                                variante="secundario"
-                                className="px-3 py-1.5"
-                                onClick={() => reativar(motorista)}
-                              >
-                                Reativar
-                              </Botao>
+                                {motorista.status === 'ativo' ? (
+                                  <Botao
+                                    variante="perigo"
+                                    className="px-3 py-1.5"
+                                    onClick={() => inativar(motorista)}
+                                  >
+                                    Inativar
+                                  </Botao>
+                                ) : (
+                                  <Botao
+                                    variante="secundario"
+                                    className="px-3 py-1.5"
+                                    onClick={() => reativar(motorista)}
+                                  >
+                                    Reativar
+                                  </Botao>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>

@@ -1,4 +1,8 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+
+import { abreTela, ROTULOS_PERFIL } from '../auth/permissoes.ts'
+import { iniciaisDoNome } from '../auth/sessao.ts'
+import { useSessao } from '../auth/useSessao.ts'
 
 import Icone from '../components/Icon.tsx'
 import Logo from '../components/Logo.tsx'
@@ -12,6 +16,13 @@ interface Propriedades {
 
 /** Menu lateral fixo (desktop) ou gaveta deslizante (celular/tablet). */
 export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
+  const { usuario, sair } = useSessao()
+  const navegar = useNavigate()
+  // Cada perfil vê só as telas que abre; grupo sem nenhuma tela some.
+  const grupos = MENU.map((grupo) => ({ ...grupo, itens: grupo.itens.filter((item) => abreTela(usuario?.perfil, item.para)) })).filter(
+    (grupo) => grupo.itens.length > 0,
+  )
+
   return (
     <>
       {/* Fundo escurecido atrás da gaveta, só no celular. */}
@@ -35,7 +46,7 @@ export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-4 pb-6">
-          {MENU.map((grupo) => (
+          {grupos.map((grupo) => (
             <div key={grupo.titulo}>
               <p className="mb-2 px-3 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
                 {grupo.titulo}
@@ -82,16 +93,31 @@ export default function MenuLateral({ aberto, aoFechar }: Propriedades) {
           ))}
         </nav>
 
-        {/* Usuário (fixo até existir o login, RF1). No desktop é aqui que ele aparece. */}
-        <div className="flex items-center gap-3 border-t border-slate-100 px-5 py-4">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marinho text-white">
-            <Icone nome="usuario" className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-bold text-marinho">Administrador</p>
-            <p className="truncate text-xs text-slate-500">Gestão da empresa · v0.3</p>
+        {/* Usuário logado e o botão de sair. */}
+        {usuario && (
+          <div className="flex items-center gap-3 border-t border-slate-100 px-4 py-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marinho text-sm font-bold text-white">
+              {iniciaisDoNome(usuario.nome)}
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-sm font-bold text-marinho">{usuario.nome}</p>
+              <p className="truncate text-xs text-slate-500">
+                {ROTULOS_PERFIL[usuario.perfil]} · {usuario.login}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                sair()
+                navegar('/login', { replace: true })
+              }}
+              title="Sair"
+              aria-label="Sair"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+            >
+              <Icone nome="sair" className="h-5 w-5" />
+            </button>
           </div>
-        </div>
+        )}
       </aside>
     </>
   )

@@ -69,6 +69,14 @@ export const MENU: GrupoMenu[] = [
     titulo: 'Operação',
     itens: [
       {
+        para: '/minha-rota',
+        rotulo: 'Minha rota',
+        icone: 'navegar',
+        requisito: 'RF3 · RF6',
+        descricao: 'A viagem do motorista no mapa: próxima parada, navegação e embarque.',
+        pronto: true,
+      },
+      {
         para: '/mapa',
         rotulo: 'Mapa e rotas',
         icone: 'mapa',
