@@ -13,7 +13,7 @@ import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
 import type { StatusCadastro } from '../../shared/types/api.ts'
 import { servicoVeiculo } from './vehicleService.ts'
-import type { DadosVeiculo, Veiculo } from './types.ts'
+import { obterHexCor, type DadosVeiculo, type Veiculo } from './types.ts'
 import FormularioVeiculo from './VehicleForm.tsx'
 
 type Aviso = { mensagem: string; tipo: 'erro' | 'sucesso' }
@@ -173,43 +173,62 @@ export default function PaginaVeiculos() {
                   </tr>
                 )}
                 {!veiculos.carregando &&
-                  paginacao.visiveis.map((veiculo, indice) => (
-                    <tr
-                      key={veiculo.id}
-                      className="animate-surgir transition-colors hover:bg-fundo/50"
-                      style={{ animationDelay: `${Math.min(indice * 30, 300)}ms` }}
-                    >
-                      <td className="px-5 py-3 font-mono font-bold text-marinho">{veiculo.placa}</td>
-                      <td className="px-5 py-3">{veiculo.modelo}</td>
-                      <td className="px-5 py-3">{veiculo.cor ?? '—'}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{veiculo.capacidade}</td>
-                      <td className="px-5 py-3">
-                        <EtiquetaStatus status={veiculo.status} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex justify-end gap-2">
-                          <Botao
-                            variante="fantasma"
-                            className="px-2"
-                            aria-label={`Editar ${veiculo.placa}`}
-                            title="Editar"
-                            onClick={() => setFormulario({ modo: 'editar', veiculo })}
-                          >
-                            <Icone nome="editar" className="h-4 w-4" />
-                          </Botao>
-                          {veiculo.status === 'ativo' ? (
-                            <Botao variante="perigo" className="px-3 py-1.5" onClick={() => inativar(veiculo)}>
-                              Inativar
-                            </Botao>
+                  paginacao.visiveis.map((veiculo, indice) => {
+                    const corVisual = obterHexCor(veiculo.cor)
+                    return (
+                      <tr
+                        key={veiculo.id}
+                        className="animate-surgir transition-colors hover:bg-fundo/50"
+                        style={{ animationDelay: `${Math.min(indice * 30, 300)}ms` }}
+                      >
+                        <td className="px-5 py-3 font-mono font-bold text-marinho">{veiculo.placa}</td>
+                        <td className="px-5 py-3">{veiculo.modelo}</td>
+                        <td className="px-5 py-3">
+                          {veiculo.cor ? (
+                            <span className="inline-flex items-center gap-2">
+                              {corVisual && (
+                                <span
+                                  className={`h-3 w-3 rounded-full ${
+                                    corVisual.borda ? 'border border-slate-300' : ''
+                                  }`}
+                                  style={{ backgroundColor: corVisual.hex }}
+                                />
+                              )}
+                              {veiculo.cor}
+                            </span>
                           ) : (
-                            <Botao variante="secundario" className="px-3 py-1.5" onClick={() => reativar(veiculo)}>
-                              Reativar
-                            </Botao>
+                            '—'
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums">{veiculo.capacidade}</td>
+                        <td className="px-5 py-3">
+                          <EtiquetaStatus status={veiculo.status} />
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex justify-end gap-2">
+                            <Botao
+                              variante="fantasma"
+                              className="px-2"
+                              aria-label={`Editar ${veiculo.placa}`}
+                              title="Editar"
+                              onClick={() => setFormulario({ modo: 'editar', veiculo })}
+                            >
+                              <Icone nome="editar" className="h-4 w-4" />
+                            </Botao>
+                            {veiculo.status === 'ativo' ? (
+                              <Botao variante="perigo" className="px-3 py-1.5" onClick={() => inativar(veiculo)}>
+                                Inativar
+                              </Botao>
+                            ) : (
+                              <Botao variante="secundario" className="px-3 py-1.5" onClick={() => reativar(veiculo)}>
+                                Reativar
+                              </Botao>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>

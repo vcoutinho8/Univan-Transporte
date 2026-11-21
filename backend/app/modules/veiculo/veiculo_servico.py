@@ -4,7 +4,11 @@ from app.config.erros import ConflitoDeDados, DadosInvalidos, RecursoNaoEncontra
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
 from app.modules.veiculo.veiculo_model import Veiculo
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
-from app.modules.veiculo.veiculo_schema import VeiculoAtualizacao, VeiculoCriacao
+from app.modules.veiculo.veiculo_schema import (
+    VeiculoAtualizacao,
+    VeiculoCriacao,
+    validar_capacidade_na_categoria,
+)
 from app.shared.enums import StatusCadastro
 
 
@@ -28,7 +32,8 @@ class ServicoVeiculo:
         """Cadastra o veículo na empresa de quem está usando o sistema."""
         self._garantir_empresa_existe(id_empresa)
         self._garantir_placa_disponivel(dados.placa)
-        veiculo = Veiculo(**dados.model_dump(), fk_empresa=id_empresa)
+        campos_veiculo = dados.model_dump(exclude={"categoria"})
+        veiculo = Veiculo(**campos_veiculo, fk_empresa=id_empresa)
         self.repositorio.salvar(veiculo)
         return self.obter(veiculo.id)
 
@@ -39,6 +44,14 @@ class ServicoVeiculo:
         for campo in ("placa", "modelo", "capacidade", "status"):
             if campo in alteracoes and alteracoes[campo] is None:
                 raise DadosInvalidos(f"O campo {campo} não pode ficar vazio.")
+
+        categoria = alteracoes.pop("categoria", None)
+        capacidade_final = alteracoes.get("capacidade", veiculo.capacidade)
+        if "capacidade" in alteracoes or categoria is not None:
+            try:
+                validar_capacidade_na_categoria(capacidade_final, categoria)
+            except ValueError as erro:
+                raise DadosInvalidos(str(erro)) from erro
 
         if "placa" in alteracoes and alteracoes["placa"] != veiculo.placa:
             self._garantir_placa_disponivel(alteracoes["placa"])
