@@ -112,6 +112,8 @@ class EnderecoDaChamada(BaseModel):
     numero: str | None
     complemento: str | None
     bairro: str
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class EstudanteDaChamada(BaseModel):

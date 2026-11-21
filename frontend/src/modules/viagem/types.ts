@@ -53,7 +53,14 @@ export interface Chamada {
     nome: string
     apelido: string | null
     celular: string
-    endereco: { logradouro: string; numero: string | null; complemento: string | null; bairro: string }
+    endereco: {
+      logradouro: string
+      numero: string | null
+      complemento: string | null
+      bairro: string
+      latitude?: number | null
+      longitude?: number | null
+    }
   }
   status: StatusChamada
   horario_previsto: string | null
