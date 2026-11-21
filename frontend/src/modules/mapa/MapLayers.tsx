@@ -1,6 +1,6 @@
 import L from 'leaflet'
-import { useEffect, type ReactNode } from 'react'
-import { MapContainer, Marker, Polygon, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 
 import { formatarHorario, nomeCurto } from '../../shared/utils/formatar.ts'
 import type { Area, Coordenada } from '../area/types.ts'
@@ -169,5 +169,141 @@ export function MarcadorInstituicao({ instituicao, cor }: { instituicao: Institu
         </p>
       </Popup>
     </Marker>
+  )
+}
+
+// ---------------------------------------------------------------- Trajeto com setas direcionais
+
+interface SetaTrajeto {
+  posicao: Coordenada
+  angulo: number
+}
+
+/** Calcula o ângulo em graus (0° = norte, sentido horário) entre duas coordenadas. */
+function calcularAzimute([lat1, lng1]: Coordenada, [lat2, lng2]: Coordenada): number {
+  const rad = Math.PI / 180
+  const dLng = (lng2 - lng1) * rad
+  const y = Math.sin(dLng) * Math.cos(lat2 * rad)
+  const x =
+    Math.cos(lat1 * rad) * Math.sin(lat2 * rad) -
+    Math.sin(lat1 * rad) * Math.cos(lat2 * rad) * Math.cos(dLng)
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+/**
+ * Posiciona setas a cada `espacamentoPx` pixels na tela, recalculando conforme o zoom e
+ * filtrando apenas a área visível do mapa para manter alta legibilidade em qualquer escala.
+ */
+function calcularSetasVisiveis(mapa: L.Map, linha: Coordenada[], espacamentoPx = 110): SetaTrajeto[] {
+  if (linha.length < 2) return []
+  const limites = mapa.getBounds().pad(0.25)
+  const resultado: SetaTrajeto[] = []
+  let acumuladoPx = espacamentoPx * 0.45
+
+  for (let i = 0; i < linha.length - 1; i++) {
+    const a = linha[i]
+    const b = linha[i + 1]
+    const p1 = mapa.latLngToLayerPoint(a)
+    const p2 = mapa.latLngToLayerPoint(b)
+    const comprimentoPx = p1.distanceTo(p2)
+    if (comprimentoPx === 0) continue
+
+    const angulo = calcularAzimute(a, b)
+    let restante = comprimentoPx
+    let progresso = 0
+
+    while (acumuladoPx + restante >= espacamentoPx && resultado.length < 60) {
+      const falta = espacamentoPx - acumuladoPx
+      progresso += falta / comprimentoPx
+      const lat = a[0] + (b[0] - a[0]) * progresso
+      const lng = a[1] + (b[1] - a[1]) * progresso
+
+      if (limites.contains([lat, lng])) {
+        resultado.push({ posicao: [lat, lng], angulo })
+      }
+      restante -= falta
+      acumuladoPx = 0
+    }
+    acumuladoPx += restante
+  }
+
+  return resultado
+}
+
+function criarIconeSeta(cor: string, angulo: number) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="transform:rotate(${angulo.toFixed(1)}deg);width:22px;height:22px;display:grid;place-items:center;pointer-events:none;">
+      <svg viewBox="0 0 24 24" width="19" height="19" style="filter:drop-shadow(0 1.5px 2px rgba(0,0,0,0.5));">
+        <path d="M12 2.5L21 20L12 16L3 20Z" fill="${cor}" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" />
+      </svg>
+    </div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  })
+}
+
+interface PropriedadesLinhaDirecional {
+  pontos: Coordenada[]
+  cor: string
+  corSeta?: string
+  tracejada?: boolean
+  opacidade?: number
+  mostrarSetas?: boolean
+}
+
+/** Desenha um trajeto no mapa com contorno branco e setas adaptadas ao zoom do usuário. */
+export function LinhaDirecional({
+  pontos,
+  cor,
+  corSeta = '#1B3C59',
+  tracejada = false,
+  opacidade = 0.95,
+  mostrarSetas = true,
+}: PropriedadesLinhaDirecional) {
+  const mapa = useMap()
+  const [visao, setVisao] = useState(0)
+
+  useMapEvents({
+    zoomend: () => setVisao((v) => v + 1),
+    moveend: () => setVisao((v) => v + 1),
+  })
+
+  const setas = useMemo(
+    () => (mostrarSetas ? calcularSetasVisiveis(mapa, pontos, 110) : []),
+    // `visao` força recálculo sempre que o usuário dá zoom ou arrasta o mapa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapa, pontos, mostrarSetas, visao],
+  )
+
+  if (pontos.length < 2) return null
+
+  return (
+    <>
+      <Polyline
+        positions={pontos}
+        pathOptions={{ color: '#FFFFFF', weight: 9, opacity: opacidade * 0.9 }}
+        interactive={false}
+      />
+      <Polyline
+        positions={pontos}
+        pathOptions={{
+          color: cor,
+          weight: 5,
+          opacity: opacidade,
+          dashArray: tracejada ? '8 10' : undefined,
+        }}
+        interactive={false}
+      />
+      {setas.map((seta, idx) => (
+        <Marker
+          key={`${idx}-${seta.posicao[0].toFixed(5)}-${seta.posicao[1].toFixed(5)}`}
+          position={seta.posicao}
+          icon={criarIconeSeta(corSeta, seta.angulo)}
+          interactive={false}
+          zIndexOffset={400}
+        />
+      ))}
+    </>
   )
 }
