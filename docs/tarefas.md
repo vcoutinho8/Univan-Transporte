@@ -80,7 +80,8 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 |---|---|---|
 | Painel com indicadores | ✅ | Saudação com o nome de quem entrou; passageiros, motoristas, veículos e rotas ativos |
 | Operação de hoje | ✅ | Uma linha por motorista e sentido: rodando, próximas, atrasadas (agendada que passou da hora) e concluídas |
-| Chamadas de hoje e pontos de atenção | ✅ | Confirmados e quem não vai; passageiros sem área ou sem localização e CNH vencida ou vencendo |
+| Chamadas de hoje e atalhos | ✅ | Confirmados e quem não vai; atalhos para cadastro, rotas, calendário e relatórios |
+| Gráfico dos últimos 7 dias | ✅ | Passageiros transportados por dia e % de presença, com detalhe ao passar o mouse (`GET /painel/semana`) |
 | Alerta de passageiros sem área | ✅ | Endereço fora de todas as áreas |
 | Histórico de chamadas | ⬜ | |
 | Relatório de frequência por passageiro | 🗄️ | View `vw_frequencia` |
@@ -94,6 +95,9 @@ Legenda: ✅ pronto · 🟡 parcial · 🗄️ existe no banco, falta API/tela �
 | Funcionalidade | Situação | Observação |
 |---|---|---|
 | Pontos de embarque em mapa interativo | ✅ | Leaflet + OpenStreetMap |
+| Melhor ordem das paradas | ✅ | Em Mapa e rotas: sai da casa do motorista, busca todos do turno e termina nas paradas das faculdades. Tempos reais pelas ruas (OSRM `/table`) e heurísticas do caixeiro viajante (vizinho mais próximo + 2-opt + or-opt). Mostra atual x sugerida (km, tempo, chegada), permite ajustar à mão e aplicar (grava o horário de embarque de cada passageiro; a fila das viagens segue essa ordem). `OSRM_URL` configura o servidor |
+| Paradas extras da faculdade | ✅ | Ex.: UVV: Biopráticas e fundos. Criadas e arrastadas no mapa; o passageiro escolhe a dele no cadastro (sem escolha = a principal) |
+| Endereço do motorista | ✅ | Casa/garagem no cadastro do motorista: início da ida e fim da volta (no mapa, na ordem e na Minha rota) |
 | Minha rota (motorista) | ✅ | Mapa com o trajeto até as paradas que faltam, próxima parada com **Navegar** (Google Maps), ligar e WhatsApp, posição pelo GPS (opcional) e embarque a um toque |
 | Consulta de endereços e sequência das paradas | ⬜ | Depende do RF4 |
 
