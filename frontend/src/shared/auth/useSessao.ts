@@ -39,5 +39,11 @@ export function useSessao() {
 
   const sair = useCallback(() => gravarSessao(null), [])
 
-  return { sessao, usuario: sessao?.usuario ?? null, entrar, sair }
+  /** Atualiza os dados de quem está logado (ex.: nome trocado, senha padrão já trocada). */
+  const atualizarUsuario = useCallback((parcial: Partial<UsuarioSessao>) => {
+    const atual = lerSessao()
+    if (atual) gravarSessao({ ...atual, usuario: { ...atual.usuario, ...parcial } })
+  }, [])
+
+  return { sessao, usuario: sessao?.usuario ?? null, entrar, sair, atualizarUsuario }
 }

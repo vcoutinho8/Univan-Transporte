@@ -100,6 +100,8 @@ class ServicoJornada:
         momento = viagem_servico.agora()
         if pedido.data > momento.date():
             raise ConflitoDeDados("Esta jornada é de um dia que ainda não chegou.")
+        if pedido.data < momento.date():
+            raise ConflitoDeDados("Esta jornada é de um dia que já passou: só dá para iniciar a viagem de hoje.")
         for viagem in agendadas:
             viagem.status = StatusViagem.EM_ANDAMENTO
             viagem.horario_saida = momento

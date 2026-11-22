@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import Cartao from '../../shared/components/Card.tsx'
+import EstadoVazio from '../../shared/components/EmptyState.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
 import { useAviso } from '../../shared/components/NoticeModal.tsx'
@@ -151,18 +152,15 @@ export default function PaginaChamadas() {
 
       {!chamadas.carregando && !chamadas.erro && todos.length === 0 && (
         <Cartao>
-          <div className="flex flex-col items-center px-6 py-10 text-center">
-            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-fundo text-slate-400">
-              <Icone nome="megafone" className="h-6 w-6" />
-            </span>
-            <p className="mt-4 font-bold text-marinho">Sem chamada em {dataPorExtenso.toLowerCase()}</p>
-            <p className="mt-1 max-w-md text-sm text-slate-500">
-              A chamada nasce junto com as viagens do dia. Gere as viagens deste dia para registrar os avisos.
-            </p>
+          <EstadoVazio
+            icone="megafone"
+            titulo={`Sem chamada em ${dataPorExtenso.toLowerCase()}`}
+            descricao="A chamada nasce junto com as viagens do dia. Gere as viagens deste dia para registrar os avisos."
+          >
             <Link to={`/viagens?data=${data}`} className="mt-4 rounded-lg bg-laranja px-4 py-2 text-sm font-semibold text-white hover:bg-laranja-claro">
               Ir para Viagens
             </Link>
-          </div>
+          </EstadoVazio>
         </Cartao>
       )}
 

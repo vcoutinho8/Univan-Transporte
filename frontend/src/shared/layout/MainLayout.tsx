@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import RotaProtegida from '../auth/RotaProtegida.tsx'
+import TrocaDeSenhaObrigatoria from '../auth/TrocaDeSenha.tsx'
 import { useSessao } from '../auth/useSessao.ts'
 import BarraMotorista from './DriverTabBar.tsx'
 import MenuLateral from './Sidebar.tsx'
@@ -43,6 +44,7 @@ export default function LayoutPrincipal() {
         >
           <RotaProtegida>
             <Outlet />
+            <TrocaDeSenhaObrigatoria />
           </RotaProtegida>
         </main>
       </div>

@@ -48,6 +48,7 @@ class UsuarioResposta(BaseModel):
     perfil: Literal["admin", "auxiliar", "motorista"]
     fk_empresa: int
     fk_motorista: int | None
+    trocar_senha: bool = Field(default=False, description="Senha padrão: o app pede uma senha nova antes de seguir.")
 
 
 class LoginResposta(BaseModel):
@@ -87,13 +88,6 @@ def _nome(valor: str) -> str:
     return nome
 
 
-def _login(valor: str) -> str:
-    login = valor.strip().lower()
-    if not FORMATO_LOGIN.match(login):
-        raise ValueError("Usuário inválido: use de 3 a 30 letras, números, ponto, hífen ou sublinhado.")
-    return login
-
-
 class UsuarioDetalhe(UsuarioResposta):
     """Usuário na tela de configurações (o admin vê todos)."""
 
@@ -104,72 +98,51 @@ class UsuarioDetalhe(UsuarioResposta):
 
 
 class UsuarioNovo(BaseModel):
-    """Novo acesso ao sistema, criado pelo admin (ex.: o login de uma auxiliar)."""
+    """Novo acesso, criado pelo admin. O login é o CPF e a senha começa no padrão (123456): no
+    primeiro login a pessoa cria a dela. Motorista usa o CPF do cadastro de motorista."""
 
     model_config = ConfigDict(
         extra="forbid",
-        json_schema_extra={"examples": [{"nome": "Marina Souza", "login": "marina", "senha": "troque123", "perfil": "auxiliar"}]},
+        json_schema_extra={"examples": [{"nome": "Marina Souza", "cpf": "529.982.247-25", "perfil": "auxiliar"}]},
     )
 
     nome: str = Field(max_length=100)
-    login: str = Field(max_length=30)
-    senha: str = Field(min_length=6, max_length=128, description="Senha inicial (mínimo 6). A pessoa troca depois.")
     perfil: Perfil
+    cpf: str | None = Field(default=None, description="Obrigatório (vira o login), menos para motorista: vem do cadastro dele.")
     fk_motorista: int | None = Field(default=None, gt=0, description="Obrigatório (e só) para o perfil motorista.")
     email: str | None = None
-    cpf: str | None = None
 
-    @field_validator('nome')
+    @field_validator("nome")
     @classmethod
     def validar_nome(cls, valor):
         return _nome(valor)
 
-    @field_validator('login')
-    @classmethod
-    def validar_login(cls, valor):
-        return _login(valor)
-
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validar_email(cls, valor):
         return _email(valor)
 
-    @field_validator('cpf')
+    @field_validator("cpf")
     @classmethod
     def validar_cpf(cls, valor):
         return _cpf(valor)
 
 
 class UsuarioAlteracao(BaseModel):
-    """Alteração feita pelo admin: só os campos enviados mudam. `senha` redefine a senha."""
+    """O que o admin muda num usuário: nome, CPF (o login acompanha) e situação. Senha: o reset."""
 
     model_config = ConfigDict(extra="forbid")
 
     nome: str | None = Field(default=None, max_length=100)
-    login: str | None = Field(default=None, max_length=30)
-    senha: str | None = Field(default=None, min_length=6, max_length=128)
-    perfil: Perfil | None = None
-    fk_motorista: int | None = Field(default=None, gt=0)
-    email: str | None = None
     cpf: str | None = None
     status: Literal["ativo", "inativo"] | None = None
 
-    @field_validator('nome')
+    @field_validator("nome")
     @classmethod
     def validar_nome(cls, valor):
         return None if valor is None else _nome(valor)
 
-    @field_validator('login')
-    @classmethod
-    def validar_login(cls, valor):
-        return None if valor is None else _login(valor)
-
-    @field_validator('email')
-    @classmethod
-    def validar_email(cls, valor):
-        return _email(valor)
-
-    @field_validator('cpf')
+    @field_validator("cpf")
     @classmethod
     def validar_cpf(cls, valor):
         return _cpf(valor)
@@ -182,16 +155,29 @@ class MinhaConta(UsuarioDetalhe):
 
 
 class MinhaContaAlteracao(BaseModel):
-    """O que cada um muda na própria conta: e-mail, senha (com a atual) e, motorista, a casa."""
+    """O que cada um muda na própria conta: nome, CPF (menos o motorista), e-mail, senha (com a
+    atual) e, o motorista, a casa."""
 
     model_config = ConfigDict(extra="forbid")
 
+    nome: str | None = Field(default=None, max_length=100)
+    cpf: str | None = None
     email: str | None = None
     senha_atual: str | None = Field(default=None, max_length=128)
     senha_nova: str | None = Field(default=None, min_length=6, max_length=128)
     endereco: EnderecoEntrada | None = None
 
-    @field_validator('email')
+    @field_validator("nome")
+    @classmethod
+    def validar_nome(cls, valor):
+        return None if valor is None else _nome(valor)
+
+    @field_validator("cpf")
+    @classmethod
+    def validar_cpf(cls, valor):
+        return _cpf(valor)
+
+    @field_validator("email")
     @classmethod
     def validar_email(cls, valor):
         return _email(valor)

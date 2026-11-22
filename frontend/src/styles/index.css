@@ -5,6 +5,11 @@
  * Paleta oficial: azul-marinho (marca e textos), laranja (ações e destaques) e cinza-claro (fundo).
  * Cada cor vira uma classe do Tailwind: bg-marinho, text-laranja, border-fundo, bg-laranja/10...
  */
+:root {
+  /* Só tema claro (o modo noturno do navegador não reescreve as cores). */
+  color-scheme: only light;
+}
+
 @theme {
   --font-sans: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
 
@@ -573,4 +578,14 @@ body {
 /* GPS em 3D: o mapa gira para a frente da van; pinos e balões giram de volta (ficam retos na tela). */
 .nav-3d .leaflet-marker-icon > :not(.nav-seta) {
   rotate: var(--giro);
+}
+
+/* Tela de boas-vindas do login: o brilho laranja crescendo e a barrinha enchendo. */
+@keyframes crescer {
+  from { transform: scale(0.2); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes encher {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }

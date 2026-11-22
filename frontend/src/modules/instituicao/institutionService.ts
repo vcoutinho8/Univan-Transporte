@@ -32,6 +32,8 @@ export const servicoInstituicao = {
   criar: (dados: { nome: string; endereco: DadosEndereco }) => requisitar<Instituicao>('/instituicoes', { metodo: 'POST', corpo: dados }),
   alterar: (id: number, dados: { nome?: string; endereco?: DadosEndereco }) =>
     requisitar<Instituicao>(`/instituicoes/${id}`, { metodo: 'PUT', corpo: dados }),
+  /** Só sem passageiro, rota ou dia sem aula usando (a API recusa e diz quem usa). */
+  excluir: (id: number) => requisitar<Instituicao>(`/instituicoes/${id}`, { metodo: 'DELETE' }),
 
   /** Move o ponto de parada na rua; `null` volta a usar a localização do endereço. */
   ajustarParada: (id: number, ponto: [number, number] | null) =>

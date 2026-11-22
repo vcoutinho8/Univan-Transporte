@@ -61,6 +61,8 @@ export default function PaginaLogin() {
   const [senha, setSenha] = useState('')
   const [verSenha, setVerSenha] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  // Entrou: a tela de boas-vindas aparece por um instante antes de ir para o início.
+  const [boasVindas, setBoasVindas] = useState<string | null>(null)
   const [tocado, setTocado] = useState(false)
   const [destaque, setDestaque] = useState(0)
   const avisos = useAviso()
@@ -72,7 +74,8 @@ export default function PaginaLogin() {
 
   // Sempre a tela inicial do perfil: voltar para a tela de antes levava o próximo usuário
   // (ex.: o admin) para a tela de quem saiu (ex.: /minha-rota do motorista).
-  if (sessao) return <Navigate to={telaInicial(sessao.usuario.perfil)} replace />
+  if (boasVindas) return <TelaBoasVindas nome={boasVindas} />
+  if (sessao && !enviando) return <Navigate to={telaInicial(sessao.usuario.perfil)} replace />
 
   const erros = tocado ? validarLogin(usuario, senha) : {}
 
@@ -86,7 +89,8 @@ export default function PaginaLogin() {
       const nova = await entrar(login, senha)
       if (lembrar) localStorage.setItem(CHAVE_LEMBRAR, login)
       else localStorage.removeItem(CHAVE_LEMBRAR)
-      navegar(telaInicial(nova.usuario.perfil), { replace: true })
+      setBoasVindas(nova.usuario.nome.split(' ')[0])
+      window.setTimeout(() => navegar(telaInicial(nova.usuario.perfil), { replace: true }), 1300)
     } catch (e) {
       const bloqueado = e instanceof ErroApi && e.status === 429
       avisos.mostrar({
@@ -240,6 +244,28 @@ export default function PaginaLogin() {
         </aside>
       </div>
       {avisos.modal}
+    </div>
+  )
+}
+
+/** Entrada no sistema: o logo, o "bem-vindo(a)" e a estrada correndo, antes da tela inicial. */
+function TelaBoasVindas({ nome }: { nome: string }) {
+  return (
+    <div className="fixed inset-0 z-50 grid animate-aparecer place-items-center overflow-hidden bg-marinho text-white">
+      <span className="absolute h-[140vmax] w-[140vmax] animate-[crescer_1.3s_ease-out_both] rounded-full bg-[radial-gradient(circle,rgba(242,96,12,0.35)_0%,transparent_60%)]" />
+      <div className="relative flex flex-col items-center gap-5 text-center">
+        <span className="grid h-20 w-20 animate-surgir place-items-center rounded-3xl bg-white shadow-2xl shadow-black/30">
+          <Icone nome="van" className="h-10 w-10 text-laranja" />
+        </span>
+        <div className="animate-surgir [animation-delay:150ms]">
+          <p className="text-sm font-bold tracking-widest text-laranja uppercase">UniVan</p>
+          <h1 className="mt-1 text-3xl font-extrabold">Bem-vindo(a), {nome}!</h1>
+          <p className="mt-1 text-sm text-white/60">Preparando o seu painel...</p>
+        </div>
+        <span className="h-1 w-40 overflow-hidden rounded-full bg-white/10">
+          <span className="block h-full w-full origin-left animate-[encher_1.2s_ease-in-out_both] rounded-full bg-laranja" />
+        </span>
+      </div>
     </div>
   )
 }

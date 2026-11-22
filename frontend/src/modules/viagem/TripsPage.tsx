@@ -7,7 +7,7 @@ import { useSessao } from '../../shared/auth/useSessao.ts'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
-import { useAviso } from '../../shared/components/NoticeModal.tsx'
+import { useAviso, useConfirmacao } from '../../shared/components/NoticeModal.tsx'
 import CabecalhoPagina from '../../shared/components/PageHeader.tsx'
 import RodapePaginacao from '../../shared/components/Pagination.tsx'
 import { usePaginacao } from '../../shared/hooks/usePagination.ts'
@@ -117,6 +117,7 @@ function SecaoSentido({ sentido, jornadas, chaveFiltros, renderizar, filtros, ao
  * basta escolher o dia e o turno para acompanhar cada motorista e confirmar embarques.
  */
 export default function PaginaViagens() {
+  const confirmacao = useConfirmacao()
   const perfil = useSessao().usuario?.perfil
   const podeGerar = pode(perfil, 'viagem.gerar') // admin: gerar o dia, trocar e cancelar
   const podeOperar = pode(perfil, 'viagem.operar') // admin e motorista: iniciar e embarcar
@@ -193,7 +194,7 @@ export default function PaginaViagens() {
   }
 
   async function cancelarRota(v: Viagem) {
-    if (!window.confirm(`Cancelar a rota ${v.rota.nome} (${v.sentido}) hoje? Esses passageiros não serão buscados.`)) return
+    if (!(await confirmacao.confirmar({ titulo: `Cancelar a rota ${v.rota.nome} (${v.sentido}) hoje?`, descricao: `Esses passageiros não serão buscados.`, botao: 'Cancelar', perigo: true }))) return
     setOcupada(v.id)
     try {
       await servicoViagem.cancelar(v.id)
@@ -266,7 +267,10 @@ export default function PaginaViagens() {
         indice={indice}
         ocupado={jornada.viagens.some((v) => v.id === ocupada)}
         carregandoWhatsApp={preparandoWhatsApp === chave}
-        aoIniciar={() => (perfil === 'motorista' ? irParaMinhaRota(jornada, true) : setAberto({ tipo: 'iniciar', jornada }))}
+        // Só a viagem de hoje se inicia (passada ou futura, não: a API também recusa).
+        aoIniciar={
+          data === dataIso() ? () => (perfil === 'motorista' ? irParaMinhaRota(jornada, true) : setAberto({ tipo: 'iniciar', jornada })) : undefined
+        }
         aoAcompanhar={() =>
           perfil === 'motorista' && jornada.status === 'em_andamento' ? irParaMinhaRota(jornada, false) : setAberto({ tipo: 'andamento', jornada })
         }
@@ -285,6 +289,7 @@ export default function PaginaViagens() {
 
   return (
     <>
+      {confirmacao.modal}
       <CabecalhoPagina
         titulo="Viagens"
         descricao={

@@ -24,34 +24,41 @@ def sem_bloqueios():
     seguranca._tentativas.clear()
 
 
-def test_admin_cria_login_de_auxiliar_que_entra(cliente):  # noqa: F811
+def test_admin_cria_acesso_pelo_cpf_com_senha_padrao(cliente):  # noqa: F811
     entrar(cliente, "admin", "123456")
-    novo = {"nome": "Marina  Souza", "login": "Marina", "senha": "segredo1", "perfil": "auxiliar", "email": "M@X.com"}
+    novo = {"nome": "Marina  Souza", "cpf": "529.982.247-25", "perfil": "auxiliar", "email": "M@X.com"}
     resposta = cliente.post("/api/usuarios", json=novo)
     assert resposta.status_code == 201, resposta.text
-    assert resposta.json() | {"id": 0, "ultimo_acesso": None} == {
-        "id": 0,
-        "nome": "Marina Souza",
-        "login": "marina",
-        "perfil": "auxiliar",
-        "fk_empresa": 1,
-        "fk_motorista": None,
-        "email": "m@x.com",
-        "cpf": None,
-        "status": "ativo",
-        "ultimo_acesso": None,
-    }
-    assert cliente.post("/api/usuarios", json=novo).status_code == 409  # login repetido
-    assert entrar(cliente, "marina", "segredo1")["usuario"]["perfil"] == "auxiliar"
+    criado = resposta.json()
+    assert (criado["nome"], criado["login"], criado["cpf"], criado["trocar_senha"]) == ("Marina Souza", "52998224725", "52998224725", True)
+    assert cliente.post("/api/usuarios", json=novo).status_code == 409  # CPF repetido
+    assert cliente.post("/api/usuarios", json={"nome": "Sem CPF", "perfil": "auxiliar"}).status_code == 422
+
+    # Entra com o CPF e a senha padrão; o app pede a senha nova, que limpa o aviso.
+    login = entrar(cliente, "52998224725", "123456")
+    assert login["usuario"]["trocar_senha"] is True
+    assert cliente.patch("/api/usuarios/eu", json={"senha_atual": "123456", "senha_nova": "123456"}).status_code == 422
+    conta = cliente.patch("/api/usuarios/eu", json={"senha_atual": "123456", "senha_nova": "minhaSenha1"}).json()
+    assert conta["trocar_senha"] is False
+    entrar(cliente, "52998224725", "minhaSenha1")
 
 
-def test_admin_redefine_senha_e_nao_tira_o_proprio_acesso(cliente):  # noqa: F811
+def test_admin_reseta_senha_e_nao_se_desativa(cliente):  # noqa: F811
     eu = entrar(cliente, "admin", "123456")["usuario"]
-    assert cliente.put("/api/usuarios/2", json={"senha": "nova123", "cpf": "529.982.247-25"}).status_code == 200
-    assert cliente.put(f"/api/usuarios/{eu['id']}", json={"perfil": "auxiliar"}).status_code == 409
+    resetado = cliente.post("/api/usuarios/2/resetar-senha").json()
+    assert resetado["trocar_senha"] is True
     assert cliente.put(f"/api/usuarios/{eu['id']}", json={"status": "inativo"}).status_code == 409
-    assert cliente.put("/api/usuarios/2", json={"perfil": "motorista"}).status_code == 422  # sem motorista
-    assert entrar(cliente, "auxiliar", "nova123")["usuario"]["login"] == "auxiliar"
+    assert cliente.put("/api/usuarios/2", json={"perfil": "admin"}).status_code == 422  # perfil não muda na edição
+    alterado = cliente.put("/api/usuarios/2", json={"nome": "Paula Lima", "cpf": "111.444.777-35"}).json()
+    assert (alterado["nome"], alterado["login"]) == ("Paula Lima", "11144477735")  # o login acompanha o CPF
+
+
+def test_admin_e_auxiliar_editam_o_proprio_nome_e_cpf(cliente):  # noqa: F811
+    entrar(cliente, "auxiliar", "123456")
+    conta = cliente.patch("/api/usuarios/eu", json={"nome": "Paula Auxiliar Lima", "cpf": "529.982.247-25"}).json()
+    assert (conta["nome"], conta["cpf"], conta["login"]) == ("Paula Auxiliar Lima", "52998224725", "52998224725")
+    entrar(cliente, "motorista", "123456")
+    assert cliente.patch("/api/usuarios/eu", json={"nome": "Outro"}).status_code == 422
 
 
 def test_motorista_cuida_da_conta_mas_nao_do_cpf(cliente):  # noqa: F811
@@ -59,7 +66,7 @@ def test_motorista_cuida_da_conta_mas_nao_do_cpf(cliente):  # noqa: F811
     conta = cliente.get("/api/usuarios/eu").json()
     assert conta["perfil"] == "motorista" and conta["cpf"]  # CPF do cadastro de motorista
 
-    assert cliente.patch("/api/usuarios/eu", json={"cpf": "52998224725"}).status_code == 422  # não muda CPF
+    assert cliente.patch("/api/usuarios/eu", json={"cpf": "52998224725"}).status_code == 422  # motorista não muda CPF
     assert cliente.patch("/api/usuarios/eu", json={"senha_atual": "errada", "senha_nova": "nova123"}).status_code == 422
     resposta = cliente.patch(
         "/api/usuarios/eu", json={"email": "carlos@x.com", "senha_atual": "123456", "senha_nova": "nova123", "endereco": ENDERECO}
@@ -112,5 +119,13 @@ def test_catalogo_de_faculdades_por_uf(cliente):  # noqa: F811
 def test_cpf_nao_se_repete_entre_cadastros(cliente):  # noqa: F811
     entrar(cliente, "admin", "123456")
     cpf_do_motorista = cliente.get("/api/motoristas/1").json()["cpf"]
-    resposta = cliente.post("/api/usuarios", json={"nome": "Y", "login": "yyy", "senha": "123456", "perfil": "auxiliar", "cpf": cpf_do_motorista})
+    resposta = cliente.post("/api/usuarios", json={"nome": "Y", "perfil": "auxiliar", "cpf": cpf_do_motorista})
     assert resposta.status_code == 409 and resposta.json()["mensagem"] == "Este CPF já está cadastrado como motorista."
+
+
+def test_exclui_instituicao_so_sem_uso(cliente):  # noqa: F811
+    entrar(cliente, "admin", "123456")
+    assert cliente.delete("/api/instituicoes/1").status_code == 409  # a UVV tem passageiros e rotas
+    nova = cliente.post("/api/instituicoes", json={"nome": "Sem ninguém", "endereco": ENDERECO}).json()
+    assert cliente.delete(f"/api/instituicoes/{nova['id']}").json()["nome"] == "Sem ninguém"
+    assert all(i["id"] != nova["id"] for i in cliente.get("/api/instituicoes").json())
