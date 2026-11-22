@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { pode } from '../../shared/auth/permissoes.ts'
+import { combinaBusca } from '../../shared/utils/busca.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
@@ -20,6 +21,7 @@ import { servicoArea } from '../area/areaService.ts'
 import { servicoInstituicao } from '../instituicao/institutionService.ts'
 import { corDoMotorista } from '../mapa/mapUtils.ts'
 import FormularioEstudante from './StudentForm.tsx'
+import RotinaPassageiro from './StudentRoutine.tsx'
 import { servicoEstudante } from './studentService.ts'
 import { ROTULOS_TURNO, type DadosEstudante, type Estudante, type Turno } from './types.ts'
 
@@ -38,6 +40,8 @@ export default function PaginaEstudantes() {
   const [filtroTurno, setFiltroTurno] = useState<Turno | ''>('')
   const [filtroArea, setFiltroArea] = useState('')
   const [busca, setBusca] = useState('')
+  // Clique na linha: a rotina do passageiro (dias, horários, rota e motorista).
+  const [rotina, setRotina] = useState<Estudante | null>(null)
   // ?novo=1 (atalho do painel) já abre o formulário de cadastro.
   const [formulario, setFormulario] = useState<EstadoFormulario>(() =>
     parametros.get('novo') ? { modo: 'novo' } : { modo: 'fechado' },
@@ -49,16 +53,11 @@ export default function PaginaEstudantes() {
   const areas = useRequisicao(() => servicoArea.listar({ status: 'ativo' }))
 
   const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
     return (estudantes.dados ?? []).filter((e) => {
       if (filtroTurno && e.turno !== filtroTurno) return false
       if (filtroArea === SEM_AREA && e.fk_area !== null) return false
       if (filtroArea && filtroArea !== SEM_AREA && e.fk_area !== Number(filtroArea)) return false
-      if (!termo) return true
-      return [e.nome, e.apelido, e.cpf, e.curso, e.instituicao.nome, e.endereco.bairro, e.area?.nome]
-        .join(' ')
-        .toLowerCase()
-        .includes(termo)
+      return combinaBusca([e.nome, e.apelido, e.cpf, e.celular, e.curso, e.instituicao.nome, e.endereco.bairro, e.endereco.cidade, e.area?.nome], busca)
     })
   }, [estudantes.dados, busca, filtroTurno, filtroArea])
 
@@ -133,6 +132,21 @@ export default function PaginaEstudantes() {
         </div>
       )}
 
+      {rotina && (
+        <RotinaPassageiro
+          estudante={rotina}
+          motoristaDaArea={rotina.fk_area ? (areaPorId.get(rotina.fk_area)?.fk_motorista ?? null) : null}
+          aoFechar={() => setRotina(null)}
+          aoEditar={
+            podeEditar
+              ? () => {
+                  setFormulario({ modo: 'editar', estudante: rotina })
+                  setRotina(null)
+                }
+              : undefined
+          }
+        />
+      )}
       {formulario.modo !== 'fechado' && (
         <FormularioEstudante
           estudante={formulario.modo === 'editar' ? formulario.estudante : null}
@@ -227,7 +241,9 @@ export default function PaginaEstudantes() {
                     return (
                       <tr
                         key={estudante.id}
-                        className="animate-surgir transition-colors hover:bg-fundo/50"
+                        onClick={() => setRotina(estudante)}
+                        title="Ver a rotina"
+                        className="animate-surgir cursor-pointer transition-colors hover:bg-fundo/50"
                         style={{ animationDelay: `${Math.min(indice * 30, 300)}ms` }}
                       >
                         <td className="px-5 py-3">
@@ -242,6 +258,9 @@ export default function PaginaEstudantes() {
                               </p>
                               <p className="text-xs whitespace-nowrap text-slate-500">
                                 {formatarCpf(estudante.cpf)} · {formatarCelular(estudante.celular)}
+                              </p>
+                              <p className="text-xs whitespace-nowrap text-slate-400">
+                                {estudante.endereco.bairro} · {estudante.endereco.cidade}
                               </p>
                             </div>
                           </div>
@@ -272,7 +291,7 @@ export default function PaginaEstudantes() {
                         <td className="px-5 py-3">
                           <EtiquetaStatus status={estudante.status} />
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-5 py-3" onClick={(evento) => evento.stopPropagation()}>
                           <div className="flex justify-end gap-1">
                             {estudante.endereco.latitude !== null && (
                               <Link

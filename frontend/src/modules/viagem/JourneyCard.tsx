@@ -32,7 +32,8 @@ interface Propriedades {
   carregandoWhatsApp?: boolean
   aoIniciar: () => void
   aoAcompanhar: () => void
-  aoCompartilharWhatsApp: () => void
+  /** Sem ele o botão some (ex.: dia que já passou: a chamada não vale mais). */
+  aoCompartilharWhatsApp?: () => void
   aoVerPassageiros: (v: Viagem) => void
   /** Sem as ações abaixo o botão some (perfil sem permissão). */
   aoTrocar?: (v: Viagem) => void
@@ -106,7 +107,7 @@ export default function CartaoJornada({
             <span className="text-xs font-semibold text-amber-600">{passageiros.nao_vai} avisaram que não vão</span>
           )}
           <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
-            {jornada.status !== 'cancelada' && (
+            {aoCompartilharWhatsApp && jornada.status !== 'cancelada' && (
               <button
                 type="button"
                 onClick={aoCompartilharWhatsApp}

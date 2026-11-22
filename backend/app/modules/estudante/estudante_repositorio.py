@@ -3,6 +3,7 @@
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, joinedload
 
+from app.shared.cpf import garantir_cpf_livre
 from app.modules.estudante.estudante_model import Estudante
 from app.shared.enums import StatusCadastro
 
@@ -38,6 +39,10 @@ class RepositorioEstudante:
 
     def buscar_por_cpf(self, cpf: str) -> Estudante | None:
         return self.sessao.scalar(select(Estudante).where(Estudante.cpf == cpf))
+
+    def garantir_cpf_livre(self, cpf: str) -> None:
+        """O CPF não pode estar em outro cadastro (passageiro, motorista ou usuário)."""
+        garantir_cpf_livre(self.sessao, cpf, Estudante.__tablename__)
 
     def salvar(self, estudante: Estudante, recalcular_area: bool = False) -> Estudante:
         """Grava o estudante e o endereço.

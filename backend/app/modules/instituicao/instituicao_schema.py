@@ -106,3 +106,17 @@ class InstituicaoAlteracao(BaseModel):
     @classmethod
     def validar_nome(cls, valor: str | None) -> str | None:
         return None if valor is None else _nome_instituicao(valor)
+
+
+class FaculdadeDoCatalogo(BaseModel):
+    """Faculdade do cadastro oficial (Censo da Educação Superior/INEP), para preencher a nova instituição."""
+
+    codigo: int = Field(description="Código da IES no e-MEC.")
+    nome: str
+    sigla: str
+    uf: str
+    municipio: str
+    cep: str
+    logradouro: str
+    numero: str
+    bairro: str

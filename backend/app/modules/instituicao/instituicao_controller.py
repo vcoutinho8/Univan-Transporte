@@ -1,9 +1,13 @@
 """Rotas HTTP das instituições: consulta e ajuste do ponto de parada no mapa."""
 
+import csv
+import unicodedata
+from functools import cache
+from pathlib import Path
 from math import asin, cos, radians, sin, sqrt
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
@@ -14,6 +18,7 @@ from app.modules.endereco.endereco_model import Endereco
 from app.modules.instituicao.instituicao_model import Instituicao, InstituicaoParada
 from app.modules.instituicao.instituicao_repositorio import RepositorioInstituicao
 from app.modules.instituicao.instituicao_schema import (
+    FaculdadeDoCatalogo,
     InstituicaoAlteracao,
     InstituicaoNova,
     InstituicaoResposta,
@@ -39,6 +44,35 @@ def obter_repositorio_instituicao(sessao: Annotated[Session, Depends(obter_sessa
 
 
 Repositorio = Annotated[RepositorioInstituicao, Depends(obter_repositorio_instituicao)]
+
+
+# Cadastro oficial das faculdades (Censo da Educação Superior 2024/INEP, 2.561 IES). Vai junto
+# com a API: a busca funciona mesmo sem internet. shortcut: arquivo de 2024, atualizar com o censo
+# novo (download.inep.gov.br/microdados) quando faltar alguma faculdade recente.
+CATALOGO = Path(__file__).with_name("catalogo_ies.csv")
+
+
+def _sem_acento(texto: str) -> str:
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode().lower()
+
+
+@cache
+def _catalogo() -> list[dict]:
+    with CATALOGO.open(encoding="utf-8") as arquivo:
+        return [linha | {"_busca": _sem_acento(f"{linha['nome']} {linha['sigla']} {linha['municipio']}")} for linha in csv.DictReader(arquivo, delimiter=";")]
+
+
+@roteador.get(
+    "/catalogo",
+    response_model=list[FaculdadeDoCatalogo],
+    summary="Buscar faculdades do cadastro oficial (INEP/e-MEC) por UF e nome",
+)
+def buscar_no_catalogo(
+    uf: str = Query(min_length=2, max_length=2, description="Sigla do estado (ex.: ES)."),
+    busca: str = Query(default="", max_length=60, description="Parte do nome, sigla ou cidade (sem ligar para acento)."),
+):
+    termos = _sem_acento(busca).split()
+    return [l for l in _catalogo() if l["uf"] == uf.upper() and all(t in l["_busca"] for t in termos)][:100]
 
 
 @roteador.get("", response_model=list[InstituicaoResposta], summary="Listar instituições")

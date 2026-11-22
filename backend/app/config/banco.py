@@ -73,7 +73,7 @@ COLUNAS_NOVAS = (
 
 # Tabelas criadas depois da primeira versão do script: num banco antigo, são criadas (com os dados
 # de teste delas) a partir do próprio docs/univan-sqlite.sql.
-TABELAS_NOVAS = ("usuario", "instituicao_parada")
+TABELAS_NOVAS = ("usuario", "instituicao_parada", "feriado_importado")
 
 
 def _sql_da_tabela(tabela: str) -> str:

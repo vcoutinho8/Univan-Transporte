@@ -1,6 +1,6 @@
 """Tabela `dia_sem_aula`: feriados, recessos e férias."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String
@@ -26,3 +26,13 @@ class DiaSemAula(Base):
     motivo: Mapped[str] = mapped_column(String(100))
 
     instituicao: Mapped["Instituicao | None"] = relationship()
+
+
+class FeriadoImportado(Base):
+    """Ano cujos feriados nacionais já foram importados (uma vez só: cancelar um feriado é definitivo)."""
+
+    __tablename__ = "feriado_importado"
+
+    ano: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    fonte: Mapped[str] = mapped_column(String(20))
+    importado_em: Mapped[datetime]

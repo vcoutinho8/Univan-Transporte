@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.shared.cpf import garantir_cpf_livre
 from app.modules.motorista.motorista_model import Motorista
 from app.shared.enums import StatusCadastro
 
@@ -32,6 +33,10 @@ class RepositorioMotorista:
 
     def buscar_por_cpf(self, cpf: str) -> Motorista | None:
         return self.sessao.scalar(select(Motorista).where(Motorista.cpf == cpf))
+
+    def garantir_cpf_livre(self, cpf: str) -> None:
+        """O CPF não pode estar em outro cadastro (passageiro, motorista ou usuário)."""
+        garantir_cpf_livre(self.sessao, cpf, Motorista.__tablename__)
 
     def buscar_por_cnh(self, cnh: str) -> Motorista | None:
         return self.sessao.scalar(select(Motorista).where(Motorista.cnh == cnh))

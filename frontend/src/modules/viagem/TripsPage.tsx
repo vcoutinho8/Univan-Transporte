@@ -270,7 +270,8 @@ export default function PaginaViagens() {
         aoAcompanhar={() =>
           perfil === 'motorista' && jornada.status === 'em_andamento' ? irParaMinhaRota(jornada, false) : setAberto({ tipo: 'andamento', jornada })
         }
-        aoCompartilharWhatsApp={() => void prepararChamadaWhatsApp(jornada)}
+        // Dia que já passou: a chamada não vale mais, então não sai mensagem com dados antigos.
+        aoCompartilharWhatsApp={data >= dataIso() ? () => void prepararChamadaWhatsApp(jornada) : undefined}
         aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
         aoTrocar={podeGerar ? (v) => setAberto({ tipo: 'troca', viagem: v }) : undefined}
         aoCancelar={podeGerar ? (v) => void cancelarRota(v) : undefined}

@@ -12,7 +12,7 @@ class EnderecoEntrada(BaseModel):
 
     cep: str
     logradouro: str = Field(max_length=100)
-    numero: str | None = Field(default=None, max_length=10)
+    numero: str = Field(max_length=10, description='Número da casa, ou "S/N" (sem número).')
     complemento: str | None = Field(default=None, max_length=60)
     bairro: str = Field(max_length=50)
     cidade: str = Field(max_length=50)
@@ -44,7 +44,15 @@ class EnderecoEntrada(BaseModel):
             raise ValueError("Campo obrigatório.")
         return texto
 
-    @field_validator("numero", "complemento")
+    @field_validator("numero")
+    @classmethod
+    def validar_numero(cls, valor: str) -> str:
+        numero = valor.strip()
+        if not numero:
+            raise ValueError("Informe o número (ou S/N, sem número).")
+        return "S/N" if numero.upper().replace(" ", "") in {"S/N", "SN", "S/Nº"} else numero
+
+    @field_validator("complemento")
     @classmethod
     def validar_opcional(cls, valor: str | None) -> str | None:
         return limpar_texto(valor)

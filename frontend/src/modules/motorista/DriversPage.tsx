@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { pode } from '../../shared/auth/permissoes.ts'
+import { combinaBusca } from '../../shared/utils/busca.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
@@ -15,7 +16,7 @@ import { usePaginacao } from '../../shared/hooks/usePagination.ts'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
 import type { StatusCadastro } from '../../shared/types/api.ts'
-import { formatarCelular, formatarCpf, formatarData, iniciais, soDigitos } from '../../shared/utils/formatar.ts'
+import { formatarCelular, formatarCpf, formatarData, iniciais } from '../../shared/utils/formatar.ts'
 import { servicoVeiculo } from '../veiculo/vehicleService.ts'
 import FormularioMotorista from './DriverForm.tsx'
 import { servicoMotorista } from './driverService.ts'
@@ -45,38 +46,12 @@ export default function PaginaMotoristas() {
   const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: 'ativo' }))
 
   const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
-    const termoDigitos = soDigitos(busca)
-
     return (motoristas.dados ?? []).filter((m) => {
       if (filtroCnh && situacaoCnh(m.cnh_validade) !== filtroCnh) return false
       if (filtroVeiculo === 'com-veiculo' && m.fk_veiculo === null) return false
       if (filtroVeiculo === 'sem-veiculo' && m.fk_veiculo !== null) return false
 
-      if (!termo) return true
-
-      const camposTexto = [
-        m.nome,
-        m.apelido,
-        m.cpf,
-        m.celular,
-        m.cnh,
-        m.veiculo?.placa,
-        m.veiculo?.modelo,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-
-      if (camposTexto.includes(termo)) return true
-
-      if (termoDigitos) {
-        if (m.cpf.includes(termoDigitos)) return true
-        if (m.cnh.includes(termoDigitos)) return true
-        if (m.celular && m.celular.includes(termoDigitos)) return true
-      }
-
-      return false
+      return combinaBusca([m.nome, m.apelido, m.cpf, m.celular, m.cnh, m.veiculo?.placa, m.veiculo?.modelo], busca)
     })
   }, [motoristas.dados, busca, filtroCnh, filtroVeiculo])
 

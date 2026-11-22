@@ -5,7 +5,7 @@ import Icone, { type NomeIcone } from '../components/Icon.tsx'
 const ABAS: { para: string; rotulo: string; icone: NomeIcone }[] = [
   { para: '/minha-rota', rotulo: 'Minha rota', icone: 'rota' },
   { para: '/viagens', rotulo: 'Viagens', icone: 'viagem' },
-  { para: '/chamadas', rotulo: 'Avisos', icone: 'chamada' },
+  { para: '/chamadas', rotulo: 'Avisos', icone: 'megafone' },
   { para: '/configuracoes', rotulo: 'Ajustes', icone: 'engrenagem' },
 ]
 

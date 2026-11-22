@@ -18,16 +18,18 @@ import AbaRotas from '../rota/RoutesTab.tsx'
 import { servicoRota } from '../rota/routeService.ts'
 import type { Rota } from '../rota/types.ts'
 import AbaGeral from './GeneralTab.tsx'
+import AbaFaculdades from './InstitutionsTab.tsx'
 import { ContextoMapa, type DadosMapa } from './mapContext.tsx'
 import { MapaBase } from './MapLayers.tsx'
 import { coordenadaDo } from './mapUtils.ts'
 
-type Aba = 'geral' | 'rotas' | 'bairros'
+type Aba = 'geral' | 'rotas' | 'bairros' | 'faculdades'
 
 const ABAS: { chave: Aba; rotulo: string; icone: NomeIcone; descricao: string }[] = [
   { chave: 'geral', rotulo: 'Visão geral', icone: 'mapa', descricao: 'Onde mora cada passageiro e os bairros de cada motorista.' },
   { chave: 'rotas', rotulo: 'Rotas', icone: 'rota', descricao: 'Cada rota com os passageiros na ordem de embarque até a faculdade.' },
   { chave: 'bairros', rotulo: 'Bairros', icone: 'camadas', descricao: 'Contorno dos bairros no mapa e o motorista de cada um.' },
+  { chave: 'faculdades', rotulo: 'Faculdades', icone: 'escola', descricao: 'Onde a van para em cada faculdade: arraste o pino até o portão.' },
 ]
 
 // Referências fixas para "ainda sem dados" (um [] novo a cada render recarregaria as buscas).
@@ -139,6 +141,7 @@ export default function PaginaMapa() {
             {aba === 'geral' && <AbaGeral />}
             {aba === 'rotas' && <AbaRotas />}
             {aba === 'bairros' && <AbaBairros />}
+            {aba === 'faculdades' && <AbaFaculdades />}
           </MapaBase>
 
           <div className="pointer-events-none absolute bottom-4 left-4 z-[500] flex flex-wrap gap-3 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-600 shadow-md backdrop-blur">
