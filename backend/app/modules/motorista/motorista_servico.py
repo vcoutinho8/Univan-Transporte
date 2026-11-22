@@ -54,6 +54,8 @@ class ServicoMotorista:
     def cadastrar(self, dados: MotoristaCriacao, id_empresa: int) -> Motorista:
         """Cadastra o motorista na empresa de quem está usando o sistema."""
         self._garantir_empresa_existe(id_empresa)
+        if dados.status != StatusCadastro.ATIVO:
+            raise DadosInvalidos("O motorista novo entra ativo. Para desativar, edite o cadastro depois.")
         self._garantir_cpf_disponivel(dados.cpf)
         self._garantir_cnh_disponivel(dados.cnh)
         if dados.status == StatusCadastro.ATIVO:
@@ -134,6 +136,7 @@ class ServicoMotorista:
             raise DadosInvalidos("CPF inválido. Confira os números digitados.")
         if self.repositorio.buscar_por_cpf(cpf) is not None:
             raise ConflitoDeDados("Já existe um motorista com este CPF.")
+        self.repositorio.garantir_cpf_livre(cpf)
 
     def _garantir_cnh_disponivel(self, cnh: str) -> None:
         if not cnh_valida(cnh):

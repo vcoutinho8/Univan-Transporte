@@ -8,7 +8,24 @@ export interface DadosParadaExtra {
   longitude: number
 }
 
+/** Faculdade do cadastro oficial (Censo da Educação Superior/INEP). */
+export interface FaculdadeDoCatalogo {
+  codigo: number
+  nome: string
+  sigla: string
+  uf: string
+  municipio: string
+  cep: string
+  logradouro: string
+  numero: string
+  bairro: string
+}
+
 export const servicoInstituicao = {
+  /** Busca no cadastro oficial do MEC, só do estado informado. */
+  catalogo: (uf: string, busca = '') =>
+    requisitar<FaculdadeDoCatalogo[]>(`/instituicoes/catalogo?${new URLSearchParams({ uf, busca }).toString()}`),
+
   listar: () => requisitar<Instituicao[]>('/instituicoes'),
 
   /** Só o admin (tela de Configurações). */

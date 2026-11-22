@@ -150,6 +150,8 @@ class ServicoChamada:
         return self._passageiro(pedido)
 
     def _alvos(self, pedido: AvisoPedido) -> list[Chamada]:
+        if pedido.data < viagem_servico.agora().date():
+            raise ConflitoDeDados("Esse dia já passou: não dá mais para mudar os avisos.")
         chamadas = [
             c for c in self._chamadas(pedido.data, fk_estudante=pedido.fk_estudante) if c.viagem.sentido in pedido.sentidos
         ]

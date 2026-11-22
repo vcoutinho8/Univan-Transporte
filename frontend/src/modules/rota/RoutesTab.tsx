@@ -914,6 +914,7 @@ export default function AbaRotas() {
           pontos={pontosEnquadrar}
           chave={`rotas-${idMotorista}-${turno}-${sentido}-${trajetoInteiro}-${paradasNoMapa.length}-${ativas.length}-${ajustandoParadas}-${focoParada}`}
           zoomMaximo={ajustandoParadas ? 18 : 16}
+          manterSeVisivel={!ajustandoParadas}
         />
       )}
       <CamadaAreas areas={ativas} idMotoristaDestaque={motorista?.id ?? null} mostrarNomes={!motorista} />

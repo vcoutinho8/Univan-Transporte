@@ -129,7 +129,7 @@ export default function AbaGeral() {
         </Cartao>
       </PainelLateral>
 
-      {!carregando && <Enquadrar pontos={pontos} chave={`geral-${idMotorista}-${idFoco}-${ativas.length}-${comLocal.length}`} />}
+      {!carregando && <Enquadrar pontos={pontos} chave={`geral-${idMotorista}-${idFoco}-${ativas.length}-${comLocal.length}`} manterSeVisivel={!idFoco} />}
       <AcompanharZoom aoMudar={setZoom} />
       {mostrarAreas && <CamadaAreas areas={ativas} idMotoristaDestaque={selecionado?.id ?? null} />}
       {mostrarInstituicoes && instituicoes.map((i) => <MarcadorInstituicao key={i.id} instituicao={i} />)}

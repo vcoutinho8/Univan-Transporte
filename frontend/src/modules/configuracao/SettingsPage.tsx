@@ -209,7 +209,9 @@ function MinhaContaSecao({ conta, aoAtualizar }: { conta: MinhaConta; aoAtualiza
           >
             {casa.aviso}
             <p className="text-sm text-slate-500">De onde a ida sai e onde a volta termina.</p>
-            <CamposEndereco valor={endereco} aoMudar={setEndereco} rotuloMapa="Casa / garagem no mapa" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CamposEndereco valor={endereco} aoMudar={setEndereco} rotuloMapa="Casa / garagem no mapa" />
+            </div>
             <Botao type="submit" disabled={casa.salvando} className="w-full sm:w-auto">
               Salvar endereço
             </Botao>

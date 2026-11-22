@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { pode } from '../../shared/auth/permissoes.ts'
+import { combinaBusca } from '../../shared/utils/busca.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
@@ -14,6 +15,7 @@ import { usePaginacao } from '../../shared/hooks/usePagination.ts'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi } from '../../shared/services/api.ts'
 import type { StatusCadastro } from '../../shared/types/api.ts'
+import { servicoMotorista } from '../motorista/driverService.ts'
 import { servicoVeiculo } from './vehicleService.ts'
 import { obterHexCor, type DadosVeiculo, type Veiculo } from './types.ts'
 import FormularioVeiculo from './VehicleForm.tsx'
@@ -33,17 +35,13 @@ export default function PaginaVeiculos() {
   const [aviso, setAviso] = useState<Aviso | null>(null)
 
   const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: filtroStatus }), [filtroStatus])
+  // Quem dirige cada veículo (veículo padrão do motorista), para mostrar nas ações.
+  const motoristas = useRequisicao(() => servicoMotorista.listar())
+  const motoristaDoVeiculo = new Map((motoristas.dados ?? []).filter((m) => m.fk_veiculo !== null).map((m) => [m.fk_veiculo!, m]))
 
   // A busca é feita na própria tela, sobre a lista já carregada.
   const veiculosFiltrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
-    if (!termo) return veiculos.dados ?? []
-    return (veiculos.dados ?? []).filter((v) =>
-      [v.placa, v.modelo, v.cor ?? '']
-        .join(' ')
-        .toLowerCase()
-        .includes(termo),
-    )
+    return (veiculos.dados ?? []).filter((v) => combinaBusca([v.placa, v.modelo, v.cor], busca))
   }, [veiculos.dados, busca])
 
   const paginacao = usePaginacao(veiculosFiltrados, `${busca}|${filtroStatus}`)
@@ -210,7 +208,18 @@ export default function PaginaVeiculos() {
                           <EtiquetaStatus status={veiculo.status} />
                         </td>
                         <td className="px-5 py-3">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2">
+                            {motoristaDoVeiculo.get(veiculo.id) ? (
+                              <span
+                                title="Motorista vinculado (veículo padrão)"
+                                className="inline-flex max-w-44 items-center gap-1.5 truncate rounded-full bg-fundo px-2.5 py-1 text-xs font-bold text-marinho"
+                              >
+                                <Icone nome="motorista" className="h-3.5 w-3.5 shrink-0 text-laranja" />
+                                <span className="truncate">{motoristaDoVeiculo.get(veiculo.id)!.nome}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">Sem motorista</span>
+                            )}
                             {podeEditar && (
                               <>
                                 <Botao

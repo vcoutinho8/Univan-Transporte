@@ -3,9 +3,9 @@ import { useState, type ReactNode } from 'react'
 import Botao from '../../shared/components/Button.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import { formatarCep, soDigitos } from '../../shared/utils/formatar.ts'
-import type { Coordenada } from '../area/types.ts'
+import type { Area, Coordenada } from '../area/types.ts'
 import SeletorLocalizacao from '../mapa/LocationPicker.tsx'
-import { buscarCep, localizarEndereco } from './addressService.ts'
+import { buscarCep, enderecoParcialDoPonto, localizarEndereco } from './addressService.ts'
 import type { DadosEndereco, Endereco } from './types.ts'
 
 /** Endereço como está no formulário (texto) + o ponto marcado no mapa. */
@@ -57,6 +57,7 @@ export function paraApi(e: EnderecoDoFormulario): DadosEndereco {
 export function validarEndereco(e: EnderecoDoFormulario): string | null {
   if (soDigitos(e.cep).length !== 8) return 'Informe o CEP com 8 números.'
   if (!e.logradouro.trim() || !e.bairro.trim() || !e.cidade.trim()) return 'Preencha rua, bairro e cidade.'
+  if (!e.numero.trim()) return 'Informe o número da casa (ou marque S/N, sem número).'
   if (!/^[A-Za-z]{2}$/.test(e.estado.trim())) return 'Informe a UF com 2 letras (ex.: ES).'
   if (!e.posicao) return 'Marque o endereço no mapa (é o ponto de partida das viagens).'
   return null
@@ -64,26 +65,39 @@ export function validarEndereco(e: EnderecoDoFormulario): string | null {
 
 type SituacaoBusca = { tipo: 'buscando' | 'ok' | 'erro'; mensagem: string } | null
 
+/** Número de quem não tem número na fachada. */
+export const SEM_NUMERO = 'S/N'
+
 /**
- * Campos de endereço com busca pelo CEP e o ponto no mapa (clique ou arraste o pino).
- * `rotuloMapa` diz o que o pino marca (ex.: "Casa / garagem").
+ * Campos de endereço com busca pelo CEP e o ponto no mapa, sincronizados nos dois sentidos:
+ * CEP/rua/número → "Localizar endereço" põe o pino; arrastar ou clicar no mapa atualiza os campos
+ * pelo ponto. O número é obrigatório (ou S/N). `rotuloMapa` diz o que o pino marca.
  */
 export default function CamposEndereco({
   valor,
   aoMudar,
   rotuloMapa = 'Localização',
+  areas = [],
+  rodapeMapa,
 }: {
   valor: EnderecoDoFormulario
   aoMudar: (novo: EnderecoDoFormulario) => void
   rotuloMapa?: string
+  /** Áreas desenhadas no mapa (o passageiro vê em qual área a casa cai). */
+  areas?: Area[]
+  rodapeMapa?: ReactNode
 }) {
   const [busca, setBusca] = useState<SituacaoBusca>(null)
   const [chaveCentralizar, setChaveCentralizar] = useState('inicio')
+  // Coordenada que a BrasilAPI deu para o CEP: reserva quando o mapa não acha a rua.
+  const [pontoDoCep, setPontoDoCep] = useState<Coordenada | null>(null)
   const mudar = (campo: keyof EnderecoDoFormulario, novo: string) => aoMudar({ ...valor, [campo]: novo })
+  const semNumero = valor.numero === SEM_NUMERO
 
-  async function localizar(endereco: EnderecoDoFormulario = valor) {
+  async function localizar(endereco: EnderecoDoFormulario = valor, reserva: Coordenada | null = pontoDoCep) {
     setBusca({ tipo: 'buscando', mensagem: 'Procurando o endereço no mapa...' })
-    const encontrado = await localizarEndereco({ ...endereco, numero: texto(endereco.numero) })
+    const numero = endereco.numero === SEM_NUMERO ? null : texto(endereco.numero)
+    const encontrado = (await localizarEndereco({ ...endereco, numero })) ?? reserva
     if (encontrado) {
       aoMudar({ ...endereco, posicao: encontrado })
       setChaveCentralizar(String(Date.now()))
@@ -99,12 +113,41 @@ export default function CamposEndereco({
     const atualizado = { ...valor, cep }
     aoMudar(atualizado)
     if (soDigitos(cep).length !== 8) return
+    setBusca({ tipo: 'buscando', mensagem: 'Buscando o CEP...' })
     const dados = await buscarCep(cep)
     if (!dados) {
       setBusca({ tipo: 'erro', mensagem: 'CEP não encontrado. Preencha o endereço à mão.' })
       return
     }
-    await localizar({ ...atualizado, ...dados })
+    const { posicao: reserva, ...campos } = dados
+    setPontoDoCep(reserva ?? null)
+    // Só troca o que o CEP trouxe (CEP de cidade pequena vem sem rua: mantém a digitada).
+    const preenchidos = Object.fromEntries(Object.entries(campos).filter(([, v]) => v)) as Partial<EnderecoDoFormulario>
+    await localizar({ ...atualizado, ...preenchidos }, reserva ?? null)
+  }
+
+  /** Pino arrastado ou clique no mapa: o ponto manda e os campos acompanham. */
+  async function aoMoverPino(posicao: Coordenada) {
+    const comPino = { ...valor, posicao }
+    aoMudar(comPino)
+    setBusca({ tipo: 'buscando', mensagem: 'Lendo o endereço deste ponto...' })
+    const lido = await enderecoParcialDoPonto(posicao)
+    if (!lido?.logradouro) {
+      setBusca({ tipo: 'erro', mensagem: 'Ponto marcado. Não achamos a rua aqui: confira os campos.' })
+      return
+    }
+    aoMudar({
+      ...comPino,
+      logradouro: lido.logradouro,
+      bairro: lido.bairro ?? comPino.bairro,
+      cidade: lido.cidade ?? comPino.cidade,
+      estado: lido.estado ?? comPino.estado,
+      cep: lido.cep ? formatarCep(lido.cep) : comPino.cep,
+      // S/N continua S/N; o número do mapa só entra se ele souber.
+      numero: semNumero ? SEM_NUMERO : (lido.numero ?? comPino.numero),
+    })
+    const comNumero = lido.numero ? `, ${lido.numero}` : ''
+    setBusca({ tipo: 'ok', mensagem: `Endereço atualizado pelo ponto: ${lido.logradouro}${comNumero}. Confira o número.` })
   }
 
   return (
@@ -118,8 +161,29 @@ export default function CamposEndereco({
       <Campo rotulo="Rua" className="sm:col-span-2">
         <input maxLength={100} value={valor.logradouro} onChange={(e) => mudar('logradouro', e.target.value)} className="campo" />
       </Campo>
-      <Campo rotulo="Número" opcional>
-        <input maxLength={10} value={valor.numero} onChange={(e) => mudar('numero', e.target.value)} className="campo" />
+      <Campo rotulo="Número">
+        <span className="relative block">
+          <input
+            maxLength={10}
+            inputMode="numeric"
+            disabled={semNumero}
+            value={valor.numero}
+            placeholder="Ex.: 120"
+            onChange={(e) => mudar('numero', e.target.value)}
+            className={`campo pr-16 ${semNumero ? 'bg-fundo text-slate-500' : ''}`}
+          />
+          <button
+            type="button"
+            onClick={() => mudar('numero', semNumero ? '' : SEM_NUMERO)}
+            aria-pressed={semNumero}
+            title={semNumero ? 'Tem número' : 'Sem número'}
+            className={`absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md px-2 py-1 text-[11px] font-extrabold transition-colors ${
+              semNumero ? 'bg-marinho text-white' : 'bg-fundo text-slate-500 hover:bg-slate-200'
+            }`}
+          >
+            S/N
+          </button>
+        </span>
       </Campo>
       <Campo rotulo="Complemento" opcional>
         <input maxLength={60} value={valor.complemento} onChange={(e) => mudar('complemento', e.target.value)} className="campo" />
@@ -139,23 +203,14 @@ export default function CamposEndereco({
           </Botao>
         </div>
         <div className="overflow-hidden rounded-xl ring-1 ring-slate-200">
-          <SeletorLocalizacao
-            posicao={valor.posicao}
-            aoMudar={(posicao) => {
-              aoMudar({ ...valor, posicao })
-              setBusca(null)
-            }}
-            areas={[]}
-            chaveCentralizar={chaveCentralizar}
-          />
+          <SeletorLocalizacao posicao={valor.posicao} aoMudar={(posicao) => void aoMoverPino(posicao)} areas={areas} chaveCentralizar={chaveCentralizar} />
         </div>
-        <p
-          className={`mt-2 text-xs ${
-            busca?.tipo === 'erro' ? 'text-amber-700' : busca?.tipo === 'buscando' ? 'animate-brilho text-slate-500' : 'text-slate-500'
-          }`}
-        >
-          {busca?.mensagem ?? (valor.posicao ? 'Arraste o pino para ajustar.' : 'Clique no mapa para marcar o ponto.')}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className={busca?.tipo === 'erro' ? 'text-amber-700' : busca?.tipo === 'buscando' ? 'animate-brilho text-slate-500' : 'text-slate-500'}>
+            {busca?.mensagem ?? (valor.posicao ? 'Arraste o pino: rua, bairro e CEP acompanham o ponto.' : 'Clique no mapa para marcar o ponto.')}
+          </span>
+          {rodapeMapa}
+        </div>
       </div>
     </>
   )

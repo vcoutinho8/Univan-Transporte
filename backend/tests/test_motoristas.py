@@ -65,6 +65,9 @@ class RepositorioMotoristaFalso:
     def buscar_por_cpf(self, cpf):
         return next((m for m in self.motoristas.values() if m.cpf == cpf), None)
 
+    def garantir_cpf_livre(self, cpf):
+        pass  # os outros cadastros não existem no teste unitário
+
     def buscar_por_cnh(self, cnh):
         return next((m for m in self.motoristas.values() if m.cnh == cnh), None)
 
@@ -112,6 +115,15 @@ def motorista_valido(**mudancas):
 def cadastrar(cliente, **mudancas):
     resposta = cliente.post("/api/motoristas", json=motorista_valido(**mudancas))
     assert resposta.status_code == 201, resposta.text
+    return resposta.json()
+
+
+def cadastrar_inativo(cliente, cnh_validade=None, **mudancas):
+    """O motorista novo entra ativo; inativo (e com CNH vencida, se for o caso) só editando depois."""
+    criado = cadastrar(cliente, **mudancas)
+    alteracao = {"status": "inativo", **({"cnh_validade": cnh_validade} if cnh_validade else {})}
+    resposta = cliente.patch(f"/api/motoristas/{criado['id']}", json=alteracao)
+    assert resposta.status_code == 200, resposta.text
     return resposta.json()
 
 
@@ -234,8 +246,14 @@ def test_recusa_cnh_vencida_em_motorista_ativo(cliente):
 
 
 def test_aceita_cnh_vencida_em_motorista_inativo(cliente):
-    corpo = cadastrar(cliente, cnh_validade=ONTEM.isoformat(), status="inativo")
+    corpo = cadastrar_inativo(cliente, cnh_validade=ONTEM.isoformat())
     assert corpo["status"] == "inativo"
+
+
+def test_motorista_novo_nao_entra_inativo(cliente):
+    resposta = cliente.post("/api/motoristas", json=motorista_valido(status="inativo"))
+    assert resposta.status_code == 422
+    assert resposta.json()["mensagem"].startswith("O motorista novo entra ativo")
 
 
 def test_cnh_vence_hoje_ainda_vale(cliente):
@@ -280,7 +298,7 @@ def test_motorista_inexistente(cliente):
 
 def test_lista_e_filtra_por_situacao(cliente):
     cadastrar(cliente)
-    cadastrar(cliente, nome="Ana Souza", cpf=CPF_B, cnh=CNH_B, status="inativo")
+    cadastrar_inativo(cliente, nome="Ana Souza", cpf=CPF_B, cnh=CNH_B)
 
     assert len(cliente.get("/api/motoristas").json()) == 2
     ativos = cliente.get("/api/motoristas", params={"status": "ativo"}).json()
@@ -419,7 +437,7 @@ def test_inativa_sem_apagar_e_reativa(cliente):
 
 
 def test_nao_reativa_motorista_com_cnh_vencida(cliente):
-    id_motorista = cadastrar(cliente, cnh_validade=ONTEM.isoformat(), status="inativo")["id"]
+    id_motorista = cadastrar_inativo(cliente, cnh_validade=ONTEM.isoformat())["id"]
 
     resposta = cliente.patch(f"/api/motoristas/{id_motorista}", json={"status": "ativo"})
     assert resposta.status_code == 422

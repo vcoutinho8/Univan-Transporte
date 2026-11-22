@@ -367,7 +367,7 @@ export default function PaginaMinhaRota() {
           </h1>
         </div>
         <Link to="/chamadas" className="flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-bold text-laranja shadow-sm ring-1 ring-slate-200/70 hover:ring-laranja/50">
-          <Icone nome="chamada" className="h-4 w-4" />
+          <Icone nome="megafone" className="h-4 w-4" />
           Quem não vai
         </Link>
       </div>

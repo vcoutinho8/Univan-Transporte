@@ -184,6 +184,14 @@ CREATE TABLE dia_sem_aula (
     motivo         TEXT NOT NULL
 );
 
+-- Anos cujos feriados nacionais já entraram no calendário (BrasilAPI ou, fora do ar, o cálculo
+-- local). Importa uma vez por ano: o feriado que o admin excluir (cancelar) não volta sozinho.
+CREATE TABLE feriado_importado (
+    ano          INTEGER PRIMARY KEY,
+    fonte        TEXT NOT NULL,
+    importado_em TEXT NOT NULL
+);
+
 -- ---------------------------------------------------------------- Operação diária
 
 CREATE TABLE viagem (

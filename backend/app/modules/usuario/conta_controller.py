@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.shared.cpf import garantir_cpf_livre
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
 from app.config.erros import ConflitoDeDados, DadosInvalidos, RecursoNaoEncontrado
@@ -52,6 +53,7 @@ def listar_usuarios(sessao: Sessao):
 )
 def criar_usuario(dados: UsuarioNovo, logado: Logado, sessao: Sessao):
     fk_motorista = dados.fk_motorista if dados.perfil == "motorista" else None
+    garantir_cpf_livre(sessao, dados.cpf, "usuario")
     _garantir_motorista(sessao, dados.perfil, fk_motorista)
     usuario = Usuario(
         **dados.model_dump(exclude={"senha", "fk_motorista", "perfil"}),
@@ -114,6 +116,8 @@ def alterar_usuario(id_usuario: int, dados: UsuarioAlteracao, logado: Logado, se
     # O admin não tira o próprio acesso (senão ninguém mais administra o sistema).
     if usuario.id == logado.id and (alteracoes.get("perfil", "admin") != "admin" or alteracoes.get("status", "ativo") != "ativo"):
         raise ConflitoDeDados("Você não pode tirar o seu próprio acesso de administrador.")
+    if alteracoes.get("cpf"):
+        garantir_cpf_livre(sessao, alteracoes["cpf"], "usuario", usuario.id)
     if "senha" in alteracoes:
         usuario.senha_hash = gerar_hash(alteracoes.pop("senha"))
     perfil = alteracoes.get("perfil", usuario.perfil.value)

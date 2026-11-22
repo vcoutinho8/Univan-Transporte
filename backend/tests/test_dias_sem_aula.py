@@ -94,3 +94,38 @@ def test_varias_instituicoes_de_uma_vez(cliente):  # noqa: F811
     provas = [p for p in periodos if p["motivo"] == "Semana de provas"]
     assert sorted(p["instituicao"]["id"] for p in provas) == [1, 3]
     assert all(p["dias"] == 3 for p in provas)
+
+
+def test_feriados_nacionais_calculados_sem_internet():
+    from datetime import date
+
+    from app.modules.dia_sem_aula.feriados import calculados, pascoa
+
+    assert pascoa(2026) == date(2026, 4, 5) and pascoa(2027) == date(2027, 3, 28)
+    dias = dict(calculados(2026))
+    assert dias[date(2026, 4, 3)] == "Sexta-feira Santa"
+    assert dias[date(2026, 2, 16)] == dias[date(2026, 2, 17)] == "Carnaval"
+    assert dias[date(2026, 11, 20)] == "Dia da Consciência Negra"
+
+
+def test_importa_feriados_uma_vez_e_respeita_o_cancelado(fabrica, monkeypatch):  # noqa: F811
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.modules.dia_sem_aula import feriados
+    from app.modules.dia_sem_aula.dia_sem_aula_model import DiaSemAula
+
+    def fora_do_ar(ano):
+        raise OSError("sem internet")
+
+    monkeypatch.setattr(feriados, "da_brasilapi", fora_do_ar)
+    with fabrica() as sessao:
+        ja_tinha = {d for (d,) in sessao.execute(select(DiaSemAula.data).where(DiaSemAula.fk_instituicao.is_(None)))}
+        entraram = feriados.importar_feriados(sessao, 2026)
+        assert entraram == len({d for d, _ in feriados.calculados(2026)} - ja_tinha)  # os que já estavam não duplicam
+        natal = sessao.scalar(select(DiaSemAula).where(DiaSemAula.data == date(2026, 12, 25)))
+        sessao.delete(natal)  # o admin cancelou o Natal
+        sessao.commit()
+        assert feriados.importar_feriados(sessao, 2026) == 0  # não volta
+        assert sessao.scalar(select(DiaSemAula).where(DiaSemAula.data == date(2026, 12, 25))) is None

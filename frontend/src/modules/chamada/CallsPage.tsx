@@ -56,6 +56,7 @@ export default function PaginaChamadas() {
   const [busca, setBusca] = useState('')
   const [avisando, setAvisando] = useState<PassageiroDoDia | null>(null)
   const avisos = useAviso()
+  const passou = data < dataIso()
 
   const chamadas = useRequisicao(() => servicoChamada.doDia(data), [data])
   const todos = useMemo(() => chamadas.dados?.passageiros ?? [], [chamadas.dados])
@@ -152,7 +153,7 @@ export default function PaginaChamadas() {
         <Cartao>
           <div className="flex flex-col items-center px-6 py-10 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-fundo text-slate-400">
-              <Icone nome="chamada" className="h-6 w-6" />
+              <Icone nome="megafone" className="h-6 w-6" />
             </span>
             <p className="mt-4 font-bold text-marinho">Sem chamada em {dataPorExtenso.toLowerCase()}</p>
             <p className="mt-1 max-w-md text-sm text-slate-500">
@@ -270,8 +271,9 @@ export default function PaginaChamadas() {
                 </header>
                 <ul className="divide-y divide-slate-100">
                   {grupo.passageiros.map((p) => {
-                    const podeAvisarAlgum = podeAvisar(p.ida) || podeAvisar(p.volta)
-                    const podeDesfazerAlgum = podeDesfazer(p.ida) || podeDesfazer(p.volta)
+                    // Dia que já passou fica só para consulta (a API também recusa).
+                    const podeAvisarAlgum = !passou && (podeAvisar(p.ida) || podeAvisar(p.volta))
+                    const podeDesfazerAlgum = !passou && (podeDesfazer(p.ida) || podeDesfazer(p.volta))
                     return (
                       <li key={p.estudante.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
                         <div className="min-w-0 flex-1 basis-56">

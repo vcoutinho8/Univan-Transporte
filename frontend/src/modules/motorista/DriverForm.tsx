@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Gaveta from '../../shared/components/Drawer.tsx'
@@ -36,6 +37,8 @@ type Valores = ReturnType<typeof valoresIniciais>
 
 /** Cadastro e edição de motorista, numa gaveta lateral com validações completas. */
 export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoFechar }: Propriedades) {
+  const { usuario } = useSessao()
+  const empresa = motorista?.fk_empresa ?? usuario?.fk_empresa
   const [valores, setValores] = useState<Valores>(() => valoresIniciais(motorista))
   const [endereco, setEndereco] = useState(() => enderecoDoFormulario(motorista?.endereco))
   const [salvando, setSalvando] = useState(false)
@@ -266,14 +269,19 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
                 className="campo"
               >
                 <option value="">Nenhum veículo vinculado</option>
-                {veiculos.map((v) => (
+                {veiculos
+                  // Só os da empresa do motorista (a API recusa veículo de outra empresa).
+                  .filter((v) => empresa === undefined || v.fk_empresa === empresa)
+                  .map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.placa} · {v.modelo} ({v.capacidade} lugares)
                   </option>
-                ))}
+                  ))}
               </select>
             </Campo>
 
+            {/* Cadastro novo entra ativo; desativar só editando. */}
+            {motorista && (
             <div className="sm:col-span-2">
               <p className="text-sm font-semibold text-marinho">Situação cadastral</p>
               <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl bg-fundo p-1">
@@ -293,6 +301,7 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
                 ))}
               </div>
             </div>
+            )}
           </Secao>
         </div>
 

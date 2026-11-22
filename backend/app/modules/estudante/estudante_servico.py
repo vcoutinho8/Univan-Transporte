@@ -102,3 +102,4 @@ class ServicoEstudante:
     def _garantir_cpf_disponivel(self, cpf: str) -> None:
         if self.repositorio.buscar_por_cpf(cpf) is not None:
             raise ConflitoDeDados("Já existe um passageiro com este CPF.")
+        self.repositorio.garantir_cpf_livre(cpf)

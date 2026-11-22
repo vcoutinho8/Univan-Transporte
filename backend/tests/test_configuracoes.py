@@ -88,3 +88,29 @@ def test_admin_cria_e_altera_instituicao(cliente):  # noqa: F811
     assert alterada["nome"] == "FAESA Vitória"
     entrar(cliente, "auxiliar", "123456")
     assert cliente.post("/api/instituicoes", json={"nome": "X", "endereco": ENDERECO}).status_code == 403
+
+
+def test_numero_obrigatorio_ou_sem_numero(cliente):  # noqa: F811
+    entrar(cliente, "admin", "123456")
+    sem_numero = {k: v for k, v in ENDERECO.items() if k != "numero"}
+    assert cliente.post("/api/instituicoes", json={"nome": "X", "endereco": sem_numero}).status_code == 422
+    assert cliente.post("/api/instituicoes", json={"nome": "X", "endereco": {**ENDERECO, "numero": " "}}).status_code == 422
+    criada = cliente.post("/api/instituicoes", json={"nome": "X", "endereco": {**ENDERECO, "numero": "s/n"}}).json()
+    assert criada["endereco"]["numero"] == "S/N"
+
+
+def test_catalogo_de_faculdades_por_uf(cliente):  # noqa: F811
+    entrar(cliente, "auxiliar", "123456")
+    do_es = cliente.get("/api/instituicoes/catalogo", params={"uf": "es", "busca": "vila velha"}).json()
+    assert do_es and all(f["uf"] == "ES" for f in do_es)
+    uvv = cliente.get("/api/instituicoes/catalogo", params={"uf": "ES", "busca": "UVV"}).json()
+    assert uvv[0]["nome"] == "Universidade Vila Velha" and uvv[0]["municipio"] == "Vila Velha"
+    assert cliente.get("/api/instituicoes/catalogo", params={"uf": "ES", "busca": "espirito"}).json()  # sem acento
+    assert cliente.get("/api/instituicoes/catalogo", params={"uf": "XYZ"}).status_code == 422
+
+
+def test_cpf_nao_se_repete_entre_cadastros(cliente):  # noqa: F811
+    entrar(cliente, "admin", "123456")
+    cpf_do_motorista = cliente.get("/api/motoristas/1").json()["cpf"]
+    resposta = cliente.post("/api/usuarios", json={"nome": "Y", "login": "yyy", "senha": "123456", "perfil": "auxiliar", "cpf": cpf_do_motorista})
+    assert resposta.status_code == 409 and resposta.json()["mensagem"] == "Este CPF já está cadastrado como motorista."

@@ -3,7 +3,9 @@
 Executar (a partir de backend/):  uvicorn app.main:app --reload
 """
 
+import logging
 from contextlib import asynccontextmanager, closing
+from datetime import date
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,6 +28,7 @@ from app.modules.painel import painel_controller
 from app.modules.relatorio import relatorio_controller
 from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
+from app.modules.dia_sem_aula.feriados import importar_feriados
 from app.modules.usuario import conta_controller, usuario_controller
 from app.modules.veiculo import veiculo_controller
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
@@ -36,6 +39,8 @@ from app.modules.viagem.viagem_servico import ServicoViagem
 PREFIXO_API = "/api"
 
 # Cada módulo com rotas HTTP expõe um `roteador`. Para um módulo novo, basta incluí-lo aqui.
+log = logging.getLogger("univan")
+
 CONTROLLERS = (
     saude_controller,
     usuario_controller,
@@ -59,6 +64,15 @@ CONTROLLERS = (
 async def ciclo_de_vida(_: FastAPI):
     # Na primeira execução com SQLite, cria o arquivo do banco a partir de docs/univan-sqlite.sql.
     preparar_banco(obter_configuracoes().url_banco_resolvida)
+    # Feriados nacionais deste ano e do próximo no calendário (uma vez por ano; antes das viagens,
+    # para elas já respeitarem os feriados). Falhar aqui nunca impede a API de subir.
+    with closing(next(obter_sessao())) as sessao:
+        for ano in (date.today().year, date.today().year + 1):
+            try:
+                importar_feriados(sessao, ano)
+            except Exception:
+                sessao.rollback()
+                log.exception("Não foi possível importar os feriados de %s.", ano)
     # Gera/sincroniza automaticamente as viagens da semana atual ao iniciar a API.
     with closing(next(obter_sessao())) as sessao:
         ServicoViagem(

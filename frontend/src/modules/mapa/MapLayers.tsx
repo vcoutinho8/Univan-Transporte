@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 
 import { formatarHorario, nomeCurto } from '../../shared/utils/formatar.ts'
@@ -41,14 +41,31 @@ export function MapaBase({ children, className = 'h-96', zoom = 13, rolagem = tr
   )
 }
 
-/** Enquadra os pontos com um voo suave sempre que a `chave` muda. */
-export function Enquadrar({ pontos, chave, zoomMaximo = 16 }: { pontos: Coordenada[]; chave: string; zoomMaximo?: number }) {
+/**
+ * Enquadra os pontos com um voo suave sempre que a `chave` muda. `manterSeVisivel`: se tudo já
+ * está na tela, não mexe (trocar uma opção não tira o zoom que o usuário escolheu).
+ */
+export function Enquadrar({
+  pontos,
+  chave,
+  zoomMaximo = 16,
+  manterSeVisivel = false,
+}: {
+  pontos: Coordenada[]
+  chave: string
+  zoomMaximo?: number
+  manterSeVisivel?: boolean
+}) {
   const mapa = useMap()
+  const primeira = useRef(true)
   useEffect(() => {
     if (pontos.length === 0) return
     // Espera a tela terminar de surgir e remede o contêiner; senão o enquadramento sai errado.
     const temporizador = window.setTimeout(() => {
       mapa.invalidateSize()
+      const jaVisiveis = !primeira.current && mapa.getBounds().contains(L.latLngBounds(pontos))
+      primeira.current = false
+      if (manterSeVisivel && jaVisiveis) return
       if (pontos.length === 1) mapa.flyTo(pontos[0], zoomMaximo, { duration: 0.8 })
       else mapa.flyToBounds(L.latLngBounds(pontos), { padding: [48, 48], maxZoom: zoomMaximo, duration: 0.8 })
     }, 350)

@@ -104,7 +104,7 @@ export const MENU: GrupoMenu[] = [
       {
         para: '/chamadas',
         rotulo: 'Chamadas',
-        icone: 'chamada',
+        icone: 'megafone',
         requisito: 'RF3',
         descricao: 'Aviso prévio: quem vai e quem avisou que não vai em cada viagem do dia.',
         pronto: true,
