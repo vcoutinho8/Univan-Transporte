@@ -1,4 +1,5 @@
 import type { StatusCadastro } from '../../shared/types/api.ts'
+import type { DadosEndereco, Endereco } from '../endereco/types.ts'
 
 /** Veículo padrão do motorista, resumido (VeiculoDoMotorista). */
 export interface VeiculoDoMotorista {
@@ -24,6 +25,8 @@ export interface Motorista {
   cnh_validade: string
   status: StatusCadastro
   veiculo: VeiculoDoMotorista | null
+  /** Casa/garagem: de onde a ida sai e onde a volta termina. */
+  endereco?: Endereco | null
 }
 
 /**
@@ -38,5 +41,7 @@ export interface DadosMotorista {
   cnh: string
   cnh_validade: string
   fk_veiculo: number | null
+  /** null tira o endereço; ausente não mexe. */
+  endereco?: DadosEndereco | null
   status?: StatusCadastro
 }

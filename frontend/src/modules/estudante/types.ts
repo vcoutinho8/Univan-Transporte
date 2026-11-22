@@ -24,6 +24,9 @@ export interface Estudante {
   instituicao: { id: number; nome: string }
   endereco: Endereco
   area: { id: number; nome: string } | null
+  /** Parada extra da faculdade (vazio = a principal). */
+  fk_parada?: number | null
+  parada?: { id: number; nome: string } | null
 }
 
 /** Dados enviados ao cadastrar (EstudanteCriacao) ou alterar (EstudanteAtualizacao). */
@@ -40,5 +43,7 @@ export interface DadosEstudante {
   valor_mensal: number
   dia_vencimento: number
   endereco: DadosEndereco
+  /** Parada extra da faculdade (null = a principal). */
+  fk_parada?: number | null
   status?: StatusCadastro
 }

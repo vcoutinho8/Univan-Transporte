@@ -1,4 +1,5 @@
 import L from 'leaflet'
+import EstadoVazio from '../../shared/components/EmptyState.tsx'
 import { useEffect, useMemo, useState } from 'react'
 import { CircleMarker, Marker, Tooltip } from 'react-leaflet'
 import { Link } from 'react-router-dom'
@@ -22,6 +23,14 @@ import { ModalIniciarJornada, ModalJornadaConcluida } from './TripModals.tsx'
 import GavetaJornada from './TripProgressDrawer.tsx'
 import { servicoViagem } from './tripService.ts'
 import type { Jornada } from './types.ts'
+
+const ICONE_CASA = L.divIcon({
+  className: '',
+  html: '<div class="pino pino-instituicao" style="background:#0ea5e9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></div>',
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+  tooltipAnchor: [0, -18],
+})
 
 const ORDEM_STATUS = { em_andamento: 0, agendada: 1, concluida: 2, cancelada: 3 } as const
 
@@ -118,7 +127,18 @@ export default function PaginaMinhaRota() {
   const paradas = useMemo(() => (jornada ? paradasRestantes(jornada, pontosFaculdade) : []), [jornada, pontosFaculdade])
   const comPonto = paradas.filter((p): p is ParadaRestante & { ponto: Coordenada } => p.ponto !== null)
   const proxima = paradas[0] ?? null
-  const pontosRota = useMemo(() => [...(posicao ? [posicao] : []), ...comPonto.map((p) => p.ponto)], [posicao, comPonto])
+  // Ida ainda não iniciada sai da casa do motorista; a volta termina nela.
+  const partida = (jornada?.partida ?? null) as Coordenada | null
+  const sairDeCasa = !posicao && partida && jornada?.sentido === 'ida' && jornada.status === 'agendada'
+  const voltarPraCasa = partida && jornada?.sentido === 'volta' && jornada.status !== 'concluida'
+  const pontosRota = useMemo(
+    () => [
+      ...(posicao ? [posicao] : sairDeCasa ? [partida!] : []),
+      ...comPonto.map((p) => p.ponto),
+      ...(voltarPraCasa ? [partida!] : []),
+    ],
+    [posicao, comPonto, sairDeCasa, voltarPraCasa, partida],
+  )
   const { trajeto, carregando: tracando } = useTrajeto(pontosRota)
   const { atendidos, total } = progresso(jornada?.fila ?? [])
 
@@ -178,16 +198,13 @@ export default function PaginaMinhaRota() {
       ) : viagens.erro ? (
         <p className="rounded-2xl bg-red-50 p-5 text-sm font-semibold text-red-700">{viagens.erro}</p>
       ) : !atual ? (
-        <div className="grid min-h-[50vh] place-items-center rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200/70">
-          <div className="max-w-sm">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-fundo text-marinho">
-              <Icone nome="van" className="h-7 w-7" />
-            </span>
-            <h2 className="mt-4 text-lg font-extrabold text-marinho">Nenhuma viagem sua hoje</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Quando o administrador gerar as viagens do dia, a sua rota aparece aqui com o mapa e as paradas.
-            </p>
-          </div>
+        <div className="grid min-h-[50vh] place-items-center rounded-2xl bg-white ring-1 ring-slate-200/70">
+          <EstadoVazio
+            icone="van"
+            tom="laranja"
+            titulo="Nenhuma viagem sua hoje"
+            descricao="Quando houver viagem no dia, a sua rota aparece aqui com o mapa, a ordem das paradas e a navegação."
+          />
         </div>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -212,6 +229,11 @@ export default function PaginaMinhaRota() {
                     </Tooltip>
                   </Marker>
                 ),
+              )}
+              {partida && (sairDeCasa || voltarPraCasa) && (
+                <Marker position={partida} icon={ICONE_CASA}>
+                  <Tooltip direction="top">{voltarPraCasa ? 'Fim da volta: sua casa' : 'Saída: sua casa'}</Tooltip>
+                </Marker>
               )}
               {posicao && (
                 <CircleMarker center={posicao} radius={9} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1 }}>

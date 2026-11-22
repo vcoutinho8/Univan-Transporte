@@ -30,6 +30,8 @@ export interface DadosMapa {
   recarregar: () => Promise<void>
   /** Recarrega as instituições (depois de mover um ponto de parada). */
   recarregarInstituicoes: () => Promise<void>
+  /** Recarrega os motoristas (depois de marcar a casa de um deles). */
+  recarregarMotoristas: () => Promise<void>
 }
 
 interface ValorContexto {

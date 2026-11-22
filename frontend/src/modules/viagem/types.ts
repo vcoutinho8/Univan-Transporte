@@ -61,6 +61,8 @@ export interface Chamada {
       latitude?: number | null
       longitude?: number | null
     }
+    /** Parada extra da faculdade onde desce/embarca (vazio = a principal). */
+    parada?: { id: number; nome: string; latitude: number; longitude: number } | null
   }
   status: StatusChamada
   horario_previsto: string | null
@@ -138,6 +140,8 @@ export interface Jornada {
   horario_previsto: string | null
   horario_saida: string | null
   horario_chegada: string | null
+  /** Casa/garagem do motorista [lat, lng]: a ida sai dela e a volta termina nela. */
+  partida?: [number, number] | null
   viagens: Viagem[]
   passageiros: ContagemPassageiros
   fila: ChamadaDaJornada[]

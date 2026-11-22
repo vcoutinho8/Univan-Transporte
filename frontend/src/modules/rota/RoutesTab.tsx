@@ -1,8 +1,10 @@
-import type L from 'leaflet'
+import L from 'leaflet'
 import { useMemo, useRef, useState } from 'react'
-import { CircleMarker } from 'react-leaflet'
+import { CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import { useSearchParams } from 'react-router-dom'
 
+import { pode } from '../../shared/auth/permissoes.ts'
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import AvisoSemResultado from '../../shared/components/NoResults.tsx'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
@@ -13,17 +15,21 @@ import Icone from '../../shared/components/Icon.tsx'
 import { ErroApi } from '../../shared/services/api.ts'
 import { formatarHorario, iniciais } from '../../shared/utils/formatar.ts'
 import type { Coordenada } from '../area/types.ts'
+import { enderecoDoPonto } from '../endereco/addressService.ts'
+import type { DadosEndereco } from '../endereco/types.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
 import { servicoInstituicao } from '../instituicao/institutionService.ts'
+import { servicoMotorista } from '../motorista/driverService.ts'
 import type { Instituicao } from '../instituicao/types.ts'
 import { PainelLateral, useDadosMapa } from '../mapa/mapContext.tsx'
 import { CamadaAreas, Enquadrar, LinhaDirecional, MarcadorInstituicao, MarcadorPassageiro } from '../mapa/MapLayers.tsx'
-import { coordenadaDo, corDoMotorista } from '../mapa/mapUtils.ts'
+import { coordenadaDo, corDoMotorista, iconeInstituicao } from '../mapa/mapUtils.ts'
 import { NumeroResumo, Segmentos } from '../mapa/MapWidgets.tsx'
 import { useTrajeto } from '../mapa/routingService.ts'
 import FormularioRota, { nomeCurtoInstituicao } from './RouteForm.tsx'
+import GavetaOrdem from './RouteOrderDrawer.tsx'
 import { servicoRota } from './routeService.ts'
-import { CORES_DESTINO, montarViagem, passageirosDaRota, somarMinutos } from './tripUtils.ts'
+import { chaveDestino, CORES_DESTINO, montarViagem, passageirosDaRota, somarMinutos, type Destino } from './tripUtils.ts'
 import { descreverDias, type DadosRota, type Rota } from './types.ts'
 
 const TURNOS: Turno[] = ['manha', 'tarde', 'noite']
@@ -36,6 +42,26 @@ const COR_VOLTA = '#0284C7'
 const COR_SETA_VOLTA = '#F59E0B'
 
 type SentidoViagem = 'ida' | 'volta' | 'ambas'
+
+/** Casa/garagem do motorista no mapa: início da ida e fim da volta (gota azul com a casinha). */
+const ICONE_CASA = L.divIcon({
+  className: '',
+  html: '<div class="pino pino-casa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></div>',
+  iconSize: [40, 40],
+  iconAnchor: [20, 48],
+  tooltipAnchor: [0, -46],
+})
+
+/** Clique no mapa (marcar a casa do motorista). */
+function CliqueNoMapa({ aoClicar }: { aoClicar: (ponto: Coordenada) => void }) {
+  useMapEvents({ click: (e) => aoClicar([Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6))]) })
+  return null
+}
+
+const enderecoEmTexto = (e: Pick<DadosEndereco, 'logradouro' | 'numero' | 'bairro' | 'cidade'>) =>
+  `${e.logradouro}${e.numero ? `, ${e.numero}` : ''} · ${e.bairro} · ${e.cidade}`
+
+const nomeDoDestino = (d: Destino) => (d.parada ? `${d.instituicao.nome} · ${d.parada.nome}` : d.instituicao.nome)
 type Formulario = { modo: 'fechado' } | { modo: 'nova' } | { modo: 'editar'; rota: Rota }
 
 /**
@@ -65,6 +91,54 @@ export default function AbaRotas() {
   const [focoParada, setFocoParada] = useState<number | null>(null)
   const [salvandoParada, setSalvandoParada] = useState(false)
   const avisosParada = useAviso()
+  const [ordemAberta, setOrdemAberta] = useState(false)
+  // Casa do motorista: o admin arrasta o pino ou, sem endereço, marca clicando no mapa.
+  const podeEditarCasa = pode(useSessao().usuario?.perfil, 'cadastro.editar')
+  const [marcandoCasa, setMarcandoCasa] = useState(false)
+  const [casaPendente, setCasaPendente] = useState<{ ponto: Coordenada; endereco: DadosEndereco | null; buscando: boolean } | null>(null)
+  const [salvandoCasa, setSalvandoCasa] = useState(false)
+
+  async function proporCasa(ponto: Coordenada) {
+    setMarcandoCasa(false)
+    setCasaPendente({ ponto, endereco: null, buscando: true })
+    const endereco = await enderecoDoPonto(ponto)
+    setCasaPendente({ ponto, endereco, buscando: false })
+  }
+
+  function cancelarCasa() {
+    setCasaPendente(null)
+    setVersaoPinos((v) => v + 1) // o pino volta para onde estava
+  }
+  const [novaParada, setNovaParada] = useState<{ instituicao: Instituicao; nome: string } | null>(null)
+
+  async function executarParada(acao: () => Promise<unknown>, titulo: string, descricao: string) {
+    setSalvandoParada(true)
+    try {
+      await acao()
+      await Promise.all([dados.recarregarInstituicoes(), dados.recarregar()])
+      avisosParada.mostrar({ tipo: 'sucesso', titulo, descricao })
+    } catch (e) {
+      setVersaoPinos((v) => v + 1)
+      avisosParada.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível salvar a parada')
+    } finally {
+      setSalvandoParada(false)
+    }
+  }
+
+  function criarParadaExtra() {
+    if (!novaParada) return
+    const nome = novaParada.nome.trim()
+    const base = novaParada.instituicao.ponto_parada
+    if (!nome || !base) return
+    const instituicao = novaParada.instituicao
+    setNovaParada(null)
+    // Nasce ao lado da parada principal; o usuário arrasta até o portão certo.
+    void executarParada(
+      () => servicoInstituicao.adicionarParada(instituicao.id, { nome, latitude: base[0] + 0.0006, longitude: base[1] + 0.0006 }),
+      'Parada extra criada',
+      `Arraste o pino "${nome}" até o portão certo. Depois, escolha esta parada no cadastro dos passageiros que descem nela.`,
+    )
+  }
 
   async function salvarParada(instituicao: Instituicao, ponto: [number, number] | null) {
     setSalvandoParada(true)
@@ -115,21 +189,39 @@ export default function AbaRotas() {
     () => (motorista && turno ? montarViagem(motorista.id, turno, rotas, dados.areas, estudantes, instituicoes) : null),
     [motorista, turno, rotas, dados.areas, estudantes, instituicoes],
   )
+  // Uma entrada por faculdade (a viagem pode ter a parada principal e paradas extras da mesma).
+  const faculdadesDaViagem = useMemo(
+    () => [...new Map((viagem?.destinos ?? []).map((d) => [d.instituicao.id, d] as const)).values()],
+    [viagem],
+  )
   const corDestino = (idRota: number) =>
     CORES_DESTINO[Math.max(0, viagem?.destinos.findIndex((d) => d.rota.id === idRota) ?? 0) % CORES_DESTINO.length]
   const rotasDoTurno = motorista && turno ? rotas.filter((r) => r.fk_motorista === motorista.id && r.turno === turno) : []
 
-  // Pontos da IDA: embarques na ordem (1 → N) e depois as faculdades.
+  // Casa/garagem do motorista: a ida sai dela e a volta termina nela.
+  const enderecoCasa = motoristas.find((m) => m.id === motorista?.id)?.endereco
+  const casa: Coordenada | null =
+    enderecoCasa?.latitude != null && enderecoCasa?.longitude != null ? [enderecoCasa.latitude, enderecoCasa.longitude] : null
+
+  // Pontos da IDA: casa do motorista, embarques na ordem (1 → N) e depois as faculdades.
   const paradasNoMapa = viagem?.paradas.filter((p) => p.ponto) ?? []
   const destinosNoMapa = viagem?.destinos.filter((d) => d.ponto) ?? []
-  const pontosIda: Coordenada[] = [...paradasNoMapa.map((p) => p.ponto!), ...destinosNoMapa.map((d) => d.ponto!)]
+  const pontosIda: Coordenada[] = [
+    ...(casa ? [casa] : []),
+    ...paradasNoMapa.map((p) => p.ponto!),
+    ...destinosNoMapa.map((d) => d.ponto!),
+  ]
 
   // Pontos da VOLTA: faculdades (ordem inversa) e depois desembarque nas casas (N → 1).
   const destinosVolta = useMemo(() => [...(viagem?.destinos ?? [])].reverse(), [viagem])
   const paradasVolta = useMemo(() => [...(viagem?.paradas ?? [])].reverse(), [viagem])
   const destinosVoltaNoMapa = destinosVolta.filter((d) => d.ponto)
   const paradasVoltaNoMapa = paradasVolta.filter((p) => p.ponto)
-  const pontosVolta: Coordenada[] = [...destinosVoltaNoMapa.map((d) => d.ponto!), ...paradasVoltaNoMapa.map((p) => p.ponto!)]
+  const pontosVolta: Coordenada[] = [
+    ...destinosVoltaNoMapa.map((d) => d.ponto!),
+    ...paradasVoltaNoMapa.map((p) => p.ponto!),
+    ...(casa ? [casa] : []),
+  ]
 
   const mostrarIda = sentido === 'ida' || sentido === 'ambas'
   const mostrarVolta = sentido === 'volta' || sentido === 'ambas'
@@ -139,12 +231,19 @@ export default function AbaRotas() {
 
   const tracando = (mostrarIda && tracandoIda) || (mostrarVolta && tracandoVolta)
 
-  // Horários estimados da IDA (parte do 1º embarque).
-  const inicioIda = paradasNoMapa[0]?.estudante.horario_embarque?.slice(0, 5) ?? null
-  const chegadaNaIda = (indice: number) =>
-    trajetoIda && inicioIda
-      ? somarMinutos(inicioIda, trajetoIda.trechosMin.slice(0, indice).reduce((s, t) => s + t, 0) + indice * MINUTOS_POR_PARADA)
+  // Horários estimados da IDA: da saída de casa (horário de ida da rota) ou, sem casa, do 1º embarque.
+  const saidaDasRotas = (motorista && turno ? rotas.filter((r) => r.status === 'ativo' && r.fk_motorista === motorista.id && r.turno === turno) : [])
+    .map((r) => r.horario_ida?.slice(0, 5))
+    .filter((h): h is string => Boolean(h))
+    .sort()[0]
+  const desvioCasa = casa ? 1 : 0
+  const inicioIda = casa ? saidaDasRotas ?? null : paradasNoMapa[0]?.estudante.horario_embarque?.slice(0, 5) ?? null
+  const chegadaNaIda = (indiceSemCasa: number) => {
+    const indice = indiceSemCasa + desvioCasa
+    return trajetoIda && inicioIda
+      ? somarMinutos(inicioIda, trajetoIda.trechosMin.slice(0, indice).reduce((s, t) => s + t, 0) + indiceSemCasa * MINUTOS_POR_PARADA)
       : null
+  }
 
   // Horários estimados da VOLTA (parte do horário de volta da 1ª faculdade).
   const inicioVolta = destinosVoltaNoMapa[0]?.rota.horario_volta?.slice(0, 5) ?? null
@@ -171,6 +270,30 @@ export default function AbaRotas() {
         ]
       : [...bairrosDoMotorista.flatMap((a) => a.poligono), ...paradasNoMapa.map((p) => p.ponto!)]
     : ativas.flatMap((a) => a.poligono)
+
+  async function salvarCasa() {
+    if (!motorista || !casaPendente) return
+    const atual = enderecoCasa ? (({ id: _id, ...resto }) => resto)(enderecoCasa) : null
+    // Rua do ponto (se achou); senão mantém o endereço escrito e só move o pino.
+    const endereco = casaPendente.endereco ?? (atual ? { ...atual, latitude: casaPendente.ponto[0], longitude: casaPendente.ponto[1] } : null)
+    if (!endereco) return
+    setSalvandoCasa(true)
+    try {
+      await servicoMotorista.atualizar(motorista.id, { endereco: { ...endereco, latitude: casaPendente.ponto[0], longitude: casaPendente.ponto[1] } })
+      await dados.recarregarMotoristas()
+      setCasaPendente(null)
+      avisosParada.mostrar({
+        tipo: 'sucesso',
+        titulo: 'Casa do motorista salva',
+        descricao: `A ida de ${motorista.nome} passa a sair deste ponto e a volta termina nele. Use "Melhor ordem das paradas" para recalcular.`,
+      })
+    } catch (e) {
+      cancelarCasa()
+      avisosParada.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível salvar a casa')
+    } finally {
+      setSalvandoCasa(false)
+    }
+  }
 
   const navegar = (novos: Record<string, string | number | null>) => {
     const atuais: Record<string, string | number | null> = {
@@ -279,6 +402,33 @@ export default function AbaRotas() {
               Todos os motoristas
             </button>
 
+            {/* Casa do motorista: ponto de partida da ida e de chegada da volta */}
+            <div className={`flex items-center gap-3 rounded-2xl p-3 ring-1 ${casa ? 'bg-white ring-slate-200/70' : 'bg-sky-50 ring-sky-200'}`}>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-500 text-white shadow-md shadow-sky-500/30">
+                <Icone nome="van" className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-marinho">{casa ? 'Casa do motorista' : 'Casa do motorista não marcada'}</span>
+                <span className="block truncate text-xs text-slate-500">
+                  {casa && enderecoCasa
+                    ? enderecoEmTexto(enderecoCasa)
+                    : marcandoCasa
+                      ? 'Clique no mapa onde o motorista mora.'
+                      : 'É o início da ida e o fim da volta.'}
+                </span>
+                {casa && podeEditarCasa && <span className="block text-[11px] text-sky-600">Arraste o pino azul no mapa para mudar.</span>}
+              </span>
+              {!casa && podeEditarCasa && (
+                <button
+                  type="button"
+                  onClick={() => setMarcandoCasa(!marcandoCasa)}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold ${marcandoCasa ? 'bg-white text-slate-600 ring-1 ring-slate-200' : 'bg-sky-500 text-white'}`}
+                >
+                  {marcandoCasa ? 'Cancelar' : 'Marcar no mapa'}
+                </button>
+              )}
+            </div>
+
             {viagem && viagem.destinos.length > 0 && (
               <div
                 className={`rounded-2xl p-3 ring-1 transition-colors ${
@@ -306,11 +456,13 @@ export default function AbaRotas() {
                   <div className="mt-2 space-y-2">
                     <p className="text-xs text-slate-600">
                       Toque numa faculdade para aproximar o mapa nela e arraste o pino até a rua, em frente ao portão
-                      onde a van para. O trajeto de todas as rotas daquela faculdade passa a terminar ali.
+                      onde a van para. Faculdade com mais de um portão (ex.: UVV e Biopráticas)? Crie uma parada extra e
+                      escolha-a no cadastro de quem desce nela.
                     </p>
                     <ul className="space-y-1">
-                      {viagem.destinos.map((d) => (
-                        <li key={d.rota.id} className="flex items-center gap-2 text-xs">
+                      {faculdadesDaViagem.map((d) => (
+                        <li key={chaveDestino(d)} className="space-y-1 text-xs">
+                        <div className="flex items-center gap-2">
                           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: corDestino(d.rota.id) }} />
                           <button
                             type="button"
@@ -333,6 +485,63 @@ export default function AbaRotas() {
                           ) : (
                             <span className="shrink-0 text-slate-400">no endereço</span>
                           )}
+                        </div>
+                        {/* Paradas extras da faculdade (ex.: Biopráticas) */}
+                        <div className="ml-4 space-y-1 border-l-2 border-slate-200 pl-2">
+                          {d.instituicao.paradas.map((extra) => (
+                            <div key={extra.id} className="flex items-center gap-2">
+                              <Icone nome="pino" className="h-3 w-3 shrink-0 text-slate-400" />
+                              <span className="min-w-0 flex-1 truncate font-semibold text-slate-600">{extra.nome}</span>
+                              <button
+                                type="button"
+                                disabled={salvandoParada}
+                                onClick={() => {
+                                  if (!window.confirm(`Remover a parada ${extra.nome}? Quem descia nela volta para a parada principal.`)) return
+                                  void executarParada(
+                                    () => servicoInstituicao.removerParada(d.instituicao.id, extra.id),
+                                    'Parada removida',
+                                    `Quem usava ${extra.nome} volta para a parada principal de ${d.instituicao.nome}.`,
+                                  )
+                                }}
+                                className="shrink-0 font-semibold text-red-500 hover:underline"
+                              >
+                                Remover
+                              </button>
+                            </div>
+                          ))}
+                          {novaParada?.instituicao.id === d.instituicao.id ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault()
+                                criarParadaExtra()
+                              }}
+                              className="flex items-center gap-1"
+                            >
+                              <input
+                                autoFocus
+                                maxLength={60}
+                                placeholder="Nome (ex.: Biopráticas)"
+                                value={novaParada.nome}
+                                onChange={(e) => setNovaParada({ ...novaParada, nome: e.target.value })}
+                                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-laranja"
+                              />
+                              <button type="submit" className="rounded-lg bg-laranja px-2 py-1 font-bold text-white">
+                                Criar
+                              </button>
+                              <button type="button" onClick={() => setNovaParada(null)} className="px-1 text-slate-400 hover:text-marinho">
+                                <Icone nome="fechar" className="h-3.5 w-3.5" />
+                              </button>
+                            </form>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setNovaParada({ instituicao: d.instituicao, nome: '' })}
+                              className="font-bold text-laranja hover:underline"
+                            >
+                              + Parada extra
+                            </button>
+                          )}
+                        </div>
                         </li>
                       ))}
                     </ul>
@@ -460,6 +669,23 @@ export default function AbaRotas() {
                 }`}
                 className="animate-surgir"
               >
+                {viagem.paradas.length > 1 && (
+                  <button
+                    onClick={() => setOrdemAberta(true)}
+                    className="group mb-4 flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-marinho to-[#24506f] p-3.5 text-left text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  >
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-laranja">
+                      <Icone nome="rota" className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-extrabold">Melhor ordem das paradas</span>
+                      <span className="block text-xs text-white/70">
+                        {casa ? 'Sai da casa do motorista e' : 'Calcula pelas ruas e'} sugere o caminho mais curto
+                      </span>
+                    </span>
+                    <Icone nome="seta" className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-1" />
+                  </button>
+                )}
                 {viagem.paradas.length === 0 ? (
                   <AvisoSemResultado
                     titulo="Nenhum passageiro nas rotas deste turno"
@@ -470,7 +696,7 @@ export default function AbaRotas() {
                   <ol className="relative space-y-2.5 before:absolute before:top-3 before:bottom-3 before:left-[13px] before:w-0.5 before:bg-slate-200">
                     {destinosVolta.map((d) => (
                       <li
-                        key={d.rota.id}
+                        key={chaveDestino(d)}
                         className={`relative flex items-center gap-3 ${idDestaque !== null && d.rota.id !== idDestaque ? 'opacity-35' : ''}`}
                       >
                         <span
@@ -480,7 +706,7 @@ export default function AbaRotas() {
                           <Icone nome="escola" className="h-4 w-4" />
                         </span>
                         <span className="min-w-0 text-sm font-bold text-marinho">
-                          {d.instituicao.nome}
+                          {nomeDoDestino(d)}
                           <span className="block text-xs font-normal text-slate-500">
                             Saída de {d.passageiros} · volta {formatarHorario(d.rota.horario_volta)}
                           </span>
@@ -526,6 +752,21 @@ export default function AbaRotas() {
                   </ol>
                 ) : (
                   <ol className="relative space-y-2.5 before:absolute before:top-3 before:bottom-3 before:left-[13px] before:w-0.5 before:bg-slate-200">
+                    {casa && (
+                      <li className="relative flex items-center gap-3">
+                        <span className="z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sky-500 text-white ring-4 ring-white">
+                          <Icone nome="van" className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="min-w-0 text-sm font-bold text-marinho">
+                          Saída · casa do motorista
+                          <span className="block truncate text-xs font-normal text-slate-500">
+                            {inicioIda ? `${inicioIda} · ` : ''}
+                            {enderecoCasa?.logradouro}
+                            {enderecoCasa?.numero ? `, ${enderecoCasa.numero}` : ''} · {enderecoCasa?.bairro}
+                          </span>
+                        </span>
+                      </li>
+                    )}
                     {viagem.paradas.map((p, i) => {
                       const indiceNoMapa = paradasNoMapa.indexOf(p)
                       const apagada = idDestaque !== null && p.rota.id !== idDestaque
@@ -563,12 +804,12 @@ export default function AbaRotas() {
                       const indiceNoMapa = destinosNoMapa.indexOf(d)
                       const chegada = indiceNoMapa >= 0 ? chegadaNaIda(paradasNoMapa.length + indiceNoMapa) : null
                       return (
-                        <li key={d.rota.id} className={`relative flex items-center gap-3 ${idDestaque !== null && d.rota.id !== idDestaque ? 'opacity-35' : ''}`}>
+                        <li key={chaveDestino(d)} className={`relative flex items-center gap-3 ${idDestaque !== null && d.rota.id !== idDestaque ? 'opacity-35' : ''}`}>
                           <span className="z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full text-white ring-4 ring-white" style={{ background: corDestino(d.rota.id) }}>
                             <Icone nome="escola" className="h-4 w-4" />
                           </span>
                           <span className="min-w-0 text-sm font-bold text-marinho">
-                            {d.instituicao.nome}
+                            {nomeDoDestino(d)}
                             <span className="block text-xs font-normal text-slate-500">
                               Desembarque de {d.passageiros} · {chegada ? `chegada ~${chegada}` : `ida ${formatarHorario(d.rota.horario_ida)}`}
                             </span>
@@ -703,15 +944,80 @@ export default function AbaRotas() {
             />
           )}
 
-          {viagem.destinos.map((d) => (
-            <MarcadorInstituicao
-              key={`${d.rota.id}-${versaoPinos}-${d.instituicao.ponto_parada?.join(',')}`}
-              instituicao={d.instituicao}
-              cor={corDestino(d.rota.id)}
-              ajustavel={ajustandoParadas}
-              aoMover={(ponto) => setParadaPendente({ instituicao: d.instituicao, ponto })}
-            />
-          ))}
+          {(ajustandoParadas ? faculdadesDaViagem : viagem.destinos.filter((d) => !d.parada))
+            .map((d) => (
+              <MarcadorInstituicao
+                key={`${chaveDestino(d)}-${versaoPinos}-${d.instituicao.ponto_parada?.join(',')}`}
+                instituicao={d.instituicao}
+                cor={corDestino(d.rota.id)}
+                ajustavel={ajustandoParadas}
+                aoMover={(ponto) => setParadaPendente({ instituicao: d.instituicao, ponto })}
+              />
+            ))}
+
+          {/* Paradas extras: as usadas na viagem e, no ajuste, todas as das faculdades da viagem */}
+          {faculdadesDaViagem.flatMap((d) =>
+            d.instituicao.paradas
+              .filter((extra) => ajustandoParadas || viagem.destinos.some((x) => x.parada?.id === extra.id))
+              .map((extra) => (
+                <Marker
+                  key={`extra-${extra.id}-${versaoPinos}-${extra.latitude},${extra.longitude}`}
+                  position={[extra.latitude, extra.longitude]}
+                  icon={iconeInstituicao(corDestino(d.rota.id))}
+                  draggable={ajustandoParadas}
+                  eventHandlers={
+                    ajustandoParadas
+                      ? {
+                          dragend: (evento) => {
+                            const { lat, lng } = (evento.target as L.Marker).getLatLng()
+                            void executarParada(
+                              () =>
+                                servicoInstituicao.alterarParada(d.instituicao.id, extra.id, {
+                                  nome: extra.nome,
+                                  latitude: Number(lat.toFixed(6)),
+                                  longitude: Number(lng.toFixed(6)),
+                                }),
+                              'Parada extra movida',
+                              `${extra.nome} (${d.instituicao.nome}) agora fica neste ponto.`,
+                            )
+                          },
+                        }
+                      : undefined
+                  }
+                >
+                  <Tooltip direction="top">
+                    {d.instituicao.nome} · {extra.nome}
+                    {ajustandoParadas ? ' · arraste até o portão' : ''}
+                  </Tooltip>
+                </Marker>
+              )),
+          )}
+
+          {casa && (
+            <Marker
+              key={`casa-${motorista.id}-${versaoPinos}-${casa.join(',')}`}
+              position={casa}
+              icon={ICONE_CASA}
+              zIndexOffset={900}
+              draggable={podeEditarCasa}
+              eventHandlers={
+                podeEditarCasa
+                  ? {
+                      dragend: (evento) => {
+                        const { lat, lng } = (evento.target as L.Marker).getLatLng()
+                        void proporCasa([Number(lat.toFixed(6)), Number(lng.toFixed(6))])
+                      },
+                    }
+                  : undefined
+              }
+            >
+              <Tooltip direction="top" permanent className="rotulo-casa">
+                Casa · {motorista.nome.split(' ')[0]}
+              </Tooltip>
+            </Marker>
+          )}
+          {marcandoCasa && <CliqueNoMapa aoClicar={(ponto) => void proporCasa(ponto)} />}
+          {casaPendente && !casa && <Marker position={casaPendente.ponto} icon={ICONE_CASA} />}
 
           {(sentido === 'volta' ? paradasVoltaNoMapa : paradasNoMapa).map((p, idx) => {
             const numero =
@@ -772,6 +1078,46 @@ export default function AbaRotas() {
         />
       )}
       {avisosParada.modal}
+      {casaPendente && motorista && (
+        <Modal
+          titulo={casa ? `Mover a casa de ${motorista.nome}?` : `Marcar a casa de ${motorista.nome} aqui?`}
+          descricao="A ida passa a sair deste ponto e a volta termina nele."
+          icone="pino"
+          tom="marinho"
+          aoFechar={cancelarCasa}
+          acoes={
+            <>
+              <Botao variante="secundario" onClick={cancelarCasa}>
+                Cancelar
+              </Botao>
+              <Botao disabled={salvandoCasa || casaPendente.buscando || (!casaPendente.endereco && !enderecoCasa)} onClick={() => void salvarCasa()}>
+                {salvandoCasa ? 'Salvando...' : 'Salvar casa'}
+              </Botao>
+            </>
+          }
+        >
+          <div className="rounded-xl bg-fundo p-3 text-sm">
+            {casaPendente.buscando ? (
+              <span className="animate-brilho text-slate-500">Procurando o endereço deste ponto...</span>
+            ) : casaPendente.endereco ? (
+              <>
+                <span className="block text-xs font-bold tracking-wide text-slate-400 uppercase">Endereço encontrado</span>
+                <span className="font-semibold text-marinho">{enderecoEmTexto(casaPendente.endereco)}</span>
+                <span className="block text-xs text-slate-500">CEP {casaPendente.endereco.cep.replace(/(\d{5})(\d{3})/, '$1-$2')} · confira o número no cadastro do motorista</span>
+              </>
+            ) : enderecoCasa ? (
+              <span className="text-slate-600">Não achamos a rua deste ponto: o endereço escrito continua o mesmo e só o pino muda de lugar.</span>
+            ) : (
+              <span className="text-amber-700">
+                Não achamos o endereço (com CEP) deste ponto. Cadastre o endereço em Motoristas → editar, e marque o pino por lá.
+              </span>
+            )}
+          </div>
+        </Modal>
+      )}
+      {ordemAberta && motorista && turno && (
+        <GavetaOrdem idMotorista={motorista.id} turno={turno} aoAplicar={dados.recarregar} aoFechar={() => setOrdemAberta(false)} />
+      )}
     </>
   )
 }

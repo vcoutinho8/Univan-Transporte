@@ -30,6 +30,7 @@ function valoresIniciais(e: Estudante | null) {
     celular: e ? formatarCelular(e.celular) : '',
     email: e?.email ?? '',
     fk_instituicao: e ? String(e.fk_instituicao) : '',
+    fk_parada: e?.fk_parada ? String(e.fk_parada) : '',
     curso: e?.curso ?? '',
     turno: (e?.turno ?? 'noite') as Turno,
     horario_embarque: e?.horario_embarque?.slice(0, 5) ?? '',
@@ -65,6 +66,7 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
 
   const mudar = (campo: keyof Valores, valor: string) => setValores((atual) => ({ ...atual, [campo]: valor }))
   const areaPrevista = posicao ? areaDoPonto(posicao, areas) : null
+  const paradasDaFaculdade = instituicoes.find((i) => String(i.id) === valores.fk_instituicao)?.paradas ?? []
 
   async function localizar(endereco: Partial<Valores> = valores) {
     setBusca({ tipo: 'buscando', mensagem: 'Procurando o endereço no mapa...' })
@@ -104,6 +106,7 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
         celular: soDigitos(valores.celular),
         email: texto(valores.email),
         fk_instituicao: Number(valores.fk_instituicao),
+        fk_parada: valores.fk_parada ? Number(valores.fk_parada) : null,
         curso: texto(valores.curso),
         turno: valores.turno,
         horario_embarque: texto(valores.horario_embarque),
@@ -174,7 +177,12 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
 
           <Secao titulo="Faculdade" icone="escola">
             <Campo rotulo="Instituição" className="sm:col-span-2">
-              <select required value={valores.fk_instituicao} onChange={(e) => mudar('fk_instituicao', e.target.value)} className="campo">
+              <select
+                required
+                value={valores.fk_instituicao}
+                onChange={(e) => setValores((atual) => ({ ...atual, fk_instituicao: e.target.value, fk_parada: '' }))}
+                className="campo"
+              >
                 <option value="" disabled>
                   Selecione...
                 </option>
@@ -185,6 +193,21 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
                 ))}
               </select>
             </Campo>
+            {paradasDaFaculdade.length > 0 && (
+              <Campo rotulo="Parada na faculdade" className="sm:col-span-2">
+                <select value={valores.fk_parada} onChange={(e) => mudar('fk_parada', e.target.value)} className="campo">
+                  <option value="">Parada principal</option>
+                  {paradasDaFaculdade.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-slate-500">
+                  Onde a van deixa e busca este passageiro (ex.: Biopráticas para os cursos da saúde).
+                </span>
+              </Campo>
+            )}
             <Campo rotulo="Curso" opcional>
               <input maxLength={50} value={valores.curso} onChange={(e) => mudar('curso', e.target.value)} className="campo" />
             </Campo>

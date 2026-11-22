@@ -97,5 +97,6 @@ export function umaInstituicao(id: number, nome: string, ponto: Coordenada, para
     parada_latitude: parada?.[0] ?? null,
     parada_longitude: parada?.[1] ?? null,
     ponto_parada: parada ?? ponto,
+    paradas: [],
   }
 }

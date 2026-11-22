@@ -7,6 +7,7 @@ import Icone from '../../shared/components/Icon.tsx'
 import { ErroApi } from '../../shared/services/api.ts'
 import type { StatusCadastro } from '../../shared/types/api.ts'
 import { formatarCelular, formatarCpf, formatarData, soDigitos } from '../../shared/utils/formatar.ts'
+import CamposEndereco, { enderecoDoFormulario, enderecoVazio, paraApi, validarEndereco } from '../endereco/AddressFields.tsx'
 import type { Veiculo } from '../veiculo/types.ts'
 import { cnhValida, cpfValido, diasParaVencer, situacaoCnh } from './driverUtils.ts'
 import type { DadosMotorista, Motorista } from './types.ts'
@@ -36,6 +37,7 @@ type Valores = ReturnType<typeof valoresIniciais>
 /** Cadastro e edição de motorista, numa gaveta lateral com validações completas. */
 export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoFechar }: Propriedades) {
   const [valores, setValores] = useState<Valores>(() => valoresIniciais(motorista))
+  const [endereco, setEndereco] = useState(() => enderecoDoFormulario(motorista?.endereco))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const rolagem = useRef<HTMLDivElement>(null)
@@ -104,6 +106,16 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
       return
     }
 
+    // Endereço é opcional, mas se começou a preencher tem que ficar completo (é o ponto de partida).
+    const semEndereco = enderecoVazio(endereco)
+    const problemaEndereco = semEndereco ? null : validarEndereco(endereco)
+    if (problemaEndereco) {
+      setErro(`Endereço: ${problemaEndereco}`)
+      setSalvando(false)
+      rolagem.current?.scrollTo?.({ top: 0, behavior: 'smooth' })
+      return
+    }
+
     try {
       await aoSalvar({
         nome: nomeLimpo,
@@ -113,6 +125,8 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
         cnh: digitosCnh,
         cnh_validade: valores.cnh_validade,
         fk_veiculo: valores.fk_veiculo ? Number(valores.fk_veiculo) : null,
+        // Sem endereço: no cadastro não envia; na edição, tira o que havia.
+        ...(semEndereco ? (motorista?.endereco ? { endereco: null } : {}) : { endereco: paraApi(endereco) }),
         status: valores.status,
       })
     } catch (e) {
@@ -236,6 +250,14 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
             </Campo>
           </Secao>
 
+          <Secao titulo="Endereço (ponto de partida)" icone="pino">
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              Casa ou garagem do motorista: a ida sai daqui e a volta termina aqui. É usado no cálculo da melhor ordem das
+              paradas.
+            </p>
+            <CamposEndereco valor={endereco} aoMudar={setEndereco} rotuloMapa="Casa / garagem no mapa" />
+          </Secao>
+
           <Secao titulo="Veículo padrão e situação" icone="van">
             <Campo rotulo="Veículo padrão vinculado" opcional className="sm:col-span-2">
               <select
@@ -293,7 +315,7 @@ function Secao({
   children,
 }: {
   titulo: string
-  icone: 'usuario' | 'relatorio' | 'van'
+  icone: 'usuario' | 'relatorio' | 'van' | 'pino'
   children: ReactNode
 }) {
   return (

@@ -1,6 +1,6 @@
 import type { Area, Coordenada } from '../area/types.ts'
 import type { Estudante, Turno } from '../estudante/types.ts'
-import type { Instituicao } from '../instituicao/types.ts'
+import type { Instituicao, ParadaExtra } from '../instituicao/types.ts'
 import { coordenadaDo } from '../mapa/mapUtils.ts'
 import type { Rota } from './types.ts'
 
@@ -35,9 +35,14 @@ export interface Parada {
 export interface Destino {
   instituicao: Instituicao
   rota: Rota
+  /** Parada extra (ex.: Biopráticas); vazio = a parada principal da faculdade. */
+  parada: ParadaExtra | null
   ponto: Coordenada | null
   passageiros: number
 }
+
+/** Chave única do destino (a mesma rota pode ter a parada principal e paradas extras). */
+export const chaveDestino = (d: Destino) => `${d.rota.id}-${d.parada?.id ?? 0}`
 
 export interface Viagem {
   rotas: Rota[]
@@ -64,18 +69,28 @@ export function montarViagem(
         a.estudante.nome.localeCompare(b.estudante.nome),
     )
 
-  const destinos: Destino[] = rotasDoTurno
-    .map((rota) => {
-      const instituicao = instituicoes.find((i) => i.id === rota.fk_instituicao)!
+  // Um destino por parada usada: a principal da faculdade e cada parada extra escolhida por alguém.
+  const destinos: Destino[] = rotasDoTurno.flatMap((rota) => {
+    const instituicao = instituicoes.find((i) => i.id === rota.fk_instituicao)
+    if (!instituicao) return []
+    const daRota = paradas.filter((p) => p.rota.id === rota.id)
+    const grupos = new Map<number, number>()
+    for (const p of daRota) {
+      const id = instituicao.paradas?.some((x) => x.id === p.estudante.fk_parada) ? p.estudante.fk_parada! : 0
+      grupos.set(id, (grupos.get(id) ?? 0) + 1)
+    }
+    return [...grupos.entries()].map(([id, total]) => {
+      const parada = instituicao.paradas?.find((x) => x.id === id) ?? null
       return {
         instituicao,
         rota,
-        // A van para na rua (ponto de parada ajustado), não na localização do endereço.
-        ponto: (instituicao?.ponto_parada ?? null) as Coordenada | null,
-        passageiros: paradas.filter((p) => p.rota.id === rota.id).length,
+        parada,
+        // A van para na rua (ponto de parada ajustado ou extra), não na localização do endereço.
+        ponto: (parada ? [parada.latitude, parada.longitude] : instituicao.ponto_parada ?? null) as Coordenada | null,
+        passageiros: total,
       }
     })
-    .filter((d) => d.instituicao && d.passageiros > 0)
+  })
 
   // Ordem de desembarque: vizinho mais próximo a partir da última parada.
   const ordenados: Destino[] = []

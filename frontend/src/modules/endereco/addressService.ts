@@ -58,3 +58,37 @@ export async function localizarEndereco(endereco: Partial<DadosEndereco>): Promi
     return null
   }
 }
+
+/**
+ * Endereço do ponto marcado no mapa (geocodificação reversa do OpenStreetMap).
+ * Devolve null se não achar a rua ou o CEP (aí o endereço é preenchido no cadastro).
+ */
+export async function enderecoDoPonto([lat, lng]: Coordenada): Promise<DadosEndereco | null> {
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/reverse')
+    url.search = new URLSearchParams({ format: 'jsonv2', lat: String(lat), lon: String(lng), zoom: '18', addressdetails: '1' }).toString()
+    const resposta = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } })
+    if (!resposta.ok) return null
+    const { address: a } = (await resposta.json()) as { address?: Record<string, string> }
+    if (!a) return null
+    const cep = (a.postcode ?? '').replace(/\D/g, '')
+    const uf = (a['ISO3166-2-lvl4'] ?? '').replace('BR-', '')
+    const logradouro = a.road ?? a.pedestrian ?? a.residential
+    const bairro = a.suburb ?? a.neighbourhood ?? a.quarter ?? a.city_district
+    const cidade = a.city ?? a.town ?? a.village ?? a.municipality
+    if (cep.length !== 8 || !logradouro || !cidade || uf.length !== 2) return null
+    return {
+      cep,
+      logradouro,
+      numero: a.house_number ?? null,
+      complemento: null,
+      bairro: bairro ?? 'Centro',
+      cidade,
+      estado: uf,
+      latitude: Number(lat.toFixed(6)),
+      longitude: Number(lng.toFixed(6)),
+    }
+  } catch {
+    return null
+  }
+}

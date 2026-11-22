@@ -49,3 +49,40 @@ export function descreverDias(dias: number[]): string {
   const texto = nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}` : nomes[0] ?? ''
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
+
+/** Uma parada na ordem calculada (ParadaDaOrdem). */
+export interface ParadaDaOrdem {
+  tipo: 'passageiro' | 'faculdade'
+  fk_estudante: number | null
+  nome: string
+  detalhe: string
+  instituicao: string | null
+  latitude: number
+  longitude: number
+  /** HH:MM:SS calculado pelos tempos de trajeto a partir da saída. */
+  horario: string | null
+  /** Horário de embarque gravado hoje no cadastro. */
+  horario_atual: string | null
+}
+
+export interface SequenciaDaOrdem {
+  paradas: ParadaDaOrdem[]
+  distancia_km: number
+  duracao_min: number
+  chegada: string | null
+}
+
+/** Ordem atual x sugerida da ida de um motorista num turno (GET /rotas/ordem). */
+export interface OrdemDasParadas {
+  motorista: { id: number; nome: string }
+  turno: Turno
+  partida: { endereco: string; latitude: number; longitude: number } | null
+  horario_saida: string | null
+  /** Tempos reais pelas ruas; falso = estimativa em linha reta. */
+  pelas_ruas: boolean
+  atual: SequenciaDaOrdem
+  sugerida: SequenciaDaOrdem
+  economia_min: number
+  sem_localizacao: { id: number; nome: string }[]
+  avisos: string[]
+}
