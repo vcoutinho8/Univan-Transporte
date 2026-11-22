@@ -70,7 +70,14 @@ class ServicoJornada:
         chegadas = [v.horario_chegada for v in ativas if v.horario_chegada]
         previstos = [v.horario_previsto for v in ativas if v.horario_previsto]
         status = status_da_jornada(detalhes)
+        casa = detalhes[0].motorista.endereco
+        partida = (
+            [float(casa.latitude), float(casa.longitude)]
+            if casa is not None and casa.latitude is not None and casa.longitude is not None
+            else None
+        )
         return JornadaResposta(
+            partida=partida,
             data=pedido.data,
             turno=pedido.turno,
             sentido=pedido.sentido,

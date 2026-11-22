@@ -21,7 +21,7 @@ from app.modules.endereco.endereco_model import Endereco
 from app.modules.estudante.estudante_model import Estudante
 from app.modules.financeiro.titulo_pagar_model import TituloPagar
 from app.modules.financeiro.titulo_receber_model import TituloReceber
-from app.modules.instituicao.instituicao_model import Instituicao
+from app.modules.instituicao.instituicao_model import Instituicao, InstituicaoParada
 from app.modules.motorista.motorista_model import Motorista
 from app.modules.rota.rota_model import Rota, RotaDia
 from app.modules.usuario.usuario_model import Usuario
@@ -36,6 +36,7 @@ __all__ = [
     "Endereco",
     "Estudante",
     "Instituicao",
+    "InstituicaoParada",
     "Motorista",
     "Rota",
     "RotaDia",

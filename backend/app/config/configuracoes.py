@@ -36,6 +36,9 @@ class Configuracoes(BaseSettings):
     # Assina os tokens de sessão. Em produção, defina SECRET_KEY no .env com um valor longo e aleatório.
     chave_secreta: str = Field(default="univan-dev-troque-esta-chave-em-producao", alias="SECRET_KEY", min_length=16)
     minutos_sessao: int = Field(default=8 * 60, gt=0, alias="SESSION_MINUTES")
+    # Roteador de ruas (OSRM) para o cálculo da melhor ordem das paradas. O público é de demonstração;
+    # em produção use um servidor próprio. Vazio = só a estimativa em linha reta.
+    url_osrm: str = Field(default="https://router.project-osrm.org", alias="OSRM_URL")
 
     @property
     def url_banco_resolvida(self) -> str:

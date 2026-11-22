@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.base import Base
@@ -25,3 +25,21 @@ class Instituicao(Base):
     parada_longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
 
     endereco: Mapped["Endereco"] = relationship()
+    paradas: Mapped[list["InstituicaoParada"]] = relationship(
+        back_populates="instituicao", cascade="all, delete-orphan", order_by="InstituicaoParada.nome"
+    )
+
+
+class InstituicaoParada(Base):
+    """Parada extra da faculdade (ex.: UVV: Biopráticas). A principal é a da própria instituição."""
+
+    __tablename__ = "instituicao_parada"
+    __table_args__ = (UniqueConstraint("fk_instituicao", "nome", name="instituicao_parada_nome_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fk_instituicao: Mapped[int] = mapped_column(ForeignKey("instituicao.id", ondelete="CASCADE"))
+    nome: Mapped[str] = mapped_column(String(60))
+    latitude: Mapped[Decimal] = mapped_column(Numeric(9, 6))
+    longitude: Mapped[Decimal] = mapped_column(Numeric(9, 6))
+
+    instituicao: Mapped["Instituicao"] = relationship(back_populates="paradas")

@@ -80,6 +80,7 @@ class EstudanteCriacao(BaseModel):
     valor_mensal: float = Field(ge=0)
     dia_vencimento: int = Field(ge=1, le=28)
     endereco: EnderecoEntrada
+    fk_parada: int | None = Field(default=None, gt=0, description="Parada da faculdade (vazio = a principal).")
     status: StatusCadastro = StatusCadastro.ATIVO
 
     @field_validator("nome")
@@ -128,6 +129,7 @@ class EstudanteAtualizacao(BaseModel):
     valor_mensal: float | None = Field(default=None, ge=0)
     dia_vencimento: int | None = Field(default=None, ge=1, le=28)
     endereco: EnderecoEntrada | None = None
+    fk_parada: int | None = Field(default=None, gt=0, description="null = volta para a parada principal.")
     status: StatusCadastro | None = None
 
     @field_validator("nome")
@@ -170,6 +172,13 @@ class AreaDoEstudante(BaseModel):
     nome: str
 
 
+class ParadaDoEstudante(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+
+
 class EstudanteResposta(BaseModel):
     """Passageiro devolvido pela API, já com instituição, endereço e área."""
 
@@ -192,3 +201,5 @@ class EstudanteResposta(BaseModel):
     instituicao: InstituicaoDoEstudante
     endereco: EnderecoResposta
     area: AreaDoEstudante | None
+    fk_parada: int | None = None
+    parada: ParadaDoEstudante | None = None

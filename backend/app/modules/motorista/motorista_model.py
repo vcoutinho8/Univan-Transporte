@@ -12,6 +12,7 @@ from app.shared.enums import StatusCadastro
 
 if TYPE_CHECKING:
     from app.modules.empresa.empresa_model import Empresa
+    from app.modules.endereco.endereco_model import Endereco
     from app.modules.veiculo.veiculo_model import Veiculo
 
 
@@ -37,5 +38,9 @@ class Motorista(Base):
         server_default=StatusCadastro.ATIVO.value,
     )
 
+    # Casa/garagem: de onde a ida sai e onde a volta termina.
+    fk_endereco: Mapped[int | None] = mapped_column(ForeignKey("endereco.id"))
+
     empresa: Mapped["Empresa"] = relationship()
+    endereco: Mapped["Endereco | None"] = relationship()
     veiculo: Mapped["Veiculo | None"] = relationship()

@@ -10,6 +10,7 @@ _RELACOES = (
     joinedload(Estudante.instituicao),
     joinedload(Estudante.endereco),
     joinedload(Estudante.area),
+    joinedload(Estudante.parada),
 )
 
 

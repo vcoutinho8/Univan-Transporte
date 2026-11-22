@@ -63,12 +63,14 @@ COLUNAS_NOVAS = (
     ("instituicao", "parada_latitude", "NUMERIC"),
     ("instituicao", "parada_longitude", "NUMERIC"),
     ("chamada", "horario_desembarque", "TEXT"),
+    ("motorista", "fk_endereco", "INTEGER REFERENCES endereco (id)"),
+    ("estudante", "fk_parada", "INTEGER REFERENCES instituicao_parada (id)"),
 )
 
 
 # Tabelas criadas depois da primeira versão do script: num banco antigo, são criadas (com os dados
 # de teste delas) a partir do próprio docs/univan-sqlite.sql.
-TABELAS_NOVAS = ("usuario",)
+TABELAS_NOVAS = ("usuario", "instituicao_parada")
 
 
 def _sql_da_tabela(tabela: str) -> str:

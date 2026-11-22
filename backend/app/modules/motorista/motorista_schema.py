@@ -4,6 +4,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.modules.endereco.endereco_schema import EnderecoEntrada, EnderecoResposta
 from app.modules.estudante.estudante_schema import normalizar_celular, normalizar_cpf, normalizar_obrigatorio
 from app.shared.enums import StatusCadastro
 from app.shared.texto import limpar_texto, so_digitos
@@ -43,6 +44,7 @@ class MotoristaCriacao(BaseModel):
     cnh: str
     cnh_validade: date
     fk_veiculo: int | None = Field(default=None, gt=0)
+    endereco: EnderecoEntrada | None = Field(default=None, description="Casa/garagem: de onde a ida sai.")
     status: StatusCadastro = StatusCadastro.ATIVO
 
     @field_validator("nome")
@@ -89,6 +91,7 @@ class MotoristaAtualizacao(BaseModel):
     cnh: str | None = None
     cnh_validade: date | None = None
     fk_veiculo: int | None = Field(default=None, gt=0)
+    endereco: EnderecoEntrada | None = Field(default=None, description="Substitui o endereço; null tira.")
     status: StatusCadastro | None = None
 
     @field_validator("nome")
@@ -146,3 +149,4 @@ class MotoristaResposta(BaseModel):
     cnh_validade: date
     status: StatusCadastro
     veiculo: VeiculoDoMotorista | None
+    endereco: EnderecoResposta | None = None

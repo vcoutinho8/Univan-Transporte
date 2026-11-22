@@ -55,6 +55,9 @@ class JornadaResposta(BaseModel):
     horario_previsto: time | None = Field(description="O mais cedo entre as rotas da jornada.")
     horario_saida: datetime | None
     horario_chegada: datetime | None
+    partida: list[float] | None = Field(
+        default=None, description="Casa/garagem do motorista [lat, lng]: a ida sai dela e a volta termina nela."
+    )
     viagens: list[ViagemResposta]
     passageiros: ContagemPassageiros
     fila: list[ChamadaDaJornada]

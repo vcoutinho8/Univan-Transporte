@@ -4,6 +4,7 @@ from datetime import date
 
 from app.config.erros import ConflitoDeDados, DadosInvalidos, RecursoNaoEncontrado
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
+from app.modules.endereco.endereco_model import Endereco
 from app.modules.motorista.motorista_model import Motorista
 from app.modules.motorista.motorista_repositorio import RepositorioMotorista
 from app.modules.motorista.motorista_schema import MotoristaAtualizacao, MotoristaCriacao
@@ -61,7 +62,12 @@ class ServicoMotorista:
             self._garantir_validade_plausivel(dados.cnh_validade)
         if dados.fk_veiculo is not None:
             self._garantir_veiculo_utilizavel(dados.fk_veiculo, id_empresa)
-        motorista = Motorista(**dados.model_dump(), fk_empresa=id_empresa)
+        endereco = dados.endereco
+        motorista = Motorista(
+            **dados.model_dump(exclude={"endereco"}),
+            fk_empresa=id_empresa,
+            endereco=Endereco(**endereco.model_dump()) if endereco else None,
+        )
         self.repositorio.salvar(motorista)
         return self.obter(motorista.id)
 
@@ -92,6 +98,16 @@ class ServicoMotorista:
                 self._garantir_validade_plausivel(nova_validade)
         elif reativando:
             self._garantir_cnh_em_dia(motorista.cnh_validade)
+
+        if "endereco" in alteracoes:
+            novo = alteracoes.pop("endereco")
+            if novo is None:
+                motorista.endereco = None
+            elif motorista.endereco is None:
+                motorista.endereco = Endereco(**novo)
+            else:
+                for campo, valor in novo.items():
+                    setattr(motorista.endereco, campo, valor)
 
         for campo, valor in alteracoes.items():
             setattr(motorista, campo, valor)

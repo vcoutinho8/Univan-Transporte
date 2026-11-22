@@ -116,6 +116,17 @@ class EnderecoDaChamada(BaseModel):
     longitude: float | None = None
 
 
+class ParadaDaChamada(BaseModel):
+    """Parada extra da faculdade escolhida pelo passageiro (vazio = a principal)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    latitude: float
+    longitude: float
+
+
 class EstudanteDaChamada(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -124,6 +135,7 @@ class EstudanteDaChamada(BaseModel):
     apelido: str | None
     celular: str
     endereco: EnderecoDaChamada
+    parada: ParadaDaChamada | None = None
 
 
 class ChamadaResposta(BaseModel):

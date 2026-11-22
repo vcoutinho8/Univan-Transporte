@@ -46,6 +46,7 @@ class ServicoEstudante:
     def cadastrar(self, dados: EstudanteCriacao) -> Estudante:
         self._garantir_instituicao_existe(dados.fk_instituicao)
         self._garantir_cpf_disponivel(dados.cpf)
+        self._garantir_parada_da_instituicao(dados.fk_parada, dados.fk_instituicao)
         campos = dados.model_dump(exclude={"endereco"})
         estudante = Estudante(**campos, endereco=Endereco(**dados.endereco.model_dump()))
         self.repositorio.salvar(estudante)
@@ -63,6 +64,13 @@ class ServicoEstudante:
             self._garantir_instituicao_existe(alteracoes["fk_instituicao"])
         if "cpf" in alteracoes and alteracoes["cpf"] != estudante.cpf:
             self._garantir_cpf_disponivel(alteracoes["cpf"])
+
+        # Mudou de faculdade sem escolher parada: volta para a principal da nova.
+        instituicao_final = alteracoes.get("fk_instituicao", estudante.fk_instituicao)
+        if "fk_parada" in alteracoes:
+            self._garantir_parada_da_instituicao(alteracoes["fk_parada"], instituicao_final)
+        elif instituicao_final != estudante.fk_instituicao:
+            alteracoes["fk_parada"] = None
 
         novo_endereco = alteracoes.pop("endereco", None)
         if novo_endereco is not None:
@@ -82,6 +90,10 @@ class ServicoEstudante:
         estudante.status = StatusCadastro.INATIVO
         self.repositorio.salvar(estudante)
         return self.obter(estudante.id)
+
+    def _garantir_parada_da_instituicao(self, id_parada: int | None, id_instituicao: int) -> None:
+        if id_parada is not None and self.repositorio_instituicao.buscar_parada(id_instituicao, id_parada) is None:
+            raise DadosInvalidos("Essa parada não é da faculdade do passageiro.")
 
     def _garantir_instituicao_existe(self, id_instituicao: int) -> None:
         if self.repositorio_instituicao.buscar_por_id(id_instituicao) is None:

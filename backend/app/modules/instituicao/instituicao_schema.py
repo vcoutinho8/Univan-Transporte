@@ -1,8 +1,19 @@
 """Schemas das instituições."""
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from app.modules.endereco.endereco_schema import EnderecoResposta
+
+
+class ParadaExtra(BaseModel):
+    """Parada extra da faculdade (além da principal)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    latitude: float
+    longitude: float
 
 
 class InstituicaoResposta(BaseModel):
@@ -15,6 +26,7 @@ class InstituicaoResposta(BaseModel):
     endereco: EnderecoResposta
     parada_latitude: float | None = Field(description="Ponto de parada ajustado no mapa (vazio = usa o endereço).")
     parada_longitude: float | None
+    paradas: list[ParadaExtra] = Field(default_factory=list, description="Paradas extras (a principal é ponto_parada).")
 
     @computed_field(description="Onde a van para: o ponto ajustado ou, sem ajuste, a localização do endereço.")
     @property
@@ -39,3 +51,23 @@ class ParadaPedido(BaseModel):
         if (self.latitude is None) != (self.longitude is None):
             raise ValueError("Informe latitude e longitude juntas (ou as duas vazias para voltar ao endereço).")
         return self
+
+
+class ParadaExtraPedido(BaseModel):
+    """Nova parada extra (ou alteração): nome e ponto no mapa."""
+
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"examples": [{"nome": "Biopráticas", "latitude": -20.3519, "longitude": -40.2969}]}
+    )
+
+    nome: str = Field(max_length=60)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+    @field_validator("nome")
+    @classmethod
+    def validar_nome(cls, valor: str) -> str:
+        nome = " ".join(valor.split())
+        if not nome:
+            raise ValueError("Informe o nome da parada (ex.: Biopráticas).")
+        return nome

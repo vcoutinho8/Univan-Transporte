@@ -63,6 +63,17 @@ CREATE TABLE instituicao (
     parada_longitude NUMERIC
 );
 
+-- Paradas extras da faculdade além da principal (ex.: UVV: Biopráticas e fundos). O passageiro escolhe
+-- a dele (estudante.fk_parada); sem escolha, desce/embarca na parada principal da instituição.
+CREATE TABLE instituicao_parada (
+    id             INTEGER PRIMARY KEY,
+    fk_instituicao INTEGER NOT NULL REFERENCES instituicao (id) ON DELETE CASCADE,
+    nome           TEXT NOT NULL,
+    latitude       NUMERIC NOT NULL,
+    longitude      NUMERIC NOT NULL,
+    CONSTRAINT instituicao_parada_nome_key UNIQUE (fk_instituicao, nome)
+);
+
 -- ---------------------------------------------------------------- Frota e equipe
 
 CREATE TABLE veiculo (
@@ -93,6 +104,8 @@ CREATE TABLE motorista (
     salario       NUMERIC,
     dia_pagamento INTEGER DEFAULT 5,
     status        TEXT NOT NULL DEFAULT 'ativo',
+    -- Casa/garagem do motorista: de onde a ida sai e onde a volta termina.
+    fk_endereco   INTEGER REFERENCES endereco (id),
     CONSTRAINT motorista_cpf_key UNIQUE (cpf),
     CONSTRAINT motorista_cnh_key UNIQUE (cnh),
     CONSTRAINT motorista_cpf_check CHECK (length(cpf) = 11 AND cpf NOT GLOB '*[^0-9]*'),
@@ -131,6 +144,8 @@ CREATE TABLE estudante (
     valor_mensal     NUMERIC NOT NULL,
     dia_vencimento   INTEGER NOT NULL,
     status           TEXT NOT NULL DEFAULT 'ativo',
+    -- Parada da faculdade onde desce/embarca (vazio = parada principal da instituição).
+    fk_parada        INTEGER REFERENCES instituicao_parada (id),
     CONSTRAINT estudante_cpf_key UNIQUE (cpf),
     CONSTRAINT estudante_cpf_check CHECK (length(cpf) = 11 AND cpf NOT GLOB '*[^0-9]*'),
     CONSTRAINT estudante_dia_vencimento_check CHECK (dia_vencimento >= 1 AND dia_vencimento <= 28),
@@ -374,49 +389,58 @@ INSERT INTO endereco VALUES (58, '29221055', 'Rua Espírito Santo', '31', NULL, 
 INSERT INTO endereco VALUES (59, '29216720', 'Rua Aliança', '227', 'Casa 2', 'Aeroporto', 'Guarapari', 'ES', -20.643767, -40.488965);
 INSERT INTO endereco VALUES (60, '29216705', 'Avenida Padre José de Anchieta', '1724', 'Ap 1204', 'Aeroporto', 'Guarapari', 'ES', -20.648782, -40.493196);
 INSERT INTO endereco VALUES (61, '29222000', 'Rodovia do Sol', '805', NULL, 'Setiba', 'Guarapari', 'ES', -20.630483, -40.437893);
+INSERT INTO endereco VALUES (62, '29200250', 'Rua Doutor Silva Mello', '120', NULL, 'Centro', 'Guarapari', 'ES', -20.670512, -40.499034);
+INSERT INTO endereco VALUES (63, '29215010', 'Rua Saraiva', '510', NULL, 'Muquiçaba', 'Guarapari', 'ES', -20.657522, -40.498471);
+INSERT INTO endereco VALUES (64, '29216065', 'Rua Juiz de Fora', '300', NULL, 'Praia do Morro', 'Guarapari', 'ES', -20.650018, -40.486095);
+INSERT INTO endereco VALUES (65, '29210160', 'Rua João Bigossi', '900', NULL, 'Itapebussu', 'Guarapari', 'ES', -20.664081, -40.506112);
+INSERT INTO endereco VALUES (66, '29202020', 'Rua Inhuibas', '200', NULL, 'Ipiranga', 'Guarapari', 'ES', -20.67603, -40.510047);
+INSERT INTO endereco VALUES (67, '29211990', 'Rua Linhares', '420', NULL, 'Bela Vista', 'Guarapari', 'ES', -20.642096, -40.513012);
+INSERT INTO endereco VALUES (68, '29221055', 'Rua Espírito Santo', '150', NULL, 'Santa Mônica', 'Guarapari', 'ES', -20.620087, -40.460021);
+INSERT INTO endereco VALUES (69, '29216805', 'Rua José Carlos', '800', NULL, 'Jardim Boa Vista', 'Guarapari', 'ES', -20.643011, -40.477106);
+INSERT INTO endereco VALUES (70, '29206000', 'Estrada para o Morro da Telha', '500', NULL, 'Lameirão', 'Guarapari', 'ES', -20.698044, -40.535021);
 
 -- estudante
-INSERT INTO estudante VALUES (1, 'Ana Beatriz Souza', 'Bia', '11122233301', '27998880001', 'ana.souza@email.com', 1, 'Medicina', 'noite', 21, 1, '17:40:00', 450.0, 10, 'ativo');
-INSERT INTO estudante VALUES (2, 'Bruno Henrique Costa', 'Bruno', '11122233302', '27998880002', 'bruno.costa@email.com', 2, 'Engenharia de Produção', 'noite', 22, 2, '17:45:00', 420.0, 10, 'ativo');
-INSERT INTO estudante VALUES (3, 'Camila Rodrigues', 'Cami', '11122233303', '27998880003', 'camila.r@email.com', 3, 'Engenharia Elétrica', 'noite', 23, 3, '17:50:00', 380.0, 5, 'ativo');
-INSERT INTO estudante VALUES (4, 'Diego Fernandes', NULL, '11122233304', '27998880004', 'diego.f@email.com', 4, 'Direito', 'noite', 24, 4, '17:15:00', 520.0, 15, 'ativo');
-INSERT INTO estudante VALUES (5, 'Eduarda Lima', 'Duda', '11122233305', '27998880005', 'eduarda.lima@email.com', 5, 'Enfermagem', 'noite', 25, 9, '17:55:00', 350.0, 5, 'ativo');
-INSERT INTO estudante VALUES (6, 'Felipe Augusto Ramos', 'Felipão', '11122233306', '27998880006', NULL, 6, 'Engenharia de Computação', 'noite', 26, 6, '17:00:00', 600.0, 20, 'ativo');
-INSERT INTO estudante VALUES (7, 'Gabriela Martins', 'Gabi', '11122233307', '27998880007', 'gabi.martins@email.com', 7, 'Medicina', 'manha', 27, 7, '06:10:00', 480.0, 10, 'ativo');
-INSERT INTO estudante VALUES (8, 'Henrique Oliveira', NULL, '11122233308', '27998880008', 'henrique.o@email.com', 8, 'Administração', 'manha', 28, 5, '06:30:00', 400.0, 10, 'ativo');
-INSERT INTO estudante VALUES (9, 'Isabela Pereira', 'Isa', '11122233309', '27998880009', 'isabela.p@email.com', 9, 'Pedagogia', 'tarde', 29, 8, '12:20:00', 360.0, 25, 'ativo');
-INSERT INTO estudante VALUES (10, 'João Vitor Almeida', 'JV', '11122233310', '27998880010', 'jv.almeida@email.com', 10, 'Engenharia Civil', 'tarde', 30, 10, '12:00:00', 390.0, 28, 'inativo');
-INSERT INTO estudante VALUES (11, 'Larissa Coutinho', 'Lari', '11122233311', '27998880011', 'larissa11@email.com', 1, 'Medicina', 'noite', 31, 1, '17:17:00', 620.0, 5, 'ativo');
-INSERT INTO estudante VALUES (12, 'Mateus Rangel', NULL, '11122233312', '27998880012', 'mateus.12@email.com', 1, 'Odontologia', 'noite', 32, 1, '17:21:00', 600.0, 15, 'ativo');
-INSERT INTO estudante VALUES (13, 'Juliana Nascimento', 'Ju', '11122233313', '27998880013', 'juliana13@email.com', 3, 'Sistemas de Informação', 'noite', 33, 1, '17:17:00', 550.0, 15, 'ativo');
-INSERT INTO estudante VALUES (14, 'Pedro Henrique Vieira', 'PH', '11122233314', '27998880014', 'pedro14@email.com', 2, 'Ciências Contábeis', 'noite', 34, 1, '17:17:00', 580.0, 15, 'ativo');
-INSERT INTO estudante VALUES (15, 'Beatriz Loureiro', 'Bea', '11122233315', '27998880015', 'beatriz15@email.com', 1, 'Psicologia', 'manha', 35, 1, '05:47:00', 600.0, 15, 'ativo');
-INSERT INTO estudante VALUES (16, 'Rafael Simões', NULL, '11122233316', '27998880016', NULL, 3, 'Sistemas de Informação', 'noite', 36, 2, '17:12:00', 550.0, 5, 'ativo');
-INSERT INTO estudante VALUES (17, 'Letícia Barcellos', 'Lelê', '11122233317', '27998880017', 'leticia17@email.com', 4, 'Biomedicina', 'noite', 37, 2, '17:18:00', 550.0, 20, 'ativo');
-INSERT INTO estudante VALUES (18, 'Gustavo Pimentel', 'Guto', '11122233318', '27998880018', NULL, 1, 'Direito', 'noite', 38, 2, '17:12:00', 550.0, 10, 'ativo');
-INSERT INTO estudante VALUES (19, 'Mariana Rocha', 'Mari', '11122233319', '27998880019', 'mariana.19@email.com', 2, 'Engenharia de Produção', 'noite', 39, 2, '17:14:00', 580.0, 10, 'ativo');
-INSERT INTO estudante VALUES (20, 'Thiago Bravin', NULL, '11122233320', '27998880020', 'thiago20@email.com', 5, 'Direito', 'noite', 40, 2, '17:16:00', 580.0, 10, 'ativo');
-INSERT INTO estudante VALUES (21, 'Amanda Zanotti', 'Mandi', '11122233321', '27998880021', NULL, 3, 'Fisioterapia', 'noite', 41, 3, '17:22:00', 580.0, 15, 'ativo');
-INSERT INTO estudante VALUES (22, 'Lucas Sossai', 'Luquinhas', '11122233322', '27998880022', 'lucas22@email.com', 1, 'Psicologia', 'noite', 42, 3, '17:24:00', 600.0, 10, 'ativo');
-INSERT INTO estudante VALUES (23, 'Carolina Gama', 'Carol', '11122233323', '27998880023', 'carolina.23@email.com', 6, 'Ciência da Computação', 'noite', 43, 3, '17:26:00', 580.0, 5, 'ativo');
-INSERT INTO estudante VALUES (24, 'Vinícius Lacerda', 'Vini', '11122233324', '27998880024', NULL, 2, 'Direito', 'manha', 44, 3, '05:52:00', 520.0, 10, 'ativo');
-INSERT INTO estudante VALUES (25, 'Fernanda Bortolini', 'Nanda', '11122233325', '27998880025', 'fernanda25@email.com', 3, 'Enfermagem', 'noite', 45, 3, '17:20:00', 520.0, 15, 'ativo');
-INSERT INTO estudante VALUES (26, 'Rodrigo Merçon', NULL, '11122233326', '27998880026', NULL, 4, 'Nutrição', 'noite', 46, 3, '17:26:00', 620.0, 15, 'ativo');
-INSERT INTO estudante VALUES (27, 'Natália Frisso', 'Nati', '11122233327', '27998880027', 'natalia.27@email.com', 1, 'Odontologia', 'noite', 47, 4, '17:05:00', 580.0, 20, 'ativo');
-INSERT INTO estudante VALUES (28, 'Caio Andrade', NULL, '11122233328', '27998880028', 'caio28@email.com', 8, 'Técnico em Mecânica', 'noite', 48, 4, '17:09:00', 550.0, 10, 'ativo');
-INSERT INTO estudante VALUES (29, 'Júlia Ferraço', 'Jujuba', '11122233329', '27998880029', 'julia29@email.com', 5, 'Direito', 'noite', 49, 5, '17:10:00', 600.0, 15, 'ativo');
-INSERT INTO estudante VALUES (30, 'Leonardo Pinheiro', 'Leo', '11122233330', '27998880030', 'leonardo.30@email.com', 3, 'Engenharia Mecânica', 'noite', 50, 5, '17:10:00', 520.0, 10, 'ativo');
-INSERT INTO estudante VALUES (31, 'Sofia Meneguelli', 'Sofi', '11122233331', '27998880031', NULL, 1, 'Odontologia', 'noite', 51, 6, '17:12:00', 600.0, 15, 'ativo');
-INSERT INTO estudante VALUES (32, 'Daniel Coelho', 'Dani', '11122233332', '27998880032', 'daniel.32@email.com', 2, 'Engenharia de Produção', 'noite', 52, 6, '17:16:00', 520.0, 20, 'ativo');
-INSERT INTO estudante VALUES (33, 'Isadora Lyrio', 'Isa L.', '11122233333', '27998880033', NULL, 4, 'Nutrição', 'manha', 53, 7, '05:46:00', 520.0, 10, 'ativo');
-INSERT INTO estudante VALUES (34, 'Bernardo Tristão', NULL, '11122233334', '27998880034', 'bernardo34@email.com', 7, 'Medicina', 'noite', 54, 7, '17:20:00', 550.0, 5, 'ativo');
-INSERT INTO estudante VALUES (35, 'Yasmin Guerra', 'Yas', '11122233335', '27998880035', 'yasmin.35@email.com', 1, 'Psicologia', 'noite', 55, 8, '17:02:00', 620.0, 5, 'ativo');
-INSERT INTO estudante VALUES (36, 'Arthur Calmon', NULL, '11122233336', '27998880036', 'arthur36@email.com', 3, 'Fisioterapia', 'noite', 56, 8, '17:00:00', 520.0, 10, 'ativo');
-INSERT INTO estudante VALUES (37, 'Lívia Dalla Bernardina', 'Livinha', '11122233337', '27998880037', 'livia37@email.com', 2, 'Ciências Contábeis', 'noite', 57, 9, '17:31:00', 550.0, 10, 'ativo');
-INSERT INTO estudante VALUES (38, 'Enzo Scárdua', NULL, '11122233338', '27998880038', NULL, 6, 'Oceanografia', 'noite', 58, 9, '17:31:00', 520.0, 15, 'ativo');
-INSERT INTO estudante VALUES (39, 'Manuela Kiefer', 'Manu', '11122233339', '27998880039', 'manuela39@email.com', 1, 'Direito', 'noite', 59, 10, '17:26:00', 580.0, 5, 'ativo');
-INSERT INTO estudante VALUES (40, 'Samuel Gobbi', 'Samu', '11122233340', '27998880040', 'samuel40@email.com', 8, 'Técnico em Administração', 'noite', 60, 10, '17:24:00', 520.0, 20, 'ativo');
-INSERT INTO estudante VALUES (41, 'Paula Rezende', NULL, '11122233341', '27998880041', NULL, 5, 'Publicidade', 'noite', 61, NULL, '17:32:00', 580.0, 5, 'ativo');
+INSERT INTO estudante VALUES (1, 'Ana Beatriz Souza', 'Bia', '11122233301', '27998880001', 'ana.souza@email.com', 1, 'Medicina', 'noite', 21, 1, '17:40:00', 450.0, 10, 'ativo', 1);
+INSERT INTO estudante VALUES (2, 'Bruno Henrique Costa', 'Bruno', '11122233302', '27998880002', 'bruno.costa@email.com', 2, 'Engenharia de Produção', 'noite', 22, 2, '17:45:00', 420.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (3, 'Camila Rodrigues', 'Cami', '11122233303', '27998880003', 'camila.r@email.com', 3, 'Engenharia Elétrica', 'noite', 23, 3, '17:50:00', 380.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (4, 'Diego Fernandes', NULL, '11122233304', '27998880004', 'diego.f@email.com', 4, 'Direito', 'noite', 24, 4, '17:15:00', 520.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (5, 'Eduarda Lima', 'Duda', '11122233305', '27998880005', 'eduarda.lima@email.com', 5, 'Enfermagem', 'noite', 25, 9, '17:55:00', 350.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (6, 'Felipe Augusto Ramos', 'Felipão', '11122233306', '27998880006', NULL, 6, 'Engenharia de Computação', 'noite', 26, 6, '17:00:00', 600.0, 20, 'ativo', NULL);
+INSERT INTO estudante VALUES (7, 'Gabriela Martins', 'Gabi', '11122233307', '27998880007', 'gabi.martins@email.com', 7, 'Medicina', 'manha', 27, 7, '06:10:00', 480.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (8, 'Henrique Oliveira', NULL, '11122233308', '27998880008', 'henrique.o@email.com', 8, 'Administração', 'manha', 28, 5, '06:30:00', 400.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (9, 'Isabela Pereira', 'Isa', '11122233309', '27998880009', 'isabela.p@email.com', 9, 'Pedagogia', 'tarde', 29, 8, '12:20:00', 360.0, 25, 'ativo', NULL);
+INSERT INTO estudante VALUES (10, 'João Vitor Almeida', 'JV', '11122233310', '27998880010', 'jv.almeida@email.com', 10, 'Engenharia Civil', 'tarde', 30, 10, '12:00:00', 390.0, 28, 'inativo', NULL);
+INSERT INTO estudante VALUES (11, 'Larissa Coutinho', 'Lari', '11122233311', '27998880011', 'larissa11@email.com', 1, 'Medicina', 'noite', 31, 1, '17:17:00', 620.0, 5, 'ativo', 1);
+INSERT INTO estudante VALUES (12, 'Mateus Rangel', NULL, '11122233312', '27998880012', 'mateus.12@email.com', 1, 'Odontologia', 'noite', 32, 1, '17:21:00', 600.0, 15, 'ativo', 1);
+INSERT INTO estudante VALUES (13, 'Juliana Nascimento', 'Ju', '11122233313', '27998880013', 'juliana13@email.com', 3, 'Sistemas de Informação', 'noite', 33, 1, '17:17:00', 550.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (14, 'Pedro Henrique Vieira', 'PH', '11122233314', '27998880014', 'pedro14@email.com', 2, 'Ciências Contábeis', 'noite', 34, 1, '17:17:00', 580.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (15, 'Beatriz Loureiro', 'Bea', '11122233315', '27998880015', 'beatriz15@email.com', 1, 'Psicologia', 'manha', 35, 1, '05:47:00', 600.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (16, 'Rafael Simões', NULL, '11122233316', '27998880016', NULL, 3, 'Sistemas de Informação', 'noite', 36, 2, '17:12:00', 550.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (17, 'Letícia Barcellos', 'Lelê', '11122233317', '27998880017', 'leticia17@email.com', 4, 'Biomedicina', 'noite', 37, 2, '17:18:00', 550.0, 20, 'ativo', NULL);
+INSERT INTO estudante VALUES (18, 'Gustavo Pimentel', 'Guto', '11122233318', '27998880018', NULL, 1, 'Direito', 'noite', 38, 2, '17:12:00', 550.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (19, 'Mariana Rocha', 'Mari', '11122233319', '27998880019', 'mariana.19@email.com', 2, 'Engenharia de Produção', 'noite', 39, 2, '17:14:00', 580.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (20, 'Thiago Bravin', NULL, '11122233320', '27998880020', 'thiago20@email.com', 5, 'Direito', 'noite', 40, 2, '17:16:00', 580.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (21, 'Amanda Zanotti', 'Mandi', '11122233321', '27998880021', NULL, 3, 'Fisioterapia', 'noite', 41, 3, '17:22:00', 580.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (22, 'Lucas Sossai', 'Luquinhas', '11122233322', '27998880022', 'lucas22@email.com', 1, 'Psicologia', 'noite', 42, 3, '17:24:00', 600.0, 10, 'ativo', 2);
+INSERT INTO estudante VALUES (23, 'Carolina Gama', 'Carol', '11122233323', '27998880023', 'carolina.23@email.com', 6, 'Ciência da Computação', 'noite', 43, 3, '17:26:00', 580.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (24, 'Vinícius Lacerda', 'Vini', '11122233324', '27998880024', NULL, 2, 'Direito', 'manha', 44, 3, '05:52:00', 520.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (25, 'Fernanda Bortolini', 'Nanda', '11122233325', '27998880025', 'fernanda25@email.com', 3, 'Enfermagem', 'noite', 45, 3, '17:20:00', 520.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (26, 'Rodrigo Merçon', NULL, '11122233326', '27998880026', NULL, 4, 'Nutrição', 'noite', 46, 3, '17:26:00', 620.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (27, 'Natália Frisso', 'Nati', '11122233327', '27998880027', 'natalia.27@email.com', 1, 'Odontologia', 'noite', 47, 4, '17:05:00', 580.0, 20, 'ativo', 1);
+INSERT INTO estudante VALUES (28, 'Caio Andrade', NULL, '11122233328', '27998880028', 'caio28@email.com', 8, 'Técnico em Mecânica', 'noite', 48, 4, '17:09:00', 550.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (29, 'Júlia Ferraço', 'Jujuba', '11122233329', '27998880029', 'julia29@email.com', 5, 'Direito', 'noite', 49, 5, '17:10:00', 600.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (30, 'Leonardo Pinheiro', 'Leo', '11122233330', '27998880030', 'leonardo.30@email.com', 3, 'Engenharia Mecânica', 'noite', 50, 5, '17:10:00', 520.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (31, 'Sofia Meneguelli', 'Sofi', '11122233331', '27998880031', NULL, 1, 'Odontologia', 'noite', 51, 6, '17:12:00', 600.0, 15, 'ativo', 1);
+INSERT INTO estudante VALUES (32, 'Daniel Coelho', 'Dani', '11122233332', '27998880032', 'daniel.32@email.com', 2, 'Engenharia de Produção', 'noite', 52, 6, '17:16:00', 520.0, 20, 'ativo', NULL);
+INSERT INTO estudante VALUES (33, 'Isadora Lyrio', 'Isa L.', '11122233333', '27998880033', NULL, 4, 'Nutrição', 'manha', 53, 7, '05:46:00', 520.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (34, 'Bernardo Tristão', NULL, '11122233334', '27998880034', 'bernardo34@email.com', 7, 'Medicina', 'noite', 54, 7, '17:20:00', 550.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (35, 'Yasmin Guerra', 'Yas', '11122233335', '27998880035', 'yasmin.35@email.com', 1, 'Psicologia', 'noite', 55, 8, '17:02:00', 620.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (36, 'Arthur Calmon', NULL, '11122233336', '27998880036', 'arthur36@email.com', 3, 'Fisioterapia', 'noite', 56, 8, '17:00:00', 520.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (37, 'Lívia Dalla Bernardina', 'Livinha', '11122233337', '27998880037', 'livia37@email.com', 2, 'Ciências Contábeis', 'noite', 57, 9, '17:31:00', 550.0, 10, 'ativo', NULL);
+INSERT INTO estudante VALUES (38, 'Enzo Scárdua', NULL, '11122233338', '27998880038', NULL, 6, 'Oceanografia', 'noite', 58, 9, '17:31:00', 520.0, 15, 'ativo', NULL);
+INSERT INTO estudante VALUES (39, 'Manuela Kiefer', 'Manu', '11122233339', '27998880039', 'manuela39@email.com', 1, 'Direito', 'noite', 59, 10, '17:26:00', 580.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (40, 'Samuel Gobbi', 'Samu', '11122233340', '27998880040', 'samuel40@email.com', 8, 'Técnico em Administração', 'noite', 60, 10, '17:24:00', 520.0, 20, 'ativo', NULL);
+INSERT INTO estudante VALUES (41, 'Paula Rezende', NULL, '11122233341', '27998880041', NULL, 5, 'Publicidade', 'noite', 61, NULL, '17:32:00', 580.0, 5, 'ativo', NULL);
 
 -- instituicao
 INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11, NULL, NULL);
@@ -429,18 +453,20 @@ INSERT INTO instituicao VALUES (7, 'Emescam', 17, NULL, NULL);
 INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18, NULL, NULL);
 INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19, NULL, NULL);
 INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20, NULL, NULL);
+INSERT INTO instituicao_parada VALUES (1, 1, 'Biopráticas', -20.351902, -40.296912);
+INSERT INTO instituicao_parada VALUES (2, 1, 'Fundos da UVV', -20.356611, -40.300705);
 
 -- motorista
-INSERT INTO motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', 'Cadu', '20130140155', '27991110001', '10120130194', '2028-03-15', 3200.00, 5, 'ativo');
-INSERT INTO motorista VALUES (2, 2, 2, 'João Pedro Rocha', 'JP', '20230240216', '27991110002', '10220230209', '2027-08-20', 3000.00, 5, 'ativo');
-INSERT INTO motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', 'Marcão', '20330340387', '27991110003', '10320330307', '2029-01-10', 3500.00, 10, 'ativo');
-INSERT INTO motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', NULL, '20430440448', '27991110004', '10420430413', '2027-11-30', 3100.00, 5, 'ativo');
-INSERT INTO motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', 'Fê', '20530540509', '27991110005', '10520530520', '2028-06-05', 3200.00, 5, 'ativo');
-INSERT INTO motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', 'Paulinho', '20630640670', '27991110006', '10620630636', '2027-04-18', 2900.00, 15, 'ativo');
-INSERT INTO motorista VALUES (7, 7, 7, 'Juliana Ferreira', NULL, '20730740730', '27991110007', '10720730742', '2029-09-22', 3000.00, 5, 'ativo');
-INSERT INTO motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', 'Dinho', '20830840800', '27991110008', '10820830859', '2028-12-01', 3400.00, 10, 'ativo');
-INSERT INTO motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', 'Beto', '20930940962', '27991110009', '10920930965', '2027-07-14', 3000.00, 5, 'ativo');
-INSERT INTO motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', NULL, '21031041028', '27991110010', '11021031011', '2026-12-31', 2800.00, 5, 'inativo');
+INSERT INTO motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', 'Cadu', '20130140155', '27991110001', '10120130194', '2028-03-15', 3200.00, 5, 'ativo', 62);
+INSERT INTO motorista VALUES (2, 2, 2, 'João Pedro Rocha', 'JP', '20230240216', '27991110002', '10220230209', '2027-08-20', 3000.00, 5, 'ativo', 63);
+INSERT INTO motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', 'Marcão', '20330340387', '27991110003', '10320330307', '2029-01-10', 3500.00, 10, 'ativo', 64);
+INSERT INTO motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', NULL, '20430440448', '27991110004', '10420430413', '2027-11-30', 3100.00, 5, 'ativo', 65);
+INSERT INTO motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', 'Fê', '20530540509', '27991110005', '10520530520', '2028-06-05', 3200.00, 5, 'ativo', 66);
+INSERT INTO motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', 'Paulinho', '20630640670', '27991110006', '10620630636', '2027-04-18', 2900.00, 15, 'ativo', 67);
+INSERT INTO motorista VALUES (7, 7, 7, 'Juliana Ferreira', NULL, '20730740730', '27991110007', '10720730742', '2029-09-22', 3000.00, 5, 'ativo', 68);
+INSERT INTO motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', 'Dinho', '20830840800', '27991110008', '10820830859', '2028-12-01', 3400.00, 10, 'ativo', 69);
+INSERT INTO motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', 'Beto', '20930940962', '27991110009', '10920930965', '2027-07-14', 3000.00, 5, 'ativo', 70);
+INSERT INTO motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', NULL, '21031041028', '27991110010', '11021031011', '2026-12-31', 2800.00, 5, 'inativo', NULL);
 
 -- rota (motorista + instituição + turno; os passageiros vêm das áreas do motorista)
 INSERT INTO rota VALUES (1, 'Centro e Ipiranga → UVV (noite)', 1, 1, 'noite', '18:00:00', '22:40:00', 'ativo');

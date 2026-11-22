@@ -12,7 +12,11 @@ class RepositorioMotorista:
         self.sessao = sessao
 
     def listar(self, status: StatusCadastro | None = None) -> list[Motorista]:
-        consulta = select(Motorista).options(joinedload(Motorista.veiculo)).order_by(Motorista.nome)
+        consulta = (
+            select(Motorista)
+            .options(joinedload(Motorista.veiculo), joinedload(Motorista.endereco))
+            .order_by(Motorista.nome)
+        )
         if status is not None:
             consulta = consulta.where(Motorista.status == status)
         return list(self.sessao.scalars(consulta))
@@ -20,7 +24,10 @@ class RepositorioMotorista:
     def buscar_por_id(self, id_motorista: int) -> Motorista | None:
         # populate_existing: depois de salvar, o veículo padrão novo precisa vir do banco.
         return self.sessao.get(
-            Motorista, id_motorista, options=[joinedload(Motorista.veiculo)], populate_existing=True
+            Motorista,
+            id_motorista,
+            options=[joinedload(Motorista.veiculo), joinedload(Motorista.endereco)],
+            populate_existing=True,
         )
 
     def buscar_por_cpf(self, cpf: str) -> Motorista | None:

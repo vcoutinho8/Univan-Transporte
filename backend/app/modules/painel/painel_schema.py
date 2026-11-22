@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ViagensDoDia(BaseModel):
@@ -24,3 +24,14 @@ class ResumoPainel(BaseModel):
     rotas_ativas: int
     estudantes_sem_area: int
     viagens_hoje: ViagensDoDia
+
+
+class DiaDaSemana(BaseModel):
+    """Um dia no gráfico da semana: viagens e como foi a chamada."""
+
+    data: date
+    viagens: int = Field(description="Viagens (rotas) não canceladas no dia.")
+    presentes: int
+    ausentes: int
+    nao_vai: int = Field(description="Avisaram que não iam.")
+    pendentes: int = Field(description="Ainda não registrados (viagem não feita ou em andamento).")
