@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Numeric, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import StatusTitulo
 
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from app.modules.estudante.estudante_model import Estudante
 
 
-class TituloReceber(Base):
+class TituloReceber(DaEmpresa, Base):
     """Mensalidade. Uma por estudante por competência (sempre dia 01 do mês)."""
 
     __tablename__ = "titulo_receber"

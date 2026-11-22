@@ -23,6 +23,8 @@ export interface UsuarioDetalhe {
 /** A conta de quem está logado. Do motorista, o CPF e a casa vêm do cadastro dele. */
 export interface MinhaConta extends UsuarioDetalhe {
   endereco: Endereco | null
+  /** Empresa em que o motorista ou o auxiliar trabalha. */
+  nome_empresa?: string | null
 }
 
 /** Novo acesso: o login é o CPF (o do motorista vem do cadastro dele) e a senha começa 123456. */

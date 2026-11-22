@@ -40,7 +40,7 @@ def cliente(fabrica):
     app.dependency_overrides[obter_sessao] = sessao_de_teste
     cliente = TestClient(app)
     # Os testes rodam logados como administrador (acesso a tudo); os de permissão trocam o usuário.
-    entrar(cliente, "admin", "123456")
+    entrar(cliente, "11222333000181", "123456")
     yield cliente
     app.dependency_overrides.clear()
 

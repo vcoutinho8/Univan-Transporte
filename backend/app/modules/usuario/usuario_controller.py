@@ -3,14 +3,14 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
 from app.config.configuracoes import obter_configuracoes
 from app.config.documentacao import erros
-from app.config.erros import AcessoNegado, DadosInvalidos, NaoAutenticado, RecursoNaoEncontrado
+from app.config.erros import AcessoNegado, ConflitoDeDados, DadosInvalidos, NaoAutenticado, RecursoNaoEncontrado
 from app.config.seguranca import Logado, conferir_bloqueio, conferir_senha, criar_token, gerar_hash, limpar_falhas, registrar_falha
 from app.modules.usuario.usuario_model import Usuario
 from app.modules.usuario.senha import INVALIDO, enviar_email_de_senha, ler_link, link_ainda_vale
@@ -18,6 +18,7 @@ from app.modules.usuario.usuario_schema import LoginPedido, LoginResposta, Usuar
 from app.modules.empresa.empresa_model import Empresa
 from app.modules.empresa.univan_controller import atualizar_situacao, aviso_de_assinatura
 from app.shared.enums import PerfilUsuario, StatusEmpresa
+from app.shared.documentos import cnpj_valido, cpf_valido
 from app.shared.texto import normalizar_login
 from app.modules.viagem import viagem_servico
 
@@ -35,6 +36,9 @@ Sessao = Annotated[Session, Depends(obter_sessao)]
 def entrar(dados: LoginPedido, sessao: Sessao):
     conferir_bloqueio(dados.usuario)
     usuario = sessao.scalar(select(Usuario).where(Usuario.login == dados.usuario))
+    # Só o gerente UniVan entra com letras; os demais, com o CPF (ou o CNPJ, o gestor).
+    if usuario is not None and not usuario.login.isdigit() and usuario.perfil != PerfilUsuario.UNIVAN:
+        usuario = None
     # Mesma mensagem para usuário inexistente e senha errada: não revela quais usuários existem.
     if usuario is None or not conferir_senha(dados.senha, usuario.senha_hash):
         registrar_falha(dados.usuario)
@@ -73,6 +77,14 @@ class EsqueciPedido(BaseModel):
 
     usuario: str = Field(min_length=3, max_length=30)
 
+    @field_validator("usuario")
+    @classmethod
+    def validar_documento(cls, valor: str) -> str:
+        login = normalizar_login(valor)
+        if not (cpf_valido(login) or cnpj_valido(login)):
+            raise ValueError("CPF ou CNPJ inválido. Confira os números digitados.")
+        return login
+
 
 class EsqueciResposta(BaseModel):
     canal: Literal["email", "gestor"] = Field(description="email: link enviado ao gestor; gestor: pedido ao gestor do sistema.")
@@ -97,6 +109,8 @@ def esqueci_senha(dados: EsqueciPedido, sessao: Sessao):
     if usuario is None or usuario.status != "ativo":
         raise RecursoNaoEncontrado("Não encontramos esse usuário. Confira o CPF (ou o CNPJ, se for o gestor).")
     if usuario.perfil == PerfilUsuario.ADMIN:
+        if not usuario.email:
+            raise ConflitoDeDados("Este gestor não tem e-mail cadastrado. Fale com a UniVan para voltar à senha padrão.")
         enviar_email_de_senha(usuario)
         return EsqueciResposta(canal="email")
     usuario.pediu_senha_em = viagem_servico.agora()

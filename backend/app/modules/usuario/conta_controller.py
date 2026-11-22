@@ -182,6 +182,8 @@ def _trocar_cpf(sessao: Session, usuario: Usuario, cpf: str | None) -> None:
 
 def _minha_conta(usuario: Usuario) -> MinhaConta:
     conta = MinhaConta.model_validate(usuario)
+    if usuario.perfil in (PerfilUsuario.MOTORISTA, PerfilUsuario.AUXILIAR):
+        conta = conta.model_copy(update={"nome_empresa": usuario.empresa.nome_fantasia or usuario.empresa.razao_social})
     if usuario.motorista is not None:
         # Do motorista, o CPF e a casa vêm do cadastro dele (o CPF ele só vê, não muda).
         endereco = usuario.motorista.endereco

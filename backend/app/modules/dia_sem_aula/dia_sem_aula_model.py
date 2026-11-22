@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresaOuGeral
 from app.shared.base import Base
 
 if TYPE_CHECKING:
     from app.modules.instituicao.instituicao_model import Instituicao
 
 
-class DiaSemAula(Base):
+class DiaSemAula(DaEmpresaOuGeral, Base):
     """Dia sem aula. Sem instituição = vale para todas (feriado nacional).
 
     No banco há UNIQUE NULLS NOT DISTINCT (data, fk_instituicao).

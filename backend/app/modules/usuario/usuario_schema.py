@@ -154,6 +154,7 @@ class MinhaConta(UsuarioDetalhe):
     """A conta de quem está logado. Para o motorista, o CPF e a casa vêm do cadastro dele."""
 
     endereco: EnderecoResposta | None = None
+    nome_empresa: str | None = Field(default=None, description="Empresa de quem trabalha nela (motorista e auxiliar).")
 
 
 class MinhaContaAlteracao(BaseModel):

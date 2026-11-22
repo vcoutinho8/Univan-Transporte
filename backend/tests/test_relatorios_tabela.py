@@ -4,7 +4,7 @@ from tests.test_banco_sqlite import cliente, entrar, fabrica  # noqa: F401  (fix
 
 
 def test_relatorios_em_tabela(cliente):  # noqa: F811
-    entrar(cliente, "auxiliar", "123456")
+    entrar(cliente, "40000000124", "123456")
     periodo = {"inicio": "2026-10-01", "fim": "2026-10-31"}
     viagens = cliente.get("/api/relatorios/viagens-periodo", params=periodo).json()
     assert viagens["linhas"] and {"data", "rota", "presentes"} <= set(viagens["linhas"][0])
@@ -14,5 +14,5 @@ def test_relatorios_em_tabela(cliente):  # noqa: F811
     assert [c["chave"] for c in cnh["colunas"]][:3] == ["motorista", "cnh", "validade"]
     assert "passageiro(s) em atraso" in cliente.get("/api/relatorios/inadimplentes").json()["resumo"]
     assert cliente.get("/api/relatorios/viagens-periodo", params={"inicio": "2026-10-31", "fim": "2026-10-01"}).status_code == 422
-    entrar(cliente, "motorista", "123456")
+    entrar(cliente, "20130140155", "123456")
     assert cliente.get("/api/relatorios/inadimplentes").status_code == 403

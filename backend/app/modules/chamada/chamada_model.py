@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import StatusChamada
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     from app.modules.viagem.viagem_model import Viagem
 
 
-class Chamada(Base):
+class Chamada(DaEmpresa, Base):
     """Um estudante em uma viagem. PK composta: viagem + estudante."""
 
     __tablename__ = "chamada"

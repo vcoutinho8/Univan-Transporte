@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 
+import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
@@ -14,7 +16,7 @@ import CartaoIndicador from '../../shared/components/StatCard.tsx'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { ErroApi, requisitar } from '../../shared/services/api.ts'
 import { cnpjValido, dataIso, formatarCelular, formatarCnpj, formatarData, formatarMoeda, soDigitos } from '../../shared/utils/formatar.ts'
-import { RelatorioInadimplenciaGestores } from '../relatorio/TableReport.tsx'
+import { FaixaEstrada, saudacao } from '../painel/DashboardPage.tsx'
 
 type Situacao = 'ativa' | 'em_negociacao' | 'inativa'
 
@@ -90,14 +92,79 @@ function Erro({ texto }: { texto?: string | null }) {
 /** Painel do gerente: indicadores e o recebido de cada mês dentro do previsto. */
 export default function PainelUnivan() {
   const painel = useRequisicao(() => requisitar<Painel>('/univan/painel'), [])
+  const gestores = useRequisicao(() => requisitar<Gestor[]>('/univan/gestores'), [])
+  const { usuario } = useSessao()
   const d = painel.dados
+  const atencao = (gestores.dados ?? []).filter((g) => g.status !== 'ativa').slice(0, 3)
+  const dataExtenso = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
   return (
     <div>
-      <CabecalhoPagina titulo="Painel do UniVan" descricao="Quem assina o app e como estão os pagamentos da assinatura." />
-      {painel.erro && <Alerta mensagem={painel.erro} />}
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <FaixaEstrada>
+        <div>
+          <p className="flex flex-wrap items-center gap-2 text-xs font-bold tracking-widest text-white/60 uppercase">
+            {dataExtenso}
+            <span className="rounded-full bg-white/10 px-2 py-0.5 tracking-normal normal-case">Gerente UniVan</span>
+          </p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            {saudacao()}, {usuario?.nome.split(' ')[0]}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-white/75">
+            {d
+              ? `${d.gestores_ativos} empresa(s) em dia, ${d.em_negociacao} em negociação e ${d.inativos} inativa(s). Neste mês entraram ${reais(d.recebido_mes)} de ${reais(d.previsto_mes)} previstos.`
+              : 'Carregando o resumo das assinaturas...'}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/univan/gestores"
+              className="inline-flex items-center gap-2 rounded-xl bg-laranja px-4 py-2.5 text-sm font-bold shadow-lg shadow-laranja/30 transition-all hover:-translate-y-0.5 hover:bg-laranja-claro"
+            >
+              <Icone nome="empresa" className="h-4 w-4" />
+              Gestores
+            </Link>
+            <Link
+              to="/univan/pagamentos"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-bold ring-1 ring-white/20 backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white/20"
+            >
+              <Icone nome="dinheiro" className="h-4 w-4" />
+              Pagamentos do mês
+            </Link>
+          </div>
+        </div>
+        <div className="self-start rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur-md">
+          <p className="flex items-center gap-2 text-xs font-bold tracking-widest text-white/70 uppercase">
+            <span className={`h-2 w-2 animate-brilho rounded-full ${atencao.length ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+            Precisam de atenção
+          </p>
+          <ul className="mt-3 space-y-2">
+            {gestores.dados === null && [1, 2].map((n) => <li key={n} className="h-12 animate-brilho rounded-xl bg-white/10" />)}
+            {gestores.dados && atencao.length === 0 && <li className="rounded-xl bg-white/5 p-3 text-sm text-white/70">Todas as empresas estão em dia. 🎉</li>}
+            {atencao.map((g) => (
+              <li key={g.id}>
+                <Link to="/univan/gestores" className="group flex items-center gap-3 rounded-xl bg-white/5 p-2.5 transition-colors hover:bg-white/15">
+                  <span className={`rounded-lg px-2 py-1 text-xs font-extrabold ${g.status === 'inativa' ? 'bg-red-500 text-white' : 'bg-amber-400 text-marinho'}`}>
+                    {g.status === 'inativa' ? 'Inativa' : `${g.dias_para_inativar}d`}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold">{g.nome_fantasia ?? g.razao_social}</span>
+                    <span className="block truncate text-xs text-white/65">
+                      {g.status === 'inativa' ? (g.motivo_inativacao ?? 'Sem acesso') : `Em atraso desde ${formatarData(g.em_atraso_desde)}`}
+                    </span>
+                  </span>
+                  <Icone nome="seta" className="h-4 w-4 text-white/50 transition-transform group-hover:translate-x-1 group-hover:text-white" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </FaixaEstrada>
+      {painel.erro && (
+        <div className="mt-6">
+          <Alerta mensagem={painel.erro} />
+        </div>
+      )}
+      <div className="mt-6 mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
         <CartaoIndicador rotulo="Gestores ativos" valor={d?.gestores_ativos} icone="empresa" tom="verde" para="/univan/gestores" detalhe="Ver gestores" />
-        <CartaoIndicador rotulo="Em negociação" valor={d?.em_negociacao} icone="relogio" tom="ambar" atraso={60} para="/univan/inadimplencia" detalhe="Ver inadimplência" />
+        <CartaoIndicador rotulo="Em negociação" valor={d?.em_negociacao} icone="relogio" tom="ambar" atraso={60} para="/univan/gestores" detalhe="Ver gestores" />
         <CartaoIndicador rotulo="Inativos" valor={d?.inativos} icone="cadeado" tom="vermelho" atraso={120} />
         <CartaoIndicador
           rotulo="Recebido no mês"
@@ -292,7 +359,21 @@ export function GestoresUnivan() {
                       {g.status === 'inativa' && g.motivo_inativacao && <p className="mt-1 text-xs font-semibold text-red-600">{g.motivo_inativacao}</p>}
                     </td>
                     <td className={td}>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        {g.gestor && (
+                          <Botao
+                            variante="fantasma"
+                            className="px-3 py-1.5 whitespace-nowrap"
+                            title="Volta a senha do gestor para 123456"
+                            onClick={async () => {
+                              const nome = g.nome_fantasia ?? g.razao_social
+                              const sim = await confirmacao.confirmar({ titulo: `Resetar a senha de ${nome}?`, descricao: `O gestor entra com o CNPJ e a senha 123456 e cria uma nova.`, botao: 'Resetar senha' })
+                              if (sim) void executar(() => requisitar(`/univan/gestores/${g.id}/resetar-senha`, { metodo: 'POST' }), `${nome}: senha de volta para 123456.`)
+                            }}
+                          >
+                            Resetar senha
+                          </Botao>
+                        )}
                         {g.status === 'inativa' ? (
                           <Botao
                             variante="secundario"
@@ -588,17 +669,6 @@ export function PagamentosUnivan() {
           </table>
         </div>
       </Cartao>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------- inadimplência
-
-export function InadimplenciaUnivan() {
-  return (
-    <div>
-      <CabecalhoPagina titulo="Inadimplência" descricao="Gestores com a assinatura em atraso e quantos dias faltam para a inativação automática." />
-      <RelatorioInadimplenciaGestores />
     </div>
   )
 }

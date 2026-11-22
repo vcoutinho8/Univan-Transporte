@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# PASSO 1 de 3 · Cria o banco SQLite com os dados de exemplo (5 registros na maioria das
-# tabelas; todos os bairros, e os passageiros e rotas das 5 primeiras instituições).
+# PASSO 1 de 3 · Cria o banco SQLite com os dados de demonstração: 2 empresas (Guarapari Vans e
+# Rota Certa), cada uma com gestor, 2 auxiliares, 2 motoristas, passageiros, viagens e financeiro,
+# e o gerente do app (login "univan"). Senha de todos: 123456.
 #
 # Uso, na raiz do projeto (Git Bash, Linux ou macOS):
 #   bash scripts/1-banco.sh          pergunta antes de apagar um banco que já existe
@@ -61,71 +62,11 @@ conexao = sqlite3.connect(temporario)
 try:
     conexao.executescript(pathlib.Path("docs/univan-sqlite.sql").read_text(encoding="utf-8"))
 
-    # Fica com os registros 1 a 5 de cada tabela. Nos dados de teste eles só apontam
-    # uns para os outros, então nenhuma chave estrangeira fica quebrada. Exceções, para o
-    # mapa não ficar vazio: ficam todos os bairros (já divididos entre os 5 primeiros
-    # motoristas) e todos os passageiros e rotas das 5 instituições que sobram.
-    conexao.executescript("""
-    DELETE FROM chamada        WHERE fk_viagem > 5;
-    DELETE FROM viagem         WHERE id > 5;
-    DELETE FROM rota           WHERE fk_instituicao > 5 OR fk_motorista > 5;
-    DELETE FROM rota_dia       WHERE fk_rota NOT IN (SELECT id FROM rota);
-    DELETE FROM titulo_receber WHERE id > 5;
-    DELETE FROM titulo_pagar   WHERE id > 5;
-    DELETE FROM dia_sem_aula   WHERE id > 5;
-    DELETE FROM estudante      WHERE fk_instituicao > 5;
-    DELETE FROM motorista      WHERE id > 5;
-    DELETE FROM veiculo        WHERE id > 5;
-    DELETE FROM instituicao    WHERE id > 5;
-    DELETE FROM assinatura_pagamento WHERE fk_empresa > 5;
-    DELETE FROM empresa        WHERE id > 5;
-    -- endereços: só os usados pelas empresas, instituições, estudantes e motoristas que ficaram
-    DELETE FROM endereco WHERE id NOT IN (
-        SELECT fk_endereco FROM empresa WHERE fk_endereco IS NOT NULL
-        UNION SELECT fk_endereco FROM instituicao
-        UNION SELECT fk_endereco FROM estudante
-        UNION SELECT fk_endereco FROM motorista WHERE fk_endereco IS NOT NULL);
-    -- Teste do mapa do motorista (logins "motorista" e "joao"): todas as rotas deles rodam
-    -- também sábado e domingo, para sempre haver viagem "hoje"...
-    INSERT OR IGNORE INTO rota_dia SELECT r.id, d.dia FROM rota r, (SELECT 6 AS dia UNION SELECT 7) d
-        WHERE r.fk_motorista IN (1, 2);
-    -- ...e a manhã ganha passageiros: os da noite deles também vão de manhã (UVV para o
-    -- motorista 1, Novo Milênio para o 2), com CPF próprio.
-    INSERT INTO estudante (nome, apelido, cpf, celular, fk_instituicao, curso, turno, fk_endereco, fk_area,
-                           horario_embarque, valor_mensal, dia_vencimento, status)
-    SELECT e.nome, e.apelido, printf('%011d', 90000000000 + e.id), e.celular,
-           CASE a.fk_motorista WHEN 1 THEN 1 ELSE 4 END, e.curso, 'manha', e.fk_endereco, e.fk_area,
-           '06:00:00', e.valor_mensal, e.dia_vencimento, 'ativo'
-    FROM estudante e JOIN area a ON a.id = e.fk_area
-    WHERE a.fk_motorista IN (1, 2) AND e.turno = 'noite' AND e.status = 'ativo';
-""")
-
-    # Dados coerentes com as regras do sistema: CPF válido e único, celular único e tudo numa
-    # empresa só (os veículos aparecem para todos os motoristas; o login é por CPF).
-    def cpf_com_digitos(base9: str) -> str:
-        numeros = [int(d) for d in base9]
-        for tamanho in (9, 10):
-            soma = sum(n * (tamanho + 1 - i) for i, n in enumerate(numeros[:tamanho]))
-            numeros.append((soma * 10 % 11) % 10)
-        return "".join(map(str, numeros))
-
-    for (id_estudante,) in conexao.execute("SELECT id FROM estudante ORDER BY id").fetchall():
-        conexao.execute(
-            "UPDATE estudante SET cpf = ?, celular = ? WHERE id = ?",
-            (cpf_com_digitos(f"{300000000 + id_estudante * 7:09d}"), f"2799{id_estudante:07d}", id_estudante),
-        )
-    for (id_motorista,) in conexao.execute("SELECT id FROM motorista ORDER BY id").fetchall():
-        conexao.execute("UPDATE motorista SET cpf = ? WHERE id = ?", (cpf_com_digitos(f"{200000000 + id_motorista * 13:09d}"), id_motorista))
-    conexao.executescript("""
-        UPDATE motorista SET fk_empresa = 1;
-        UPDATE veiculo   SET fk_empresa = 1;
-        UPDATE usuario   SET fk_empresa = 1;
-        -- Acesso: o gestor entra com o CNPJ da empresa; o motorista com o CPF do cadastro dele.
-        UPDATE usuario SET login = (SELECT cnpj FROM empresa WHERE id = 1), cpf = NULL WHERE perfil = 'admin';
-        UPDATE usuario SET login = (SELECT cpf FROM motorista m WHERE m.id = usuario.fk_motorista), cpf = NULL WHERE perfil = 'motorista';
-    """)
-    cpf_auxiliar = cpf_com_digitos("400000001")
-    conexao.execute("UPDATE usuario SET login = ?, cpf = ? WHERE perfil = 'auxiliar'", (cpf_auxiliar, cpf_auxiliar))
+    # Dados de demonstração: 2 empresas separadas (tenant), com gestores, auxiliares, motoristas,
+    # passageiros, viagens, financeiro e assinatura. Detalhes em scripts/dados_demo.py.
+    sys.path.insert(0, "scripts")
+    from dados_demo import popular
+    popular(conexao)
     for perfil, login, nome in conexao.execute("SELECT perfil, login, nome FROM usuario ORDER BY id").fetchall():
         print(f"  login {perfil:<9} {login:<15} {nome}")
 

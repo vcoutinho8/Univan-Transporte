@@ -26,20 +26,32 @@ def _sair(cliente):  # noqa: F811
 # ---------------------------------------------------------------- login
 
 
-def test_login_com_usuario_e_senha(cliente):  # noqa: F811
+def test_login_com_cnpj_mascarado_e_nome_da_empresa(cliente):  # noqa: F811
     _sair(cliente)
-    resposta = cliente.post("/api/auth/login", json={"usuario": "  ADMIN ", "senha": "123456"})
+    resposta = cliente.post("/api/auth/login", json={"usuario": " 11.222.333/0001-81 ", "senha": "123456"})
     assert resposta.status_code == 200, resposta.text
     corpo = resposta.json()
-    assert corpo["usuario"]["login"] == "admin" and corpo["usuario"]["perfil"] == "admin"
+    assert corpo["usuario"]["login"] == "11222333000181" and corpo["usuario"]["perfil"] == "admin"
     assert corpo["token"].count(".") == 1 and corpo["expira_em_minutos"] > 0
     cliente.headers["Authorization"] = f"Bearer {corpo['token']}"
-    assert cliente.get("/api/auth/eu").json()["nome"] == "Administrador"
+    assert cliente.get("/api/auth/eu").json()["nome"] == "Guarapari Vans"
+    assert cliente.post("/api/auth/login", json={"usuario": "201.301.401-55", "senha": "123456"}).status_code == 200  # CPF com máscara
+
+
+def test_com_letras_so_entra_o_univan(cliente, fabrica):  # noqa: F811
+    from sqlalchemy import text
+
+    with fabrica() as sessao:
+        sessao.execute(text("UPDATE usuario SET login = 'paula' WHERE id = 2"))
+        sessao.commit()
+    _sair(cliente)
+    assert cliente.post("/api/auth/login", json={"usuario": "paula", "senha": "123456"}).status_code == 401
+    assert cliente.post("/api/auth/login", json={"usuario": "UNIVAN", "senha": "123456"}).status_code == 200
 
 
 def test_login_errado_nao_revela_o_que_errou(cliente):  # noqa: F811
     _sair(cliente)
-    senha_errada = cliente.post("/api/auth/login", json={"usuario": "admin", "senha": "errada"})
+    senha_errada = cliente.post("/api/auth/login", json={"usuario": "11222333000181", "senha": "errada"})
     usuario_errado = cliente.post("/api/auth/login", json={"usuario": "ninguem", "senha": "123456"})
     assert senha_errada.status_code == usuario_errado.status_code == 401
     assert senha_errada.json()["mensagem"] == usuario_errado.json()["mensagem"] == "Usuário ou senha incorretos."
@@ -56,22 +68,22 @@ def test_validacoes_do_formulario(cliente):  # noqa: F811
 def test_bloqueia_depois_de_cinco_tentativas(cliente):  # noqa: F811
     _sair(cliente)
     for _ in range(5):
-        assert cliente.post("/api/auth/login", json={"usuario": "auxiliar", "senha": "x"}).status_code == 401
-    bloqueado = cliente.post("/api/auth/login", json={"usuario": "auxiliar", "senha": "123456"})
+        assert cliente.post("/api/auth/login", json={"usuario": "40000000124", "senha": "x"}).status_code == 401
+    bloqueado = cliente.post("/api/auth/login", json={"usuario": "40000000124", "senha": "123456"})
     assert bloqueado.status_code == 429
     assert "Muitas tentativas" in bloqueado.json()["mensagem"]
     # Outro usuário continua entrando normalmente.
-    assert cliente.post("/api/auth/login", json={"usuario": "admin", "senha": "123456"}).status_code == 200
+    assert cliente.post("/api/auth/login", json={"usuario": "11222333000181", "senha": "123456"}).status_code == 200
 
 
 def test_usuario_inativo_nao_entra(cliente, fabrica):  # noqa: F811
     from sqlalchemy import text
 
     with fabrica() as sessao:
-        sessao.execute(text("UPDATE usuario SET status = 'inativo' WHERE login = 'auxiliar'"))
+        sessao.execute(text("UPDATE usuario SET status = 'inativo' WHERE perfil = 'auxiliar'"))
         sessao.commit()
     _sair(cliente)
-    resposta = cliente.post("/api/auth/login", json={"usuario": "auxiliar", "senha": "123456"})
+    resposta = cliente.post("/api/auth/login", json={"usuario": "40000000124", "senha": "123456"})
     assert resposta.status_code == 403 and "inativo" in resposta.json()["mensagem"]
 
 
@@ -79,7 +91,7 @@ def test_sem_login_ou_token_adulterado(cliente):  # noqa: F811
     _sair(cliente)
     assert cliente.get("/api/estudantes").status_code == 401
     assert cliente.get("/api/saude").status_code == 200  # público
-    token = cliente.post("/api/auth/login", json={"usuario": "auxiliar", "senha": "123456"}).json()["token"]
+    token = cliente.post("/api/auth/login", json={"usuario": "40000000124", "senha": "123456"}).json()["token"]
     dados, assinatura = token.split(".")
     adulterado = seguranca._b64(seguranca._desb64(dados).replace(b'"auxiliar"', b'"admin"')) + "." + assinatura
     resposta = cliente.get("/api/estudantes", headers={"Authorization": f"Bearer {adulterado}"})
@@ -103,7 +115,7 @@ def test_senha_com_hash_e_sal():
 
 
 def test_auxiliar_cadastra_mas_nao_edita_nem_inativa(cliente):  # noqa: F811
-    entrar(cliente, "auxiliar", "123456")
+    entrar(cliente, "40000000124", "123456")
     assert cliente.get("/api/estudantes").status_code == 200
     assert cliente.get("/api/painel/resumo").status_code == 200
     assert cliente.get("/api/relatorios/estudantes-ativos", params={"data_inicio": "2026-11-01", "data_fim": "2026-11-30"}).status_code == 200
@@ -118,7 +130,7 @@ def test_auxiliar_cadastra_mas_nao_edita_nem_inativa(cliente):  # noqa: F811
 
 
 def test_auxiliar_so_visualiza_viagens(cliente):  # noqa: F811
-    entrar(cliente, "auxiliar", "123456")
+    entrar(cliente, "40000000124", "123456")
     assert cliente.get("/api/viagens", params={"data": SEGUNDA}).status_code == 200
     assert cliente.post("/api/viagens/gerar", json={"data": SEGUNDA}).status_code == 403
     assert cliente.post("/api/viagens/1/iniciar").status_code == 403
@@ -132,7 +144,7 @@ def test_auxiliar_so_visualiza_viagens(cliente):  # noqa: F811
 
 def test_motorista_so_ve_e_opera_as_proprias_viagens(cliente):  # noqa: F811
     cliente.post("/api/viagens/gerar", json={"data": SEGUNDA})  # como admin
-    entrar(cliente, "motorista", "123456")  # Carlos (motorista 1)
+    entrar(cliente, "20130140155", "123456")  # Carlos (motorista 1)
     assert cliente.get("/api/estudantes").status_code == 403
     assert cliente.get("/api/painel/resumo").status_code == 403
 
@@ -142,9 +154,9 @@ def test_motorista_so_ve_e_opera_as_proprias_viagens(cliente):  # noqa: F811
     # Mesmo pedindo as de outro motorista, só vêm as dele.
     assert {v["motorista"]["id"] for v in cliente.get("/api/viagens", params={"data": SEGUNDA, "fk_motorista": 2}).json()} == {1}
 
-    entrar(cliente, "admin", "123456")
+    entrar(cliente, "11222333000181", "123456")
     do_joao = cliente.get("/api/viagens", params={"data": SEGUNDA, "fk_motorista": 2}).json()[0]
-    entrar(cliente, "motorista", "123456")
+    entrar(cliente, "20130140155", "123456")
     assert cliente.get(f"/api/viagens/{do_joao['id']}").status_code == 403
     assert cliente.post(f"/api/viagens/{do_joao['id']}/iniciar").status_code == 403
     chave_joao = {"data": SEGUNDA, "fk_motorista": 2, "turno": do_joao["rota"]["turno"], "sentido": do_joao["sentido"]}
@@ -162,7 +174,7 @@ def test_motorista_ve_so_as_proprias_chamadas(cliente):  # noqa: F811
     todas = cliente.get("/api/chamadas", params={"data": SEGUNDA}).json()["passageiros"]
     de_outro = next(p for p in todas if p["motorista"]["id"] != 1)
 
-    entrar(cliente, "motorista", "123456")
+    entrar(cliente, "20130140155", "123456")
     minhas = cliente.get("/api/chamadas", params={"data": SEGUNDA}).json()
     assert minhas["passageiros"] and {p["motorista"]["id"] for p in minhas["passageiros"]} == {1}
     assert minhas["resumo"]["passageiros"] == len(minhas["passageiros"])
@@ -181,4 +193,4 @@ def test_banco_antigo_ganha_a_tabela_de_usuarios(tmp_path):
         conexao.execute("CREATE TABLE motorista (id INTEGER PRIMARY KEY, apelido TEXT)")
     preparar_banco(f"sqlite:///{arquivo}")
     with sqlite3.connect(arquivo) as conexao:
-        assert [l[0] for l in conexao.execute("SELECT login FROM usuario ORDER BY id")] == ["admin", "auxiliar", "motorista", "joao", "univan"]
+        assert [l[0] for l in conexao.execute("SELECT login FROM usuario ORDER BY id LIMIT 5")] == ["11222333000181", "40000000124", "20130140155", "20230240216", "univan"]

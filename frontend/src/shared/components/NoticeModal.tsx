@@ -91,7 +91,16 @@ interface PedidoConfirmacao {
   /** Ação que apaga ou desliga algo: botão vermelho. */
   perigo?: boolean
   /** Pede um texto antes de confirmar (ex.: o nome de uma parada nova). */
-  campo?: { rotulo: string; placeholder?: string }
+  campo?: Campo
+}
+
+interface Campo {
+  rotulo: string
+  placeholder?: string
+  /** Máscara aplicada enquanto digita (ex.: CPF/CNPJ). */
+  mascara?: (texto: string) => string
+  /** Mensagem de erro, ou undefined se o texto estiver certo: com erro, o botão não confirma. */
+  validar?: (texto: string) => string | undefined
 }
 
 /**
@@ -118,6 +127,9 @@ export function useConfirmacao() {
     [],
   )
 
+  const erro = pedido?.campo?.validar && texto.trim() ? pedido.campo.validar(texto.trim()) : undefined
+  const podeConfirmar = !pedido?.campo || (Boolean(texto.trim()) && !erro)
+
   const modal = pedido ? (
     <Modal
       titulo={pedido.titulo}
@@ -132,7 +144,7 @@ export function useConfirmacao() {
           </Botao>
           <Botao
             variante={pedido.perigo ? 'perigo' : 'primario'}
-            disabled={Boolean(pedido.campo) && !texto.trim()}
+            disabled={!podeConfirmar}
             onClick={() => pedido.responder(pedido.campo ? texto.trim() : 'ok')}
           >
             {pedido.botao ?? 'Confirmar'}
@@ -146,11 +158,13 @@ export function useConfirmacao() {
           <input
             autoFocus
             value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && texto.trim() && pedido.responder(texto.trim())}
+            onChange={(e) => setTexto(pedido.campo?.mascara ? pedido.campo.mascara(e.target.value) : e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && pedido.responder(texto.trim())}
             placeholder={pedido.campo.placeholder}
-            className="campo"
+            aria-invalid={Boolean(erro)}
+            className={`campo ${erro ? 'border-red-300 ring-2 ring-red-100' : ''}`}
           />
+          {erro && <span className="mt-1 block text-xs font-semibold text-red-600">{erro}</span>}
         </label>
       )}
     </Modal>
@@ -160,7 +174,7 @@ export function useConfirmacao() {
     /** true se a pessoa confirmou. */
     confirmar: async (opcoes: PedidoConfirmacao) => (await perguntar(opcoes)) !== null,
     /** O texto digitado, ou null se cancelou. */
-    pedirTexto: (opcoes: PedidoConfirmacao & { campo: { rotulo: string; placeholder?: string } }) => perguntar(opcoes),
+    pedirTexto: (opcoes: PedidoConfirmacao & { campo: Campo }) => perguntar(opcoes),
     modal,
   }
 }

@@ -44,6 +44,8 @@ export interface Gasto extends Titulo {
   veiculo_placa: string | null
   data_pagamento: string | null
   valor_pago: string | null
+  /** Salário de motorista inativo: não pode ser pago. */
+  bloqueado?: boolean
 }
 
 export interface ResumoMes {

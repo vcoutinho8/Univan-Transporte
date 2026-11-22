@@ -18,7 +18,7 @@ from app.config.seguranca import ADMIN_OU_AUXILIAR, Logado
 from app.modules.financeiro.titulo_pagar_model import TituloPagar
 from app.modules.financeiro.titulo_receber_model import TituloReceber
 from app.modules.viagem import viagem_servico
-from app.shared.enums import CategoriaTituloPagar, StatusTitulo
+from app.shared.enums import CategoriaTituloPagar, StatusCadastro, StatusTitulo
 
 roteador = APIRouter(prefix="/financeiro", tags=["Financeiro"], dependencies=[ADMIN_OU_AUXILIAR])
 
@@ -64,6 +64,7 @@ class DespesaResposta(Titulo):
     veiculo_placa: str | None = None
     data_pagamento: date | None
     valor_pago: Decimal | None
+    bloqueado: bool = Field(default=False, description="Salário de motorista inativo: não pode ser pago.")
 
 
 class Baixa(BaseModel):
@@ -143,8 +144,12 @@ def _mensalidade(t: TituloReceber) -> MensalidadeResposta:
     return _com_vencido(t, MensalidadeResposta.model_validate(t))
 
 
+def _bloqueado(t: TituloPagar) -> bool:
+    return t.categoria == CategoriaTituloPagar.SALARIO and t.status == StatusTitulo.ABERTO and t.motorista is not None and t.motorista.status == StatusCadastro.INATIVO
+
+
 def _despesa(t: TituloPagar) -> DespesaResposta:
-    resposta = DespesaResposta.model_validate(t).model_copy(update={"veiculo_placa": t.veiculo.placa if t.veiculo else None})
+    resposta = DespesaResposta.model_validate(t).model_copy(update={"veiculo_placa": t.veiculo.placa if t.veiculo else None, "bloqueado": _bloqueado(t)})
     return _com_vencido(t, resposta)
 
 
@@ -216,6 +221,8 @@ def pagar(id_titulo: int, dados: Baixa, sessao: Sessao):
     titulo = _buscar(sessao, TituloPagar, id_titulo)
     if titulo.status != StatusTitulo.ABERTO:
         raise ConflitoDeDados("Este gasto não está em aberto.")
+    if _bloqueado(titulo):
+        raise ConflitoDeDados(f"Salário bloqueado: {titulo.motorista.nome} está inativo. Reative o motorista para pagar.")
     titulo.status = StatusTitulo.PAGO
     titulo.valor_pago = dados.valor if dados.valor is not None else titulo.valor
     titulo.data_pagamento = dados.data or viagem_servico.agora().date()

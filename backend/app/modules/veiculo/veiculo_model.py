@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import StatusCadastro
 
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
     from app.modules.empresa.empresa_model import Empresa
 
 
-class Veiculo(Base):
+class Veiculo(DaEmpresa, Base):
     """Veículo da frota. Veículo vendido ou parado fica inativo, sem perder o histórico."""
 
     __tablename__ = "veiculo"

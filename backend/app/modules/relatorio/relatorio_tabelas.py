@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.shared.empresa import CHAVE as CHAVE_EMPRESA
 from app.config.banco import obter_sessao
 from app.config.erros import DadosInvalidos
 from app.config.seguranca import ADMIN_OU_AUXILIAR
@@ -40,6 +41,8 @@ def _periodo(inicio: date, fim: date) -> None:
 
 
 def _linhas(sessao: Session, sql: str, parametros: dict) -> list[dict]:
+    """SQL direto não passa pelo filtro do ORM: cada consulta usa :empresa (a de quem está logado)."""
+    parametros = {**parametros, "empresa": sessao.info.get(CHAVE_EMPRESA)}
     return [dict(linha) for linha in sessao.execute(text(sql), parametros).mappings()]
 
 
@@ -57,7 +60,7 @@ def viagens_por_periodo(sessao: Sessao, inicio: date = Query(), fim: date = Quer
         JOIN rota r ON r.id = v.fk_rota
         JOIN motorista m ON m.id = v.fk_motorista
         LEFT JOIN chamada ch ON ch.fk_viagem = v.id
-        WHERE v.data BETWEEN :inicio AND :fim
+        WHERE v.data BETWEEN :inicio AND :fim AND v.fk_empresa = :empresa
         GROUP BY v.id, v.data, r.nome, m.nome, v.sentido, v.status
         ORDER BY v.data, v.sentido, m.nome
         """,
@@ -94,7 +97,7 @@ def frequencia_por_passageiro(sessao: Sessao, inicio: date = Query(), fim: date 
         JOIN viagem v ON v.id = ch.fk_viagem
         JOIN estudante e ON e.id = ch.fk_estudante
         JOIN instituicao i ON i.id = e.fk_instituicao
-        WHERE v.data BETWEEN :inicio AND :fim AND v.status <> 'cancelada'
+        WHERE v.data BETWEEN :inicio AND :fim AND v.status <> 'cancelada' AND v.fk_empresa = :empresa
         GROUP BY e.id, e.nome, i.nome
         ORDER BY e.nome
         """,
@@ -122,7 +125,7 @@ def cnh_vencendo(sessao: Sessao, dias: int = Query(default=60, ge=0, le=365)):
     hoje = viagem_servico.agora().date()
     linhas = _linhas(
         sessao,
-        "SELECT nome AS motorista, cnh, cnh_validade AS validade, status FROM motorista WHERE cnh_validade <= :limite ORDER BY cnh_validade",
+        "SELECT nome AS motorista, cnh, cnh_validade AS validade, status FROM motorista WHERE cnh_validade <= :limite AND fk_empresa = :empresa ORDER BY cnh_validade",
         {"limite": hoje + timedelta(days=dias)},
     )
     for l in linhas:
@@ -151,7 +154,7 @@ def inadimplentes(sessao: Sessao):
         SELECT e.nome AS passageiro, e.celular, COUNT(*) AS mensalidades, SUM(t.valor) AS total, MIN(t.data_vencimento) AS desde
         FROM titulo_receber t
         JOIN estudante e ON e.id = t.fk_estudante
-        WHERE t.status = 'aberto' AND t.data_vencimento < :hoje
+        WHERE t.status = 'aberto' AND t.data_vencimento < :hoje AND t.fk_empresa = :empresa
         GROUP BY e.id, e.nome, e.celular
         ORDER BY total DESC
         """,

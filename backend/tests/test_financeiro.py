@@ -16,7 +16,7 @@ def hoje_dia_20(monkeypatch):
 
 
 def test_mes_atual_gera_sozinho_e_futuro_nao(cliente):  # noqa: F811
-    entrar(cliente, "auxiliar", "123456")
+    entrar(cliente, "40000000124", "123456")
     assert cliente.get("/api/financeiro/receber", params={"competencia": "2026-12-01"}).json() == []  # futuro: nada
     mensalidades = cliente.get("/api/financeiro/receber", params={"competencia": "2026-11-15"}).json()
     assert len(mensalidades) == len(cliente.get("/api/financeiro/receber", params={"competencia": MES}).json())  # não duplica
@@ -31,7 +31,7 @@ def test_mes_atual_gera_sozinho_e_futuro_nao(cliente):  # noqa: F811
 
 
 def test_lanca_paga_e_resume_gastos(cliente):  # noqa: F811
-    entrar(cliente, "admin", "123456")
+    entrar(cliente, "11222333000181", "123456")
     nova = {"categoria": "manutencao", "descricao": " Troca  de pneus ", "valor": "1200.00", "data_vencimento": "2026-11-25", "fk_veiculo": 1}
     gasto = cliente.post("/api/financeiro/pagar", json=nova)
     assert gasto.status_code == 201, gasto.text
@@ -46,5 +46,14 @@ def test_lanca_paga_e_resume_gastos(cliente):  # noqa: F811
 
 
 def test_motorista_nao_ve_financas(cliente):  # noqa: F811
-    entrar(cliente, "motorista", "123456")
+    entrar(cliente, "20130140155", "123456")
     assert cliente.get("/api/financeiro/resumo", params={"competencia": MES}).status_code == 403
+
+
+def test_salario_de_motorista_inativo_fica_bloqueado(cliente):  # noqa: F811
+    entrar(cliente, "11222333000181", "123456")
+    salario = next(g for g in cliente.get("/api/financeiro/pagar", params={"competencia": MES}).json() if g["categoria"] == "salario" and g["status"] == "aberto")
+    assert cliente.delete(f"/api/motoristas/{salario['motorista']['id']}").status_code == 200
+    bloqueado = next(g for g in cliente.get("/api/financeiro/pagar", params={"competencia": MES}).json() if g["id"] == salario["id"])
+    assert bloqueado["bloqueado"] is True
+    assert cliente.post(f"/api/financeiro/pagar/{salario['id']}/baixa", json={}).status_code == 409

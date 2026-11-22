@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ROTULOS_PERFIL } from '../../shared/auth/permissoes.ts'
@@ -21,7 +21,7 @@ import { agruparJornadas, ORDEM_TURNOS } from '../viagem/tripGrouping.ts'
 import { servicoViagem } from '../viagem/tripService.ts'
 import type { StatusViagem } from '../viagem/types.ts'
 
-function saudacao(hora = new Date().getHours()) {
+export function saudacao(hora = new Date().getHours()) {
   if (hora < 12) return 'Bom dia'
   if (hora < 18) return 'Boa tarde'
   return 'Boa noite'
@@ -310,12 +310,26 @@ const FUNDOS: Record<Periodo, string> = {
   noite: 'bg-[linear-gradient(135deg,#0b2233_0%,#102D40_55%,#1B3C59_100%)]',
 }
 
+/** Faixa colorida pela hora do dia, com o céu e a van na estrada (painel do gestor e do UniVan). */
+export function FaixaEstrada({ children }: { children: ReactNode }) {
+  const periodo = periodoDoDia(new Date().getHours())
+  return (
+    <section className={`relative animate-surgir overflow-hidden rounded-3xl ${FUNDOS[periodo]} text-white shadow-lg shadow-marinho/20`}>
+      <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:18px_18px]" />
+      <Ceu periodo={periodo} />
+      <div className="absolute -top-24 -left-10 h-72 w-72 animate-flutuar rounded-full bg-laranja/25 blur-3xl" />
+      <div className="relative grid grid-cols-1 gap-6 px-6 pt-6 pb-36 sm:px-8 lg:grid-cols-[1fr_360px] lg:pb-28">{children}</div>
+      <CenaEstrada periodo={periodo} />
+    </section>
+  )
+}
+
 /** Faixa de boas-vindas: resumo do dia, próximas saídas e a van na estrada. */
 function BoasVindas({ rotas }: { rotas: Rota[] | null }) {
   const { usuario } = useSessao()
-  const primeiroNome = usuario?.nome.split(' ')[0] ?? ''
+  // O gestor tem o nome da empresa ("Rota Certa"): vai inteiro; as pessoas, só o primeiro nome.
+  const primeiroNome = (usuario?.perfil === 'admin' ? usuario.nome : usuario?.nome.split(' ')[0]) ?? ''
   const agora = new Date()
-  const periodo = periodoDoDia(agora.getHours())
   const horaAgora = agora.toTimeString().slice(0, 5)
   const saidas = rotas ? saidasDeHoje(rotas, agora) : []
   const restantesHoje = saidas.filter((s) => s.horario >= horaAgora)
@@ -329,12 +343,7 @@ function BoasVindas({ rotas }: { rotas: Rota[] | null }) {
   const dataExtenso = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(agora)
 
   return (
-    <section className={`relative animate-surgir overflow-hidden rounded-3xl ${FUNDOS[periodo]} text-white shadow-lg shadow-marinho/20`}>
-      <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:18px_18px]" />
-      <Ceu periodo={periodo} />
-      <div className="absolute -top-24 -left-10 h-72 w-72 animate-flutuar rounded-full bg-laranja/25 blur-3xl" />
-
-      <div className="relative grid grid-cols-1 gap-6 px-6 pt-6 pb-36 sm:px-8 lg:grid-cols-[1fr_360px] lg:pb-28">
+    <FaixaEstrada>
         <div>
           <p className="flex flex-wrap items-center gap-2 text-xs font-bold tracking-widest text-white/60 uppercase">
             {dataExtenso}
@@ -397,9 +406,6 @@ function BoasVindas({ rotas }: { rotas: Rota[] | null }) {
             ))}
           </ul>
         </div>
-      </div>
-
-      <CenaEstrada periodo={periodo} />
-    </section>
+    </FaixaEstrada>
   )
 }

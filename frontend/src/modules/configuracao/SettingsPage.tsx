@@ -185,6 +185,14 @@ function FormulariosDaConta({ conta, aoAtualizar }: { conta: MinhaConta; aoAtual
         </span>
         <p className="mt-4 text-xl font-extrabold text-marinho">{conta.nome}</p>
         <span className="mt-2 inline-block rounded-full bg-laranja/10 px-3 py-1 text-xs font-bold text-laranja">{ROTULOS_PERFIL[conta.perfil]}</span>
+        {conta.nome_empresa && (
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-sm text-slate-500">
+            <Icone nome="empresa" className="h-4 w-4 text-marinho" />
+            <span>
+              Trabalha na <strong className="text-marinho">{conta.nome_empresa}</strong>
+            </span>
+          </p>
+        )}
       </Cartao>
 
         <Secao titulo="Meus dados" icone="usuario">

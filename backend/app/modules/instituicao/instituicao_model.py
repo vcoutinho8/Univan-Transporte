@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base
 
 if TYPE_CHECKING:
     from app.modules.endereco.endereco_model import Endereco
 
 
-class Instituicao(Base):
+class Instituicao(DaEmpresa, Base):
     """Faculdade de destino dos estudantes e das rotas."""
 
     __tablename__ = "instituicao"
