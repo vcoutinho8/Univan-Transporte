@@ -1,6 +1,7 @@
 """Schemas de entrada e saída dos motoristas (tabela `motorista`)."""
 
 from datetime import date
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -45,6 +46,8 @@ class MotoristaCriacao(BaseModel):
     cnh_validade: date
     fk_veiculo: int | None = Field(default=None, gt=0)
     endereco: EnderecoEntrada | None = Field(default=None, description="Casa/garagem: de onde a ida sai.")
+    salario: Decimal | None = Field(default=None, ge=0, le=100000, description="Salário mensal: entra sozinho no Financeiro.")
+    dia_pagamento: int = Field(default=5, ge=1, le=28)
     status: StatusCadastro = StatusCadastro.ATIVO
 
     @field_validator("nome")
@@ -92,6 +95,8 @@ class MotoristaAtualizacao(BaseModel):
     cnh_validade: date | None = None
     fk_veiculo: int | None = Field(default=None, gt=0)
     endereco: EnderecoEntrada | None = Field(default=None, description="Substitui o endereço; null tira.")
+    salario: Decimal | None = Field(default=None, ge=0, le=100000)
+    dia_pagamento: int | None = Field(default=None, ge=1, le=28)
     status: StatusCadastro | None = None
 
     @field_validator("nome")
@@ -150,3 +155,5 @@ class MotoristaResposta(BaseModel):
     status: StatusCadastro
     veiculo: VeiculoDoMotorista | None
     endereco: EnderecoResposta | None = None
+    salario: Decimal | None = None
+    dia_pagamento: int | None = None

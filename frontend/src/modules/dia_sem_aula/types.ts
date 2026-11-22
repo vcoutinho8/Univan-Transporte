@@ -33,4 +33,5 @@ export interface ResultadoCadastro {
   ja_existiam: number
   /** Viagens já geradas nesses dias (continuam valendo até serem canceladas). */
   viagens_geradas: number
+  viagens_canceladas: number
 }

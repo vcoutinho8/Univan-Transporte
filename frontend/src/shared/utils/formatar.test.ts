@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  cnpjValido,
   dataIso,
   diaDaSemana,
   formatarCelular,
   formatarCep,
+  formatarCnpj,
   formatarCpf,
   formatarData,
   formatarHoraDe,
   formatarHorario,
   formatarMoeda,
   iniciais,
+  lerMoeda,
   nomeCurto,
   somarDias,
 } from './formatar.ts'
@@ -74,5 +77,21 @@ describe('datas', () => {
     expect(diaDaSemana('2026-11-23')).toBe('segunda-feira')
     expect(formatarHoraDe('2026-11-23T07:05:00')).toBe('07:05')
     expect(formatarHoraDe(null)).toBe('—')
+  })
+})
+
+describe('CNPJ e Real', () => {
+  it('máscara e dígitos do CNPJ', () => {
+    expect(formatarCnpj('11222333000181')).toBe('11.222.333/0001-81')
+    expect(formatarCnpj('112223330')).toBe('11.222.333/0')
+    expect(cnpjValido('11.222.333/0001-81')).toBe(true)
+    expect(cnpjValido('11222333000101')).toBe(false)
+    expect(cnpjValido('00000000000000')).toBe(false)
+  })
+  it('lê o Real digitado como centavos', () => {
+    expect(lerMoeda('R$ 1.234,56')).toBe(1234.56)
+    expect(lerMoeda('R$ 0,05')).toBe(0.05)
+    expect(lerMoeda('R$ 3.200,0')).toBe(320)
+    expect(lerMoeda('')).toBeNull()
   })
 })

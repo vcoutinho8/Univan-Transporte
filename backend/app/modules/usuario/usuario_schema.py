@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.modules.endereco.endereco_schema import EnderecoEntrada, EnderecoResposta
 from app.shared.documentos import cpf_valido
-from app.shared.texto import so_digitos
+from app.shared.texto import normalizar_login, so_digitos
 
 FORMATO_LOGIN = re.compile(r"^[a-z0-9._-]{3,30}$")
 
@@ -24,7 +24,7 @@ class LoginPedido(BaseModel):
     @field_validator("usuario")
     @classmethod
     def checar_usuario(cls, valor: str) -> str:
-        login = valor.strip().lower()
+        login = normalizar_login(valor)
         if not login:
             raise ValueError("Informe o usuário.")
         if not FORMATO_LOGIN.match(login):
@@ -45,7 +45,7 @@ class UsuarioResposta(BaseModel):
     id: int
     nome: str
     login: str
-    perfil: Literal["admin", "auxiliar", "motorista"]
+    perfil: Literal["admin", "auxiliar", "motorista", "univan"]
     fk_empresa: int
     fk_motorista: int | None
     trocar_senha: bool = Field(default=False, description="Senha padrão: o app pede uma senha nova antes de seguir.")
@@ -55,6 +55,7 @@ class LoginResposta(BaseModel):
     token: str = Field(description='Envie em cada requisição: "Authorization: Bearer <token>".')
     expira_em_minutos: int
     usuario: UsuarioResposta
+    aviso_assinatura: str | None = Field(default=None, description="Assinatura em atraso (em negociação): o aviso para o gestor.")
 
 
 # ---------------------------------------------------------------- configurações (contas)
@@ -95,6 +96,7 @@ class UsuarioDetalhe(UsuarioResposta):
     cpf: str | None
     status: Literal["ativo", "inativo"]
     ultimo_acesso: datetime | None
+    pediu_senha_em: datetime | None = Field(default=None, description='Pediu senha nova em "Esqueci a senha".')
 
 
 class UsuarioNovo(BaseModel):

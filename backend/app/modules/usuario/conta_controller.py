@@ -36,8 +36,10 @@ SENHA_PADRAO = "123456"
 
 
 @roteador.get("", response_model=list[UsuarioDetalhe], dependencies=[ADMIN], summary="Listar usuários")
-def listar_usuarios(sessao: Sessao):
-    return sessao.scalars(select(Usuario).order_by(Usuario.nome)).all()
+def listar_usuarios(logado: Logado, sessao: Sessao):
+    # Só os acessos da empresa do gestor (o gerente UniVan cuida dos gestores à parte).
+    consulta = select(Usuario).where(Usuario.fk_empresa == logado.fk_empresa, Usuario.perfil != PerfilUsuario.UNIVAN)
+    return sessao.scalars(consulta.order_by(Usuario.nome)).all()
 
 
 @roteador.post(
@@ -157,6 +159,7 @@ def resetar_senha(id_usuario: int, sessao: Sessao):
     usuario = _buscar(sessao, id_usuario)
     usuario.senha_hash = gerar_hash(SENHA_PADRAO)
     usuario.trocar_senha = True
+    usuario.pediu_senha_em = None  # pedido atendido
     sessao.commit()
     return usuario
 

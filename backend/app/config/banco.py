@@ -69,12 +69,18 @@ COLUNAS_NOVAS = (
     ("usuario", "email", "TEXT"),
     ("usuario", "cpf", "TEXT"),
     ("usuario", "trocar_senha", "INTEGER NOT NULL DEFAULT 0"),
+    ("instituicao", "codigo_inep", "INTEGER"),
+    ("usuario", "pediu_senha_em", "TEXT"),
+    ("empresa", "responsavel", "TEXT"),
+    ("empresa", "status", "TEXT NOT NULL DEFAULT 'ativa' CHECK (status IN ('ativa', 'em_negociacao', 'inativa'))"),
+    ("empresa", "valor_assinatura", "NUMERIC NOT NULL DEFAULT 199.90"),
+    ("empresa", "motivo_inativacao", "TEXT"),
 )
 
 
 # Tabelas criadas depois da primeira versão do script: num banco antigo, são criadas (com os dados
 # de teste delas) a partir do próprio docs/univan-sqlite.sql.
-TABELAS_NOVAS = ("usuario", "instituicao_parada", "feriado_importado")
+TABELAS_NOVAS = ("usuario", "instituicao_parada", "feriado_importado", "assinatura_pagamento")
 
 
 def _sql_da_tabela(tabela: str) -> str:
@@ -95,14 +101,47 @@ def atualizar_estrutura(arquivo: Path) -> None:
             if existentes_tabelas and tabela not in existentes_tabelas:
                 log.warning("Banco %s: criando a tabela %s.", arquivo.name, tabela)
                 conexao.executescript(_sql_da_tabela(tabela))
+                # Assinatura de exemplo de uma empresa que este banco não tem: fica de fora.
+                orfaos = conexao.execute(f"PRAGMA foreign_key_check({tabela})").fetchall() if tabela == "assinatura_pagamento" else []
+                for (_, rowid, *_resto) in orfaos:
+                    conexao.execute(f"DELETE FROM {tabela} WHERE rowid = ?", (rowid,))
         for tabela, coluna, tipo in COLUNAS_NOVAS:
             existentes = {linha[1] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
             if existentes and coluna not in existentes:
                 log.warning("Banco %s: adicionando a coluna %s.%s.", arquivo.name, tabela, coluna)
                 conexao.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+        _perfil_univan(conexao, arquivo)
         conexao.commit()
     finally:
         conexao.close()
+
+
+def _perfil_univan(conexao: sqlite3.Connection, arquivo: Path) -> None:
+    """O SQLite não muda um CHECK: recria a tabela usuario (com os dados) para aceitar o perfil
+    univan e, se faltar, cria o login único do gerente do app (univan / 123456)."""
+    tabelas = {nome for (nome,) in conexao.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if not {"usuario", "empresa"} <= tabelas:
+        return
+    (sql,) = conexao.execute("SELECT sql FROM sqlite_master WHERE name = 'usuario'").fetchone()
+    if "'univan'" not in sql:
+        log.warning("Banco %s: atualizando a tabela usuario (perfil univan).", arquivo.name)
+        colunas = [linha[1] for linha in conexao.execute("PRAGMA table_info(usuario)")]
+        conexao.execute("PRAGMA foreign_keys = OFF")
+        conexao.execute("ALTER TABLE usuario RENAME TO usuario_antigo")
+        conexao.executescript(_sql_da_tabela("usuario").split("\nINSERT")[0])
+        lista = ", ".join(colunas)
+        conexao.execute(f"INSERT INTO usuario ({lista}) SELECT {lista} FROM usuario_antigo")
+        conexao.execute("DROP TABLE usuario_antigo")
+        conexao.execute("PRAGMA foreign_keys = ON")
+    tem_empresa = conexao.execute("SELECT 1 FROM empresa").fetchone()
+    if tem_empresa and not conexao.execute("SELECT 1 FROM usuario WHERE perfil = 'univan'").fetchone():
+        from app.config.seguranca import gerar_hash
+
+        conexao.execute(
+            "INSERT INTO usuario (fk_empresa, nome, login, senha_hash, perfil, status, trocar_senha) "
+            "VALUES ((SELECT min(id) FROM empresa), 'Gerente UniVan', 'univan', ?, 'univan', 'ativo', 0)",
+            (gerar_hash("123456"),),
+        )
 
 
 def preparar_banco(url: str) -> None:

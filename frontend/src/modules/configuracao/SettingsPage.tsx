@@ -73,7 +73,7 @@ export default function PaginaConfiguracoes() {
 
 function Secao({ titulo, icone, children }: { titulo: string; icone: NomeIcone; children: ReactNode }) {
   return (
-    <Cartao className="p-5">
+    <Cartao className="pt-5">
       <h2 className="mb-4 flex items-center gap-2 text-base font-extrabold text-marinho">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-laranja/10 text-laranja">
           <Icone nome={icone} className="h-4 w-4" />
@@ -179,26 +179,12 @@ function FormulariosDaConta({ conta, aoAtualizar }: { conta: MinhaConta; aoAtual
       {confirmacao.modal}
 
       {/* Quem está logado */}
-      <Cartao className="flex flex-col p-5 text-center">
-        <span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-marinho text-2xl font-extrabold text-white">{iniciais(conta.nome)}</span>
-        <p className="mt-3 text-lg font-extrabold text-marinho">{conta.nome}</p>
-        <span className="mt-1 inline-block rounded-full bg-laranja/10 px-3 py-1 text-xs font-bold text-laranja">{ROTULOS_PERFIL[conta.perfil]}</span>
-        <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-left text-sm">
-          <div className="flex justify-between gap-2">
-            <dt className="text-slate-500">CPF</dt>
-            <dd className="font-semibold text-marinho">{conta.cpf ? formatarCpf(conta.cpf) : '—'}</dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-slate-500">E-mail</dt>
-            <dd className="truncate font-semibold text-marinho">{conta.email ?? '—'}</dd>
-          </div>
-        </dl>
-        <div className="mt-auto pt-5">
-          <Botao variante="perigo" className="w-full" onClick={() => void sairDaConta()}>
-            <Icone nome="sair" className="h-4 w-4" />
-            Sair da conta
-          </Botao>
-        </div>
+      <Cartao className="flex flex-col items-center justify-center p-6 text-center">
+        <span className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-marinho text-3xl font-extrabold text-white shadow-lg shadow-marinho/20">
+          {iniciais(conta.nome)}
+        </span>
+        <p className="mt-4 text-xl font-extrabold text-marinho">{conta.nome}</p>
+        <span className="mt-2 inline-block rounded-full bg-laranja/10 px-3 py-1 text-xs font-bold text-laranja">{ROTULOS_PERFIL[conta.perfil]}</span>
       </Cartao>
 
         <Secao titulo="Meus dados" icone="usuario">
@@ -277,6 +263,10 @@ function FormulariosDaConta({ conta, aoAtualizar }: { conta: MinhaConta; aoAtual
             </form>
           </Secao>
         )}
+        <Botao variante="perigo" className="w-full py-3 lg:hidden" onClick={() => void sairDaConta()}>
+          <Icone nome="sair" className="h-4 w-4" />
+          Sair da conta
+        </Botao>
       </div>
     </div>
   )
@@ -292,12 +282,16 @@ function UsuariosSecao() {
   const avisos = useAviso()
   const [editando, setEditando] = useState<UsuarioDetalhe | 'novo' | null>(null)
   const usados = new Set((usuarios.dados ?? []).map((u) => u.fk_motorista).filter((id): id is number => id !== null))
+  const pedidos = (usuarios.dados ?? []).filter((u) => u.pediu_senha_em).length
 
   return (
     <Cartao semEspaco>
       {avisos.modal}
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-        <p className="text-sm text-slate-500">{usuarios.dados ? `${usuarios.dados.length} usuário(s)` : 'Carregando...'}</p>
+        <p className="text-sm text-slate-500">
+          {usuarios.dados ? `${usuarios.dados.length} usuário(s)` : 'Carregando...'}
+          {pedidos > 0 && <span className="ml-2 font-bold text-red-600">· {pedidos} pediu(ram) senha nova: abra e use "Resetar senha"</span>}
+        </p>
         <Botao onClick={() => setEditando('novo')}>
           <Icone nome="mais" className="h-4 w-4" />
           Novo usuário
@@ -322,6 +316,8 @@ function UsuariosSecao() {
                 <span className="rounded-full bg-fundo px-2.5 py-0.5 text-[11px] font-bold text-marinho">{ROTULOS_PERFIL[u.perfil]}</span>
                 {u.status === 'inativo' ? (
                   <span className="text-[11px] font-bold text-slate-400">inativo</span>
+                ) : u.pediu_senha_em ? (
+                  <span className="animate-pulse rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">pediu senha nova</span>
                 ) : (
                   u.trocar_senha && <span className="text-[11px] font-bold text-amber-600">senha padrão</span>
                 )}
@@ -387,6 +383,7 @@ function InstituicoesSecao() {
       {editando && (
         <FormularioInstituicao
           instituicao={editando === 'nova' ? null : editando}
+          cadastradas={instituicoes.dados ?? []}
           aoFechar={() => setEditando(null)}
           aoSalvar={(mensagem) => {
             setEditando(null)

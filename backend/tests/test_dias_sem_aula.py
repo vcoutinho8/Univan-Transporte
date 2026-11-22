@@ -1,5 +1,7 @@
 """Testes dos dias sem aula (feriados, recessos, férias) e do relatório, com banco SQLite de verdade."""
 
+from sqlalchemy import text
+
 from tests.test_banco_sqlite import cliente, fabrica  # noqa: F401  (fixtures)
 
 URL = "/api/dias-sem-aula"
@@ -10,7 +12,7 @@ def test_cadastra_periodo_sem_duplicar(cliente):  # noqa: F811
     resposta = cliente.post(URL, json=FERIAS)
     assert resposta.status_code == 201, resposta.text
     # 42 dias; Natal (25/12) e 01/01 já existiam como feriado geral.
-    assert resposta.json() == {"criados": 40, "ja_existiam": 2, "viagens_geradas": 0}
+    assert resposta.json() == {"criados": 40, "ja_existiam": 2, "viagens_geradas": 0, "viagens_canceladas": 0}
 
     de_novo = cliente.post(URL, json=FERIAS).json()
     assert de_novo["criados"] == 0 and de_novo["ja_existiam"] == 42
@@ -129,3 +131,17 @@ def test_importa_feriados_uma_vez_e_respeita_o_cancelado(fabrica, monkeypatch): 
         sessao.commit()
         assert feriados.importar_feriados(sessao, 2026) == 0  # não volta
         assert sessao.scalar(select(DiaSemAula).where(DiaSemAula.data == date(2026, 12, 25))) is None
+
+
+def test_cancela_as_agendadas_e_devolve_ao_remover(cliente, fabrica):  # noqa: F811
+    # 30/10 tem 2 viagens agendadas nos dados de teste.
+    def situacao():
+        with fabrica() as sessao:
+            return sessao.execute(text("SELECT status, motivo_encerramento FROM viagem WHERE data = '2026-10-30'")).all()
+
+    resposta = cliente.post(URL, json={"data_inicio": "2026-10-30", "data_fim": "2026-10-30", "motivo": "Greve"}).json()
+    assert resposta["viagens_canceladas"] == 2
+    assert set(situacao()) == {("cancelada", "Sem aula: Greve")}
+    ids = [d["id"] for d in cliente.get(URL, params={"inicio": "2026-10-30", "fim": "2026-10-30"}).json()]
+    assert cliente.post(f"{URL}/remover", json={"ids": ids}).status_code == 200
+    assert set(situacao()) == {("agendada", None)}

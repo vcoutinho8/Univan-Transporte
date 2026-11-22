@@ -129,3 +129,45 @@ def test_exclui_instituicao_so_sem_uso(cliente):  # noqa: F811
     nova = cliente.post("/api/instituicoes", json={"nome": "Sem ninguém", "endereco": ENDERECO}).json()
     assert cliente.delete(f"/api/instituicoes/{nova['id']}").json()["nome"] == "Sem ninguém"
     assert all(i["id"] != nova["id"] for i in cliente.get("/api/instituicoes").json())
+
+
+def test_verifica_cpf_e_celular_ao_digitar(cliente):  # noqa: F811
+    entrar(cliente, "auxiliar", "123456")
+    motorista = cliente.get("/api/motoristas/1").json()
+    r = cliente.get("/api/cadastros/verificar", params={"cpf": motorista["cpf"], "celular": motorista["celular"]}).json()
+    assert r == {"cpf_valido": True, "cpf_em_uso": "motorista", "celular_em_uso": "motorista"}
+    # Editando o próprio motorista, os dados dele não contam como repetidos.
+    proprio = cliente.get("/api/cadastros/verificar", params={"cpf": motorista["cpf"], "tabela": "motorista", "id": 1}).json()
+    assert proprio["cpf_em_uso"] is None
+    assert cliente.get("/api/cadastros/verificar", params={"cpf": "111.111.111-11"}).json()["cpf_valido"] is False
+
+
+def test_faculdade_repetida_e_recusada(cliente):  # noqa: F811
+    entrar(cliente, "admin", "123456")
+    repetida = cliente.post("/api/instituicoes", json={"nome": "Outra UVV", "codigo_inep": 664, "endereco": ENDERECO})
+    assert repetida.status_code == 409 and "já está cadastrada" in repetida.json()["mensagem"]
+
+
+def test_esqueci_a_senha_motorista_pede_ao_gestor(cliente):  # noqa: F811
+    cliente.headers.pop("Authorization", None)
+    resposta = cliente.post("/api/auth/esqueci-senha", json={"usuario": "motorista"})
+    assert resposta.json() == {"canal": "gestor"}
+    assert cliente.post("/api/auth/esqueci-senha", json={"usuario": "ninguem"}).status_code == 404
+    entrar(cliente, "admin", "123456")
+    pedido = next(u for u in cliente.get("/api/usuarios").json() if u["login"] == "motorista")
+    assert pedido["pediu_senha_em"] is not None
+    assert cliente.post(f"/api/usuarios/{pedido['id']}/resetar-senha").json()["pediu_senha_em"] is None
+
+
+def test_esqueci_a_senha_gestor_recebe_link_de_uso_unico(cliente, caplog):  # noqa: F811
+    cliente.headers.pop("Authorization", None)
+    assert cliente.post("/api/auth/esqueci-senha", json={"usuario": "admin"}).json() == {"canal": "email"}
+    assert "redefinir-senha?token=" in caplog.text  # sem SMTP: o link vai para o log
+
+    token = caplog.text.split("redefinir-senha?token=")[1].split()[0]
+    resposta = cliente.post("/api/auth/redefinir-senha", json={"token": token, "senha_nova": "nova-senha-1"})
+    assert resposta.status_code == 200, resposta.text
+    entrar(cliente, "admin", "nova-senha-1")
+    # Uso único: o mesmo link não serve de novo; link adulterado também não.
+    assert cliente.post("/api/auth/redefinir-senha", json={"token": token, "senha_nova": "outra-123"}).status_code == 422
+    assert cliente.post("/api/auth/redefinir-senha", json={"token": token + "x", "senha_nova": "outra-123"}).status_code == 422

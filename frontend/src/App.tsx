@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 import PaginaChamadas from './modules/chamada/CallsPage.tsx'
 import PaginaConfiguracoes from './modules/configuracao/SettingsPage.tsx'
+import PaginaFinancas from './modules/financeiro/FinancePage.tsx'
+import PainelUnivan, { GestoresUnivan, InadimplenciaUnivan, PagamentosUnivan } from './modules/univan/UnivanPage.tsx'
 import PaginaCalendario from './modules/dia_sem_aula/NoClassDaysPage.tsx'
 import PaginaEstudantes from './modules/estudante/StudentsPage.tsx'
 import PaginaMapa from './modules/mapa/MapPage.tsx'
@@ -16,6 +18,7 @@ import LayoutPrincipal from './shared/layout/MainLayout.tsx'
 import { ITENS_MENU } from './shared/layout/menu.ts'
 import PaginaEmConstrucao from './shared/pages/ComingSoonPage.tsx'
 import PaginaLogin from './shared/pages/LoginPage.tsx'
+import PaginaRedefinirSenha from './shared/pages/ResetPasswordPage.tsx'
 import PaginaNaoEncontrada from './shared/pages/NotFoundPage.tsx'
 
 /**
@@ -26,6 +29,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="login" element={<PaginaLogin />} />
+      <Route path="redefinir-senha" element={<PaginaRedefinirSenha />} />
       <Route element={<LayoutPrincipal />}>
         <Route index element={<PaginaPainel />} />
         <Route path="passageiros" element={<PaginaEstudantes />} />
@@ -37,6 +41,11 @@ export default function App() {
         <Route path="calendario" element={<PaginaCalendario />} />
         <Route path="chamadas" element={<PaginaChamadas />} />
         <Route path="configuracoes" element={<PaginaConfiguracoes />} />
+        <Route path="financas" element={<PaginaFinancas />} />
+        <Route path="univan" element={<PainelUnivan />} />
+        <Route path="univan/gestores" element={<GestoresUnivan />} />
+        <Route path="univan/pagamentos" element={<PagamentosUnivan />} />
+        <Route path="univan/inadimplencia" element={<InadimplenciaUnivan />} />
         <Route path="dias-sem-aula" element={<Navigate to="/calendario" replace />} />
         <Route path="relatorios" element={<PaginaRelatorios />} />
         <Route path="relatorios/:id" element={<PaginaRelatorio />} />

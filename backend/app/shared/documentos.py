@@ -44,3 +44,15 @@ def cnh_valida(cnh: str) -> bool:
         segundo = 0
 
     return cnh[9] == str(primeiro) and cnh[10] == str(segundo)
+
+
+def cnpj_valido(cnpj: str) -> bool:
+    """Confere os dois dígitos verificadores do CNPJ (módulo 11, pesos 2..9 da direita)."""
+    if len(cnpj) != 14 or not cnpj.isdigit() or _repetido(cnpj):
+        return False
+    for tamanho in (12, 13):
+        soma = sum(int(cnpj[tamanho - 1 - i]) * (2 + i % 8) for i in range(tamanho))
+        digito = 11 - soma % 11
+        if (0 if digito >= 10 else digito) != int(cnpj[tamanho]):
+            return False
+    return True

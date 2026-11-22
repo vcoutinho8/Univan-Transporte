@@ -23,6 +23,8 @@ class Instituicao(Base):
     # Onde a van para, na rua. Vazio = usa a localização do endereço (que pode cair dentro do campus).
     parada_latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     parada_longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+    # Código da IES no e-MEC/INEP: a mesma faculdade não entra duas vezes.
+    codigo_inep: Mapped[int | None]
 
     endereco: Mapped["Endereco"] = relationship()
     paradas: Mapped[list["InstituicaoParada"]] = relationship(

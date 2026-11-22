@@ -16,6 +16,7 @@ declarados por nome (ex.: relationship("Empresa")) se resolverem.
 from app.modules.area.area_model import Area
 from app.modules.chamada.chamada_model import Chamada
 from app.modules.dia_sem_aula.dia_sem_aula_model import DiaSemAula
+from app.modules.empresa.assinatura_model import AssinaturaPagamento
 from app.modules.empresa.empresa_model import Empresa
 from app.modules.endereco.endereco_model import Endereco
 from app.modules.estudante.estudante_model import Estudante

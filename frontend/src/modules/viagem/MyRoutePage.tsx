@@ -156,6 +156,7 @@ export default function PaginaMinhaRota() {
   // Seguindo o motorista no mapa (desliga para ver a rota inteira).
   const [seguir, setSeguir] = useState(true)
   const [registrando, setRegistrando] = useState(false)
+  // Chamada do grupo no WhatsApp (a mesma mensagem da tela de Viagens).
   // Celular: gaveta recolhida = mapa na tela toda, com a rota inteira (toque ou arraste no tracinho).
   const [mapaCheio, setMapaCheio] = useState(false)
   const toqueInicio = useRef<number | null>(null)

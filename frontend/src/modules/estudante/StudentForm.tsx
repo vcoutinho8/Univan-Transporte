@@ -1,7 +1,9 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import Alerta from '../../shared/components/Alert.tsx'
+import { useVerificacaoCadastro } from '../../shared/hooks/useVerificacaoCadastro.ts'
 import Botao from '../../shared/components/Button.tsx'
+import CampoMoeda from '../../shared/components/MoneyInput.tsx'
 import Gaveta from '../../shared/components/Drawer.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import { ErroApi } from '../../shared/services/api.ts'
@@ -45,6 +47,8 @@ const texto = (valor: string) => valor.trim() || null
 /** Cadastro e edição de passageiro, numa gaveta lateral. Erros da API aparecem no topo. */
 export default function FormularioEstudante({ estudante, instituicoes, areas, aoSalvar, aoFechar }: Propriedades) {
   const [valores, setValores] = useState<Valores>(() => valoresIniciais(estudante))
+  // CPF inválido ou repetido e celular de outro cadastro: aviso já ao digitar.
+  const verificacao = useVerificacaoCadastro(valores.cpf, valores.celular, 'estudante', estudante?.id)
   const [endereco, setEndereco] = useState(() => enderecoDoFormulario(estudante?.endereco))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -113,8 +117,10 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
                 placeholder="000.000.000-00"
                 value={valores.cpf}
                 onChange={(e) => mudar('cpf', formatarCpf(e.target.value))}
-                className="campo"
+                aria-invalid={Boolean(verificacao.avisoCpf)}
+                className={`campo ${verificacao.avisoCpf ? 'border-red-300 ring-2 ring-red-100' : ''}`}
               />
+              {verificacao.avisoCpf && <span className="mt-1 block text-xs font-semibold text-red-600">{verificacao.avisoCpf}</span>}
             </Campo>
             <Campo rotulo="Celular">
               <input
@@ -123,8 +129,10 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
                 placeholder="(27) 99999-0000"
                 value={valores.celular}
                 onChange={(e) => mudar('celular', formatarCelular(e.target.value))}
-                className="campo"
+                aria-invalid={Boolean(verificacao.avisoCelular)}
+                className={`campo ${verificacao.avisoCelular ? 'border-red-300 ring-2 ring-red-100' : ''}`}
               />
+              {verificacao.avisoCelular && <span className="mt-1 block text-xs font-semibold text-red-600">{verificacao.avisoCelular}</span>}
             </Campo>
             <Campo rotulo="E-mail" opcional>
               <input type="email" maxLength={100} value={valores.email} onChange={(e) => mudar('email', e.target.value)} className="campo" />
@@ -164,11 +172,9 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
                 </span>
               </Campo>
             )}
-            <Campo rotulo="Curso" opcional>
+            {/* Horário de embarque: sai da localização e da rota (não se digita). */}
+            <Campo rotulo="Curso" opcional className="sm:col-span-2">
               <input maxLength={50} value={valores.curso} onChange={(e) => mudar('curso', e.target.value)} className="campo" />
-            </Campo>
-            <Campo rotulo="Horário de embarque" opcional>
-              <input type="time" value={valores.horario_embarque} onChange={(e) => mudar('horario_embarque', e.target.value)} className="campo" />
             </Campo>
             <div className="sm:col-span-2">
               <p className="text-sm font-semibold text-marinho">Turno</p>
@@ -200,15 +206,11 @@ export default function FormularioEstudante({ estudante, instituicoes, areas, ao
           </Secao>
 
           <Secao titulo="Mensalidade" icone="relatorio">
-            <Campo rotulo="Valor mensal (R$)">
-              <input
+            <Campo rotulo="Valor mensal">
+              <CampoMoeda
                 required
-                type="number"
-                min={0}
-                step="0.01"
-                value={valores.valor_mensal}
-                onChange={(e) => mudar('valor_mensal', e.target.value)}
-                className="campo"
+                valor={valores.valor_mensal === '' ? null : Number(valores.valor_mensal)}
+                aoMudar={(v) => mudar('valor_mensal', v === null ? '' : String(v))}
               />
             </Campo>
             <Campo rotulo="Dia do vencimento">

@@ -46,6 +46,7 @@ class ServicoEstudante:
     def cadastrar(self, dados: EstudanteCriacao) -> Estudante:
         self._garantir_instituicao_existe(dados.fk_instituicao)
         self._garantir_cpf_disponivel(dados.cpf)
+        self.repositorio.garantir_celular_livre(dados.celular)
         self._garantir_parada_da_instituicao(dados.fk_parada, dados.fk_instituicao)
         campos = dados.model_dump(exclude={"endereco"})
         estudante = Estudante(**campos, endereco=Endereco(**dados.endereco.model_dump()))
@@ -64,6 +65,8 @@ class ServicoEstudante:
             self._garantir_instituicao_existe(alteracoes["fk_instituicao"])
         if "cpf" in alteracoes and alteracoes["cpf"] != estudante.cpf:
             self._garantir_cpf_disponivel(alteracoes["cpf"])
+        if "celular" in alteracoes and alteracoes["celular"] != estudante.celular:
+            self.repositorio.garantir_celular_livre(alteracoes["celular"], estudante.id)
 
         # Mudou de faculdade sem escolher parada: volta para a principal da nova.
         instituicao_final = alteracoes.get("fk_instituicao", estudante.fk_instituicao)

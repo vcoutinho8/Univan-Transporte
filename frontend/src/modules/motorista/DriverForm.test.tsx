@@ -142,6 +142,8 @@ describe('FormularioMotorista', () => {
       cnh_validade: '2030-10-10',
       fk_veiculo: 1,
       status: 'ativo',
+      salario: null,
+      dia_pagamento: 5,
     })
   })
 })

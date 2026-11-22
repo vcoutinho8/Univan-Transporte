@@ -1,6 +1,6 @@
 /** Sessão do usuário: token e dados de quem entrou, guardados no navegador (localStorage). */
 
-export type Perfil = 'admin' | 'auxiliar' | 'motorista'
+export type Perfil = 'admin' | 'auxiliar' | 'motorista' | 'univan'
 
 export interface UsuarioSessao {
   id: number
@@ -18,6 +18,8 @@ export interface Sessao {
   usuario: UsuarioSessao
   /** Momento (ms) em que a sessão expira; depois disso o usuário entra de novo. */
   expiraEm: number
+  /** Assinatura do app em atraso (só o gestor recebe): a faixa de aviso no topo. */
+  avisoAssinatura?: string | null
 }
 
 const CHAVE = 'univan.sessao'

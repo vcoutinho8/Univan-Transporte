@@ -20,7 +20,7 @@ function situacaoDoDia(
   futuro: boolean,
 ): { texto: string; tom: 'feriado' | 'vazio' | 'ok' | 'pendente' } {
   if (!dia) return { texto: '', tom: 'vazio' }
-  if (dia.feriado_geral) return { texto: 'Feriado', tom: 'feriado' }
+  if (dia.feriado_geral) return { texto: dia.motivo_geral || 'Sem aula', tom: 'feriado' }
   if (dia.viagens > 0) return { texto: `${dia.viagens} viag.`, tom: 'ok' }
   if (dia.rotas === 0) return { texto: 'Sem rota', tom: 'vazio' }
   if (futuro) return { texto: 'Futura', tom: 'vazio' }

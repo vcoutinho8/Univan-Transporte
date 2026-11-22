@@ -47,7 +47,7 @@ export default function PaginaMotoristas() {
   const setAviso = (a: Aviso) =>
     avisos.mostrar({
       tipo: a.tipo,
-      titulo: a.tipo === 'erro' ? 'Não foi possível concluir' : a.tipo === 'aviso' ? 'Salvo, com um alerta' : 'Pronto!',
+      titulo: a.tipo === 'erro' ? 'Ops, algo não deu certo' : a.tipo === 'aviso' ? 'Salvo, mas fique de olho' : 'Tudo certo!',
       descricao: a.mensagem,
     })
 
@@ -79,7 +79,7 @@ export default function PaginaMotoristas() {
 
     const veiculoInfo = salvo.veiculo ? `com veículo padrão ${salvo.veiculo.placa}` : 'sem veículo padrão vinculado'
     setAviso({
-      mensagem: `Motorista ${salvo.nome} ${formulario.modo === 'editar' ? 'atualizado(a)' : 'cadastrado(a)'} (${veiculoInfo}).`,
+      mensagem: `${formulario.modo === 'editar' ? `Os dados de ${salvo.nome} foram atualizados` : `${salvo.nome} entrou para a equipe de motoristas`} (${veiculoInfo}).`,
       tipo: 'sucesso',
     })
     fecharFormulario()
@@ -92,17 +92,20 @@ export default function PaginaMotoristas() {
       setAviso({ mensagem: mensagemSucesso, tipo: 'sucesso' })
       await motoristas.recarregar()
     } catch (e) {
-      setAviso({ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', tipo: 'erro' })
+      setAviso({ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Algo saiu diferente do esperado. Tente de novo em instantes.', tipo: 'erro' })
     }
   }
 
   async function inativar(motorista: Motorista) {
     if (!(await confirmacao.confirmar({ titulo: `Inativar o motorista ${motorista.nome}?`, descricao: `O histórico de viagens será mantido.`, botao: 'Inativar', perigo: true }))) return
-    void executar(() => servicoMotorista.inativar(motorista.id), `Motorista ${motorista.nome} inativado(a).`)
+    void executar(() => servicoMotorista.inativar(motorista.id), `${motorista.nome} saiu da equipe ativa. O histórico de viagens continua guardado.`)
   }
 
   function reativar(motorista: Motorista) {
-    void executar(() => servicoMotorista.reativar(motorista.id), `Motorista ${motorista.nome} reativado(a).`)
+    const ultimo = filtroStatus === 'inativo' && (motoristas.dados ?? []).length <= 1
+    void executar(() => servicoMotorista.reativar(motorista.id), `${motorista.nome} está de volta à equipe!`).then(() => {
+      if (ultimo) setFiltroStatus('ativo') // não sobrou inativo: volta para os ativos
+    })
   }
 
   return (

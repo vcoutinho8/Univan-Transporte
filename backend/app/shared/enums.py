@@ -68,3 +68,13 @@ class PerfilUsuario(str, enum.Enum):
     ADMIN = "admin"
     AUXILIAR = "auxiliar"
     MOTORISTA = "motorista"
+    UNIVAN = "univan"  # gerente do app (cria gestores e cuida das assinaturas)
+
+
+class StatusEmpresa(str, enum.Enum):
+    """Situação da assinatura do app (empresa.status): em atraso vira "em negociação" e, 30 dias
+    depois, "inativa" (acesso bloqueado)."""
+
+    ATIVA = "ativa"
+    EM_NEGOCIACAO = "em_negociacao"
+    INATIVA = "inativa"

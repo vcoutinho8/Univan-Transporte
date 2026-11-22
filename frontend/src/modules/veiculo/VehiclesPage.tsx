@@ -39,14 +39,19 @@ export default function PaginaVeiculos() {
   const setAviso = (a: Aviso) =>
     avisos.mostrar({
       tipo: a.tipo,
-      titulo: a.tipo === 'erro' ? 'Não foi possível concluir' : 'Pronto!',
+      titulo: a.tipo === 'erro' ? 'Ops, algo não deu certo' : 'Tudo certo!',
       descricao: a.mensagem,
     })
 
   const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: filtroStatus }), [filtroStatus])
   // Quem dirige cada veículo (veículo padrão do motorista), para mostrar nas ações.
   const motoristas = useRequisicao(() => servicoMotorista.listar())
-  const motoristaDoVeiculo = new Map((motoristas.dados ?? []).filter((m) => m.fk_veiculo !== null).map((m) => [m.fk_veiculo!, m]))
+  // Um veículo pode ter mais de um motorista (o veículo padrão de cada um).
+  const motoristasDoVeiculo = new Map<number, string[]>()
+  for (const m of motoristas.dados ?? []) {
+    if (m.fk_veiculo !== null) motoristasDoVeiculo.set(m.fk_veiculo, [...(motoristasDoVeiculo.get(m.fk_veiculo) ?? []), m.nome])
+  }
+  const colunas = podeEditar ? 7 : 6
 
   // A busca é feita na própria tela, sobre a lista já carregada.
   const veiculosFiltrados = useMemo(() => {
@@ -61,7 +66,10 @@ export default function PaginaVeiculos() {
         ? await servicoVeiculo.atualizar(formulario.veiculo.id, dados)
         : await servicoVeiculo.cadastrar(dados)
     setAviso({
-      mensagem: `Veículo ${salvo.placa} ${formulario.modo === 'editar' ? 'atualizado' : 'cadastrado'}.`,
+      mensagem:
+        formulario.modo === 'editar'
+          ? `As informações do ${salvo.modelo} (${salvo.placa}) foram atualizadas.`
+          : `O ${salvo.modelo} (${salvo.placa}) já faz parte da frota e pode ser vinculado a um motorista.`,
       tipo: 'sucesso',
     })
     setFormulario({ modo: 'fechado' })
@@ -74,17 +82,20 @@ export default function PaginaVeiculos() {
       setAviso({ mensagem: mensagemSucesso, tipo: 'sucesso' })
       await veiculos.recarregar()
     } catch (e) {
-      setAviso({ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', tipo: 'erro' })
+      setAviso({ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Algo saiu diferente do esperado. Tente de novo em instantes.', tipo: 'erro' })
     }
   }
 
   async function inativar(veiculo: Veiculo) {
     if (!(await confirmacao.confirmar({ titulo: `Inativar o veículo ${veiculo.placa}?`, descricao: `O histórico será mantido.`, botao: 'Inativar', perigo: true }))) return
-    void executar(() => servicoVeiculo.inativar(veiculo.id), `Veículo ${veiculo.placa} inativado.`)
+    void executar(() => servicoVeiculo.inativar(veiculo.id), `O ${veiculo.modelo} (${veiculo.placa}) saiu da frota ativa. O histórico continua guardado.`)
   }
 
   function reativar(veiculo: Veiculo) {
-    void executar(() => servicoVeiculo.reativar(veiculo.id), `Veículo ${veiculo.placa} reativado.`)
+    const ultimo = filtroStatus === 'inativo' && (veiculos.dados ?? []).length <= 1
+    void executar(() => servicoVeiculo.reativar(veiculo.id), `O ${veiculo.modelo} (${veiculo.placa}) voltou para a frota ativa.`).then(() => {
+      if (ultimo) setFiltroStatus('ativo') // não sobrou inativo: volta para os ativos
+    })
   }
 
   return (
@@ -153,20 +164,21 @@ export default function PaginaVeiculos() {
                   <th className="px-5 py-3">Cor</th>
                   <th className="px-5 py-3 text-right">Lugares</th>
                   <th className="px-5 py-3">Situação</th>
-                  <th className="px-5 py-3 text-right">Ações</th>
+                  <th className="px-5 py-3">Motorista vinculado</th>
+                  {podeEditar && <th className="px-5 py-3 text-right">Ações</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {veiculos.carregando && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                    <td colSpan={colunas} className="px-5 py-8 text-center text-slate-500">
                       Carregando...
                     </td>
                   </tr>
                 )}
                 {!veiculos.carregando && veiculosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={colunas}>
                       <AvisoSemResultado
                         titulo="Nenhum veículo encontrado"
                         filtros={[
@@ -214,19 +226,22 @@ export default function PaginaVeiculos() {
                           <EtiquetaStatus status={veiculo.status} />
                         </td>
                         <td className="px-5 py-3">
+                          {motoristasDoVeiculo.get(veiculo.id) ? (
+                            <div className="flex flex-wrap gap-1">
+                              {motoristasDoVeiculo.get(veiculo.id)!.map((nome) => (
+                                <span key={nome} className="inline-flex items-center gap-1.5 rounded-full bg-fundo px-2.5 py-1 text-xs font-bold text-marinho">
+                                  <Icone nome="motorista" className="h-3.5 w-3.5 shrink-0 text-laranja" />
+                                  {nome}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">Sem motorista</span>
+                          )}
+                        </td>
+                        {podeEditar && (
+                        <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-2">
-                            {motoristaDoVeiculo.get(veiculo.id) ? (
-                              <span
-                                title="Motorista vinculado (veículo padrão)"
-                                className="inline-flex max-w-44 items-center gap-1.5 truncate rounded-full bg-fundo px-2.5 py-1 text-xs font-bold text-marinho"
-                              >
-                                <Icone nome="motorista" className="h-3.5 w-3.5 shrink-0 text-laranja" />
-                                <span className="truncate">{motoristaDoVeiculo.get(veiculo.id)!.nome}</span>
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-400">Sem motorista</span>
-                            )}
-                            {podeEditar && (
                               <>
                                 <Botao
                                   variante="fantasma"
@@ -247,9 +262,9 @@ export default function PaginaVeiculos() {
                                   </Botao>
                                 )}
                               </>
-                            )}
                           </div>
                         </td>
+                        )}
                       </tr>
                     )
                   })}

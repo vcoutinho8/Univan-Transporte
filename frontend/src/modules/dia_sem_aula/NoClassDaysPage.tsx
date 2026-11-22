@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 
 import Botao from '../../shared/components/Button.tsx'
@@ -57,6 +58,7 @@ export default function PaginaCalendario() {
   const [arraste, setArraste] = useState<{ origem: string; atual: string } | null>(null)
   const [escolhida, setEscolhida] = useState<Faixa | null>(null)
   const [remover, setRemover] = useState<PeriodoSemAula | null>(null)
+  const navegar = useNavigate()
   const avisos = useAviso()
   const grade = useRef<HTMLDivElement>(null)
 
@@ -115,14 +117,19 @@ export default function PaginaCalendario() {
     await recarregar()
     const itens = [
       resultado.ja_existiam > 0 && `${resultado.ja_existiam} dia(s) já estavam cadastrados e não foram duplicados.`,
-      resultado.viagens_geradas > 0 &&
-        `Já existem ${resultado.viagens_geradas} rota(s) de viagem geradas nesses dias. Elas continuam valendo: cancele-as na tela de Viagens se não forem acontecer.`,
+      resultado.viagens_canceladas > 0 &&
+        `${resultado.viagens_canceladas} viagem(ns) agendada(s) desses dias foram canceladas com o motivo “${dados.motivo}”. Se remover o dia sem aula, elas voltam.`,
     ].filter((i): i is string => Boolean(i))
     avisos.mostrar({
       tipo: resultado.viagens_geradas > 0 ? 'aviso' : 'sucesso',
-      titulo: 'Calendário atualizado',
+      titulo: resultado.viagens_geradas > 0 ? 'Dia sem aula marcado: viagens canceladas' : 'Calendário atualizado!',
       descricao: `${dados.motivo} · ${descreverPeriodo({ inicio: dados.data_inicio, fim: dados.data_fim })}`,
       itens,
+      // Dia com viagem já gerada: um toque leva às viagens do dia (as da faculdade aparecem canceladas).
+      acao:
+        resultado.viagens_geradas > 0
+          ? { rotulo: 'Ver as viagens do dia', aoClicar: () => navegar(`/viagens?data=${dados.data_inicio}`) }
+          : undefined,
     })
   }
 
@@ -134,7 +141,7 @@ export default function PaginaCalendario() {
       avisos.mostrar({
         tipo: 'sucesso',
         titulo: 'Voltou a ter aula',
-        descricao: `${periodo.motivo} (${descreverPeriodo(periodo)}) foi removido. Gere as viagens desses dias na tela de Viagens.`,
+        descricao: `${periodo.motivo} (${descreverPeriodo(periodo)}) foi removido. As viagens que ele tinha cancelado voltaram a ficar agendadas.`,
       })
     } catch (e) {
       avisos.erro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', 'Não foi possível remover')

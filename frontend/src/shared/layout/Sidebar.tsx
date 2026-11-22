@@ -84,8 +84,8 @@ export default function MenuLateral({ aberto, aoFechar, recolhido, aoAlternarRec
                   <li key={item.para} className="group relative">
                     <NavLink
                       to={item.para}
-                      // Só o Painel ("/") exige endereço exato; /relatorios/x mantém "Relatórios" marcado.
-                      end={item.para === '/'}
+                      // Os painéis ("/" e "/univan") exigem endereço exato; /relatorios/x mantém "Relatórios" marcado.
+                      end={item.para === '/' || item.para === '/univan'}
                       onClick={aoFechar}
                       aria-label={item.rotulo}
                       className={({ isActive }) =>

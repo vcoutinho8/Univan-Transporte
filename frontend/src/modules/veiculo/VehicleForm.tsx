@@ -35,6 +35,10 @@ export default function FormularioVeiculo({ veiculo, aoSalvar, aoCancelar }: Pro
   const corPadraoInicial = corInicial ? obterHexCor(corInicial) : null
 
   const [categoria, setCategoria] = useState<CategoriaVeiculo>(categoriaInicial)
+  // Placa conferida ao digitar (antiga ABC1234 ou Mercosul ABC1D23; hífen e espaço não contam).
+  const [placa, setPlaca] = useState(veiculo?.placa ?? '')
+  const placaLimpa = placa.replace(/[^A-Z0-9]/g, '')
+  const placaInvalida = placaLimpa.length >= 7 ? !/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placaLimpa) : placa.length > 0 && placaLimpa.length === 0
   const [capacidade, setCapacidade] = useState<string>(
     veiculo ? String(veiculo.capacidade) : String(CATEGORIAS_VEICULO[categoriaInicial].min),
   )
@@ -123,9 +127,14 @@ export default function FormularioVeiculo({ veiculo, aoSalvar, aoCancelar }: Pro
                 required
                 maxLength={8}
                 placeholder="ABC1D23"
-                defaultValue={veiculo?.placa}
-                className="campo uppercase"
+                value={placa}
+                onChange={(e) => setPlaca(e.target.value.toUpperCase())}
+                aria-invalid={placaInvalida}
+                className={`campo uppercase ${placaInvalida ? 'border-red-300 ring-2 ring-red-100' : ''}`}
               />
+              {placaInvalida && (
+                <span className="mt-1 block text-xs font-semibold text-red-600">Placa inválida: use ABC1234 ou ABC1D23 (Mercosul).</span>
+              )}
             </label>
 
             <label className="text-sm font-semibold text-marinho">

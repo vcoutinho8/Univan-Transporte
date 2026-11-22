@@ -16,6 +16,8 @@ export interface UsuarioDetalhe {
   ultimo_acesso: string | null
   /** Ainda com a senha padrão (não entrou para trocar). */
   trocar_senha: boolean
+  /** Pediu senha nova em "Esqueci a senha" (o gestor reseta). */
+  pediu_senha_em: string | null
 }
 
 /** A conta de quem está logado. Do motorista, o CPF e a casa vêm do cadastro dele. */

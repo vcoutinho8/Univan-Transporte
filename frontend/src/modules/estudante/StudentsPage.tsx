@@ -53,7 +53,7 @@ export default function PaginaEstudantes() {
   const setAviso = (a: Aviso) =>
     avisos.mostrar({
       tipo: a.tipo,
-      titulo: a.tipo === 'erro' ? 'Não foi possível concluir' : a.tipo === 'aviso' ? 'Salvo, com um alerta' : 'Pronto!',
+      titulo: a.tipo === 'erro' ? 'Ops, algo não deu certo' : a.tipo === 'aviso' ? 'Salvo, mas fique de olho' : 'Tudo certo!',
       descricao: a.mensagem,
     })
 
@@ -100,7 +100,7 @@ export default function PaginaEstudantes() {
         : await servicoEstudante.cadastrar(dados)
     const ondeFicou = salvo.area ? `na área ${salvo.area.nome}` : 'fora das áreas atendidas'
     setAviso({
-      mensagem: `${salvo.nome} ${formulario.modo === 'editar' ? 'atualizado(a)' : 'cadastrado(a)'} ${ondeFicou}.`,
+      mensagem: `${formulario.modo === 'editar' ? 'Os dados de' : 'Bem-vindo(a) ao UniVan,'} ${salvo.nome}${formulario.modo === 'editar' ? ' foram atualizados' : '!'} ${ondeFicou}.`,
       tipo: salvo.area ? 'sucesso' : 'aviso',
     })
     fecharFormulario()
@@ -113,13 +113,20 @@ export default function PaginaEstudantes() {
       setAviso({ mensagem: mensagemSucesso, tipo: 'sucesso' })
       await estudantes.recarregar()
     } catch (e) {
-      setAviso({ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado.', tipo: 'erro' })
+      setAviso({ mensagem: e instanceof ErroApi ? e.mensagemCompleta : 'Algo saiu diferente do esperado. Tente de novo em instantes.', tipo: 'erro' })
     }
+  }
+
+  /** Reativou o último inativo da lista: volta sozinho para os ativos. */
+  async function reativar(estudante: Estudante) {
+    const ultimo = filtroStatus === 'inativo' && (estudantes.dados ?? []).length <= 1
+    await executar(() => servicoEstudante.reativar(estudante.id), `${estudante.nome} está de volta à lista de ativos!`)
+    if (ultimo) setFiltroStatus('ativo')
   }
 
   async function inativar(estudante: Estudante) {
     if (!(await confirmacao.confirmar({ titulo: `Inativar ${estudante.nome}?`, descricao: `O histórico será mantido.`, botao: 'Inativar', perigo: true }))) return
-    void executar(() => servicoEstudante.inativar(estudante.id), `${estudante.nome} inativado(a).`)
+    void executar(() => servicoEstudante.inativar(estudante.id), `${estudante.nome} saiu da lista de ativos. O histórico de viagens continua guardado.`)
   }
 
   return (
@@ -328,7 +335,7 @@ export default function PaginaEstudantes() {
                                   <Botao
                                     variante="secundario"
                                     className="px-3 py-1.5"
-                                    onClick={() => void executar(() => servicoEstudante.reativar(estudante.id), `${estudante.nome} reativado(a).`)}
+                                    onClick={() => void reativar(estudante)}
                                   >
                                     Reativar
                                   </Botao>

@@ -27,6 +27,7 @@ class InstituicaoResposta(BaseModel):
     parada_latitude: float | None = Field(description="Ponto de parada ajustado no mapa (vazio = usa o endereço).")
     parada_longitude: float | None
     paradas: list[ParadaExtra] = Field(default_factory=list, description="Paradas extras (a principal é ponto_parada).")
+    codigo_inep: int | None = Field(default=None, description="Código da IES no e-MEC/INEP.")
 
     @computed_field(description="Onde a van para: o ponto ajustado ou, sem ajuste, a localização do endereço.")
     @property
@@ -87,6 +88,7 @@ class InstituicaoNova(BaseModel):
 
     nome: str = Field(max_length=100)
     endereco: EnderecoEntrada
+    codigo_inep: int | None = Field(default=None, gt=0, description="Código da IES no e-MEC/INEP (catálogo).")
 
     @field_validator("nome")
     @classmethod
@@ -101,6 +103,7 @@ class InstituicaoAlteracao(BaseModel):
 
     nome: str | None = Field(default=None, max_length=100)
     endereco: EnderecoEntrada | None = None
+    codigo_inep: int | None = Field(default=None, gt=0)
 
     @field_validator("nome")
     @classmethod

@@ -176,6 +176,7 @@ class ServicoViagem:
                     rotas=rotas.get(dia.isoweekday(), 0),
                     feriados=[f"{d.instituicao.nome}: {d.motivo}" if d.instituicao else d.motivo for d in do_dia],
                     feriado_geral=any(d.fk_instituicao is None for d in do_dia),
+                    motivo_geral=next((d.motivo for d in do_dia if d.fk_instituicao is None), None),
                 )
             )
         return dias

@@ -9,11 +9,16 @@ import RelatorioDiasSemAulaTela from './NoClassDaysReport.tsx'
 import { buscarRelatorio } from './catalog.ts'
 import BotaoFavorito from './FavoriteButton.tsx'
 import { useFavoritos } from './useFavorites.ts'
+import { RelatorioCnhVencendo, RelatorioFrequenciaPassageiro, RelatorioInadimplentes, RelatorioViagensPeriodo } from './TableReport.tsx'
 
 /** Componente de cada relatório disponível, pelo `id` do catálogo. */
 const COMPONENTES: Record<string, ComponentType> = {
   'passageiros-ativos': RelatorioEstudantesAtivos,
   'dias-sem-aula': RelatorioDiasSemAulaTela,
+  'viagens-periodo': RelatorioViagensPeriodo,
+  'frequencia-passageiro': RelatorioFrequenciaPassageiro,
+  'cnh-vencendo': RelatorioCnhVencendo,
+  inadimplentes: RelatorioInadimplentes,
 }
 
 /** Tela de geração de um relatório: voltar ao catálogo, título, estrela de favorito e o relatório. */

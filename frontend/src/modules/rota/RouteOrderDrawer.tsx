@@ -54,7 +54,6 @@ function Comparacao({ atual, nova, rotuloNova }: { atual: SequenciaDaOrdem; nova
         <span className="w-20 text-right">{rotuloNova}</span>
       </div>
       {linha('Distância', `${atual.distancia_km.toFixed(1)} km`, `${nova.distancia_km.toFixed(1)} km`, nova.distancia_km < atual.distancia_km)}
-      {linha('Tempo ao volante', duracao(atual.duracao_min), duracao(nova.duracao_min), nova.duracao_min < atual.duracao_min)}
       {linha('Chegada na última faculdade', formatarHorario(atual.chegada), formatarHorario(nova.chegada), (nova.chegada ?? '') < (atual.chegada ?? ''))}
     </div>
   )

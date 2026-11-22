@@ -91,6 +91,16 @@ TAGS: list[dict[str, str]] = [
         "ou só uma. Nesses dias a geração de viagens não cria nada para as instituições afetadas.",
     },
     {
+        "name": "UniVan",
+        "description": "Gerente do app: gestores (empresas assinantes), pagamentos da assinatura, painel e "
+        "inadimplência. Em atraso: em negociação; mais de 30 dias: inativa.",
+    },
+    {
+        "name": "Financeiro",
+        "description": "A receber (mensalidades dos passageiros) e a pagar (motoristas, manutenção e outros "
+        "gastos): baixa, reabertura e o resumo do mês.",
+    },
+    {
         "name": "Relatórios",
         "description": "Consultas de acompanhamento, só leitura: passageiros ativos por instituição, "
         "turno, bairro e rota.",

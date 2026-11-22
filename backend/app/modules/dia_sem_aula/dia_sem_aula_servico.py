@@ -65,8 +65,8 @@ class ServicoDiaSemAula:
         """Um registro por dia do período e por instituição (ou um geral, sem instituição).
         Dias já cadastrados para a mesma instituição não duplicam.
 
-        Viagens já geradas nesses dias não são apagadas nem canceladas: a resposta diz quantas
-        existem, para o administrador decidir na tela de viagens.
+        As viagens já agendadas nesses dias (da faculdade, ou de todas) ficam canceladas com o
+        motivo; removendo o dia sem aula, elas voltam.
         """
         for id_instituicao in dados.fk_instituicoes:
             if self.repositorio_instituicao.buscar_por_id(id_instituicao) is None:
@@ -75,17 +75,19 @@ class ServicoDiaSemAula:
         total = (dados.data_fim - dados.data_inicio).days + 1
         dias = [dados.data_inicio + timedelta(days=n) for n in range(total)]
         novos: list[DiaSemAula] = []
-        viagens = 0
+        viagens = canceladas = 0
         for alvo in alvos:
             existentes = self.repositorio.datas_cadastradas(dados.data_inicio, dados.data_fim, alvo)
             novos += [DiaSemAula(data=dia, fk_instituicao=alvo, motivo=dados.motivo) for dia in dias if dia not in existentes]
             viagens += self.repositorio.contar_viagens(dados.data_inicio, dados.data_fim, alvo)
+            canceladas += self.repositorio.cancelar_viagens(dados.data_inicio, dados.data_fim, alvo, dados.motivo)
         if novos:
             self.repositorio.criar_varios(novos)
         return PeriodoSemAulaResultado(
             criados=len(novos),
             ja_existiam=total * len(alvos) - len(novos),
             viagens_geradas=viagens,
+            viagens_canceladas=canceladas,
         )
 
     def remover(self, ids: list[int]) -> int:

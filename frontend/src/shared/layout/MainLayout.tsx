@@ -21,7 +21,8 @@ export default function LayoutPrincipal() {
   // A `key` muda a cada tela: o React remonta o conteúdo e a animação de entrada roda de novo.
   const { pathname } = useLocation()
   // Motorista no celular: abas embaixo, sem a barra do topo (o mapa ganha a tela).
-  const motorista = useSessao().usuario?.perfil === 'motorista'
+  const { usuario, sessao } = useSessao()
+  const motorista = usuario?.perfil === 'motorista'
 
   return (
     <div className="min-h-screen">
@@ -42,6 +43,14 @@ export default function LayoutPrincipal() {
           key={pathname}
           className={`mx-auto max-w-[96rem] animate-surgir px-4 py-5 sm:px-6 lg:px-8 lg:py-6 ${motorista ? 'pb-24 lg:pb-6' : ''}`}
         >
+          {sessao?.avisoAssinatura && (
+            <div className="mb-4 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+              <span className="mt-0.5 text-lg">⚠️</span>
+              <p>
+                <strong>Assinatura em atraso.</strong> {sessao.avisoAssinatura} Fale com a UniVan para negociar.
+              </p>
+            </div>
+          )}
           <RotaProtegida>
             <Outlet />
             <TrocaDeSenhaObrigatoria />

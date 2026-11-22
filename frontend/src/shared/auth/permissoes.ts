@@ -32,7 +32,9 @@ const TELAS: Record<string, Perfil[]> = {
   '/chamadas': ['admin', 'auxiliar', 'motorista'],
   '/relatorios': ['admin', 'auxiliar'],
   '/minha-rota': ['motorista'],
-  '/configuracoes': ['admin', 'auxiliar', 'motorista'],
+  '/configuracoes': ['admin', 'auxiliar', 'motorista', 'univan'],
+  '/univan': ['univan'],
+  '/financas': ['admin', 'auxiliar'],
 }
 
 export const pode = (perfil: Perfil | undefined, acao: Acao) => Boolean(perfil && ACOES[acao].includes(perfil))
@@ -46,10 +48,11 @@ export function abreTela(perfil: Perfil | undefined, caminho: string): boolean {
 }
 
 /** Tela inicial de cada perfil depois de entrar. */
-export const telaInicial = (perfil: Perfil) => (perfil === 'motorista' ? '/minha-rota' : '/')
+export const telaInicial = (perfil: Perfil) => (perfil === 'motorista' ? '/minha-rota' : perfil === 'univan' ? '/univan' : '/')
 
 export const ROTULOS_PERFIL: Record<Perfil, string> = {
   admin: 'Gestor do Sistema',
   auxiliar: 'Auxiliar do Sistema',
   motorista: 'Motorista',
+  univan: 'Gerente UniVan',
 }

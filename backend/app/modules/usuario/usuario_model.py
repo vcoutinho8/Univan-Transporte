@@ -35,5 +35,7 @@ class Usuario(Base):
     cpf: Mapped[str | None] = mapped_column(String(11))
     # Senha padrão (123456) definida pelo admin: no próximo login a pessoa cria a dela.
     trocar_senha: Mapped[bool] = mapped_column(default=False, server_default="0")
+    # Pediu uma senha nova em "Esqueci a senha": o gestor vê e reseta.
+    pediu_senha_em: Mapped[datetime | None]
 
     motorista: Mapped["Motorista | None"] = relationship()

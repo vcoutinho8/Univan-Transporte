@@ -187,6 +187,9 @@ export default function CartaoJornada({
                   {v.rota.instituicao.nome}
                 </p>
                 <p className="truncate text-xs text-slate-400">{v.rota.nome}</p>
+                {v.status === 'cancelada' && v.motivo_encerramento && (
+                  <p className="mt-0.5 text-xs font-semibold text-red-600">Cancelada · {v.motivo_encerramento}</p>
+                )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <button
                     type="button"
