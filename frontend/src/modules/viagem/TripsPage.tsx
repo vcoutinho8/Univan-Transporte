@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import EstadoVazio from '../../shared/components/EmptyState.tsx'
 import { useSearchParams } from 'react-router-dom'
 
 import { pode } from '../../shared/auth/permissoes.ts'
@@ -368,24 +369,37 @@ export default function PaginaViagens() {
         </Cartao>
       )}
       {(viagens.carregando || (sincronizandoSemana && todas.length === 0)) && (
-        <Cartao>
-          <p className="py-6 text-center text-sm text-slate-500">Carregando viagens...</p>
-        </Cartao>
+        <div className="space-y-3">
+          <div className="esqueleto h-28" />
+          <div className="esqueleto h-28" />
+        </div>
       )}
       {!viagens.carregando && !sincronizandoSemana && !viagens.erro && todas.length === 0 && (
         <Cartao>
-          <p className="py-6 text-center text-sm text-slate-500">
-            {semanaFutura
-              ? 'As viagens desta semana futura ainda não foram liberadas.'
-              : 'Nenhuma viagem ativa neste dia (feriado, fim de semana ou sem rotas cadastradas).'}
-          </p>
+          {semanaFutura ? (
+            <EstadoVazio
+              icone="relogio"
+              tom="ceu"
+              titulo="Semana ainda não liberada"
+              descricao="As viagens desta semana são geradas automaticamente quando ela começar."
+            />
+          ) : (
+            <EstadoVazio
+              icone="mala"
+              tom="laranja"
+              titulo="Nenhuma viagem neste dia"
+              descricao="Pode ser feriado, fim de semana ou um dia em que nenhuma rota roda. Confira o Calendário e os dias das rotas em Mapa e rotas."
+            />
+          )}
         </Cartao>
       )}
       {!viagens.carregando && !viagens.erro && todas.length > 0 && porTurno[turno] === 0 && (
         <Cartao>
-          <p className="py-6 text-center text-sm text-slate-500">
-            Nenhuma viagem no turno da {ROTULOS_TURNO[turno].toLowerCase()} neste dia.
-          </p>
+          <EstadoVazio
+            icone="relogio"
+            titulo={`Nada no turno da ${ROTULOS_TURNO[turno].toLowerCase()}`}
+            descricao="Neste dia as viagens são em outro turno: escolha outro turno acima."
+          />
         </Cartao>
       )}
       {!viagens.carregando && !viagens.erro && porTurno[turno] > 0 && (

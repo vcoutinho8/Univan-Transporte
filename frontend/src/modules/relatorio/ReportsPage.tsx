@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import EstadoVazio from '../../shared/components/EmptyState.tsx'
 import { Link } from 'react-router-dom'
 
 import Icone from '../../shared/components/Icon.tsx'
@@ -126,9 +127,9 @@ export default function PaginaRelatorios() {
           </section>
         ))}
         {grupos.length === 0 && (
-          <p className="rounded-2xl bg-white py-10 text-center text-sm text-slate-500 ring-1 ring-slate-200/70">
-            Nenhum relatório encontrado para "{busca}".
-          </p>
+          <div className="rounded-2xl bg-white ring-1 ring-slate-200/70">
+            <EstadoVazio icone="documento" titulo="Nenhum relatório encontrado" descricao={`Nada com "${busca}". Tente outra palavra, como "passageiros" ou "dias".`} />
+          </div>
         )}
       </div>
     </div>

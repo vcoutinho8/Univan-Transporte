@@ -8,6 +8,13 @@ import BarraSuperior from './Topbar.tsx'
 /** Estrutura de todas as telas: menu lateral + barra superior + conteúdo da página (Outlet). */
 export default function LayoutPrincipal() {
   const [menuAberto, setMenuAberto] = useState(false)
+  // Menu só com ícones (desktop): a escolha fica guardada no navegador.
+  const [recolhido, setRecolhido] = useState(() => localStorage.getItem('univan.menuRecolhido') === '1')
+  const alternarRecolhido = () =>
+    setRecolhido((atual) => {
+      localStorage.setItem('univan.menuRecolhido', atual ? '0' : '1')
+      return !atual
+    })
   // A `key` muda a cada tela: o React remonta o conteúdo e a animação de entrada roda de novo.
   const { pathname } = useLocation()
 
@@ -15,9 +22,14 @@ export default function LayoutPrincipal() {
     <div className="min-h-screen">
       {/* Na impressão (relatórios) saem o menu e a barra: fica só o conteúdo. */}
       <div className="print:hidden">
-        <MenuLateral aberto={menuAberto} aoFechar={() => setMenuAberto(false)} />
+        <MenuLateral
+          aberto={menuAberto}
+          aoFechar={() => setMenuAberto(false)}
+          recolhido={recolhido}
+          aoAlternarRecolhido={alternarRecolhido}
+        />
       </div>
-      <div className="lg:pl-64 print:pl-0">
+      <div className={`transition-[padding] duration-300 print:pl-0 ${recolhido ? 'lg:pl-20' : 'lg:pl-64'}`}>
         <div className="print:hidden">
           <BarraSuperior aoAbrirMenu={() => setMenuAberto(true)} />
         </div>

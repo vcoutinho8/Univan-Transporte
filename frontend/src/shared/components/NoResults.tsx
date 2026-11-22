@@ -1,5 +1,6 @@
 import Botao from './Button.tsx'
-import Icone from './Icon.tsx'
+import EstadoVazio from './EmptyState.tsx'
+import type { NomeIcone } from './Icon.tsx'
 
 interface Propriedades {
   /** "Nenhum passageiro encontrado" */
@@ -10,25 +11,27 @@ interface Propriedades {
   aoLimpar?: () => void
   /** Frase de ajuda; sem filtros ativos, explica que não há registros. */
   dica?: string
+  /** Ícone da ilustração (padrão: lupa). */
+  icone?: NomeIcone
 }
 
 /**
  * Aviso padrão de "nada encontrado": usado em todas as listas com filtro (passageiros, motoristas,
  * veículos, viagens, rotas). Mostra quais filtros causaram o resultado vazio e oferece limpar.
  */
-export default function AvisoSemResultado({ titulo, filtros, aoLimpar, dica }: Propriedades) {
+export default function AvisoSemResultado({ titulo, filtros, aoLimpar, dica, icone = 'busca' }: Propriedades) {
   return (
-    <div className="flex flex-col items-center px-6 py-10 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-500 ring-1 ring-amber-100">
-        <Icone nome="busca" className="h-6 w-6" />
-      </span>
-      <p className="mt-4 font-bold text-marinho">{titulo}</p>
-      <p className="mt-1 max-w-md text-sm text-slate-500">
-        {dica ??
-          (filtros.length > 0
-            ? 'Nenhum registro atende a todos os filtros abaixo. Tire algum filtro para ampliar a busca.'
-            : 'Ainda não há registros aqui.')}
-      </p>
+    <EstadoVazio
+      icone={icone}
+      tom={filtros.length > 0 ? 'ambar' : 'marinho'}
+      titulo={titulo}
+      descricao={
+        dica ??
+        (filtros.length > 0
+          ? 'Nenhum registro atende a todos os filtros abaixo. Tire algum filtro para ampliar a busca.'
+          : 'Ainda não há registros aqui.')
+      }
+    >
       {filtros.length > 0 && (
         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
           {filtros.map((f) => (
@@ -43,6 +46,6 @@ export default function AvisoSemResultado({ titulo, filtros, aoLimpar, dica }: P
           Limpar filtros
         </Botao>
       )}
-    </div>
+    </EstadoVazio>
   )
 }

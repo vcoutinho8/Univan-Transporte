@@ -5,22 +5,18 @@ import { ROTULOS_PERFIL } from '../../shared/auth/permissoes.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
 import Cartao from '../../shared/components/Card.tsx'
-import Icone from '../../shared/components/Icon.tsx'
+import EstadoVazio from '../../shared/components/EmptyState.tsx'
+import Icone, { type NomeIcone } from '../../shared/components/Icon.tsx'
 import CartaoIndicador from '../../shared/components/StatCard.tsx'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { dataIso, formatarHorario, iniciais } from '../../shared/utils/formatar.ts'
-import { servicoArea } from '../area/areaService.ts'
 import { servicoChamada } from '../chamada/callService.ts'
-import { servicoEstudante } from '../estudante/studentService.ts'
-import { CamadaAreas, Enquadrar, MapaBase, MarcadorPassageiro } from '../mapa/MapLayers.tsx'
-import { coordenadaDo } from '../mapa/mapUtils.ts'
 import { ROTULOS_TURNO, type Turno } from '../estudante/types.ts'
-import { servicoMotorista } from '../motorista/driverService.ts'
-import { diasParaVencer, situacaoCnh } from '../motorista/driverUtils.ts'
 import { servicoRota } from '../rota/routeService.ts'
 import type { Rota } from '../rota/types.ts'
 import { servicoPainel } from './dashboardService.ts'
 import CenaEstrada, { Ceu, periodoDoDia, type Periodo } from './RoadScene.tsx'
+import GraficoSemana from './WeekChart.tsx'
 import { agruparJornadas, ORDEM_TURNOS } from '../viagem/tripGrouping.ts'
 import { servicoViagem } from '../viagem/tripService.ts'
 import type { StatusViagem } from '../viagem/types.ts'
@@ -45,28 +41,27 @@ const RESUMO_OPERACAO = [
   ['concluida', 'Concluídas', 'text-emerald-600'],
 ] as const
 
+/** Atalhos do dia a dia (o auxiliar também cadastra e consulta). */
+const ATALHOS: { para: string; rotulo: string; descricao: string; icone: NomeIcone; cor: string }[] = [
+  { para: '/passageiros?novo=1', rotulo: 'Novo passageiro', descricao: 'Cadastrar e marcar no mapa', icone: 'passageiros', cor: 'bg-laranja/10 text-laranja' },
+  { para: '/mapa?aba=rotas', rotulo: 'Rotas', descricao: 'Ordem das paradas e trajetos', icone: 'rota', cor: 'bg-sky-100 text-sky-600' },
+  { para: '/calendario', rotulo: 'Calendário', descricao: 'Feriados e dias sem aula', icone: 'viagem', cor: 'bg-violet-100 text-violet-600' },
+  { para: '/relatorios', rotulo: 'Relatórios', descricao: 'PDF e planilhas', icone: 'relatorio', cor: 'bg-emerald-100 text-emerald-600' },
+]
+
 /**
  * Tela inicial (RF5) do administrador e do auxiliar: boas-vindas com as próximas saídas,
  * indicadores, a operação de hoje (uma linha por motorista e sentido), as chamadas do dia,
- * os pontos de atenção e o mapa dos passageiros.
+ * atalhos e o gráfico da semana.
  */
 export default function PaginaPainel() {
   const hoje = dataIso()
   const resumo = useRequisicao(() => servicoPainel.resumo())
-  const estudantes = useRequisicao(() => servicoEstudante.listar({ status: 'ativo' }))
-  const areas = useRequisicao(() => servicoArea.listar({ status: 'ativo' }))
   const rotas = useRequisicao(() => servicoRota.listar({ status: 'ativo' }))
   const viagens = useRequisicao(() => servicoViagem.listar({ data: hoje }), [hoje])
   const chamadas = useRequisicao(() => servicoChamada.doDia(hoje), [hoje])
-  const motoristas = useRequisicao(() => servicoMotorista.listar({ status: 'ativo' }))
+  const semana = useRequisicao(() => servicoPainel.semana(hoje), [hoje])
   const dados = resumo.dados
-
-  const comLocal = (estudantes.dados ?? []).filter((e) => coordenadaDo(e) !== null)
-  const semLocal = (estudantes.dados?.length ?? 0) - comLocal.length
-  const cnhs = (motoristas.dados ?? [])
-    .map((m) => ({ motorista: m, situacao: situacaoCnh(m.cnh_validade), dias: diasParaVencer(m.cnh_validade) }))
-    .filter((c) => c.situacao !== 'valida')
-    .sort((a, b) => a.dias - b.dias)
 
   // Jornadas do dia (motorista + turno + sentido), na ordem manhã ida, manhã volta, noite...
   const jornadas = useMemo(
@@ -125,12 +120,17 @@ export default function PaginaPainel() {
               <div className="esqueleto h-12" />
             </div>
           ) : jornadas.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-fundo text-slate-400">
-                <Icone nome="mala" className="h-6 w-6" />
-              </span>
-              <p className="text-sm text-slate-500">Nenhuma viagem gerada para hoje.</p>
-            </div>
+            <EstadoVazio
+              icone="mala"
+              tom="laranja"
+              titulo="Nenhuma viagem hoje"
+              descricao="Pode ser fim de semana, feriado ou um dia sem rotas. As viagens da semana são geradas sozinhas."
+              acao={
+                <Link to="/calendario" className="text-sm font-bold text-laranja hover:underline">
+                  Ver o calendário
+                </Link>
+              }
+            />
           ) : (
             <>
               <div className="grid grid-cols-3 gap-3">
@@ -206,7 +206,7 @@ export default function PaginaPainel() {
             {!resumoChamadas ? (
               <div className="esqueleto h-20" />
             ) : resumoChamadas.passageiros === 0 ? (
-              <p className="py-3 text-sm text-slate-500">Sem passageiros nas viagens de hoje.</p>
+              <EstadoVazio icone="chamada" titulo="Sem chamada hoje" descricao="Não há passageiros nas viagens de hoje." compacto />
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-emerald-50 p-3">
@@ -225,87 +225,49 @@ export default function PaginaPainel() {
             )}
           </Cartao>
 
-          {/* Pontos de atenção */}
-          <Cartao titulo="Pontos de atenção" className="animate-surgir [animation-delay:460ms]">
-            <ul className="space-y-2 text-sm">
-              {!dados ? (
-                <li className="esqueleto h-14" />
-              ) : (
-                <>
-                  {dados.estudantes_sem_area > 0 && (
-                    <li>
-                      <Link to="/passageiros" className="flex gap-3 rounded-xl bg-amber-50 p-3 text-amber-800 transition-colors hover:bg-amber-100">
-                        <Icone nome="alerta" className="mt-0.5 h-4 w-4 shrink-0" />
-                        <span>
-                          <strong>{dados.estudantes_sem_area}</strong> passageiro(s) fora de qualquer área de motorista.
-                        </span>
-                      </Link>
-                    </li>
-                  )}
-                  {semLocal > 0 && (
-                    <li className="flex gap-3 rounded-xl bg-amber-50 p-3 text-amber-800">
-                      <Icone nome="pino" className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>
-                        <strong>{semLocal}</strong> passageiro(s) sem localização no mapa.
-                      </span>
-                    </li>
-                  )}
-                  {cnhs.slice(0, 3).map(({ motorista, situacao, dias }) => (
-                    <li key={motorista.id}>
-                      <Link
-                        to="/motoristas"
-                        className={`flex gap-3 rounded-xl p-3 transition-colors ${
-                          situacao === 'vencida' ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                        }`}
-                      >
-                        <Icone nome="cnh" className="mt-0.5 h-4 w-4 shrink-0" />
-                        <span>
-                          CNH de <strong>{motorista.nome}</strong>{' '}
-                          {situacao === 'vencida' ? `vencida há ${-dias} dia(s)` : `vence em ${dias} dia(s)`}.
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                  {dados.estudantes_sem_area === 0 && semLocal === 0 && cnhs.length === 0 && (
-                    <li className="flex gap-3 rounded-xl bg-emerald-50 p-3 text-emerald-800">
-                      <Icone nome="ok" className="mt-0.5 h-4 w-4 shrink-0" />
-                      <span>Tudo em dia: passageiros com área e localização e CNHs válidas.</span>
-                    </li>
-                  )}
-                </>
-              )}
-            </ul>
+          {/* Atalhos */}
+          <Cartao titulo="Atalhos" className="animate-surgir [animation-delay:460ms]">
+            <div className="grid grid-cols-2 gap-2">
+              {ATALHOS.map((a) => (
+                <Link
+                  key={a.para}
+                  to={a.para}
+                  className="group rounded-xl p-3 ring-1 ring-slate-200/70 transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300"
+                >
+                  <span className={`grid h-9 w-9 place-items-center rounded-xl transition-transform group-hover:scale-110 ${a.cor}`}>
+                    <Icone nome={a.icone} className="h-4 w-4" />
+                  </span>
+                  <span className="mt-2 block text-sm font-bold text-marinho">{a.rotulo}</span>
+                  <span className="block text-[11px] leading-snug text-slate-500">{a.descricao}</span>
+                </Link>
+              ))}
+            </div>
           </Cartao>
         </div>
       </div>
 
       <Cartao
-        titulo="Mapa dos passageiros"
+        titulo="Últimos 7 dias"
         className="mt-6 animate-surgir [animation-delay:520ms]"
         acoes={
-          <Link to="/mapa" className="group flex items-center gap-1 text-sm font-semibold text-laranja">
-            Abrir mapa completo
+          <Link to="/relatorios" className="group flex items-center gap-1 text-sm font-semibold text-laranja">
+            Relatórios
             <Icone nome="seta" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         }
       >
-        <div className="overflow-hidden rounded-xl ring-1 ring-slate-200/70">
-          <MapaBase className="h-80" rolagem={false}>
-            <Enquadrar
-              pontos={[...(areas.dados ?? []).flatMap((a) => a.poligono), ...comLocal.map((e) => coordenadaDo(e)!)]}
-              chave={`${areas.dados?.length ?? 0}-${comLocal.length}`}
-            />
-            <CamadaAreas areas={areas.dados ?? []} mostrarNomes={false} />
-            {comLocal.map((estudante) => (
-              <MarcadorPassageiro
-                key={estudante.id}
-                estudante={estudante}
-                posicao={coordenadaDo(estudante)!}
-                variante={estudante.fk_area === null ? 'sem-area' : 'normal'}
-              />
-            ))}
-          </MapaBase>
-        </div>
+        {semana.carregando && !semana.dados ? (
+          <div className="esqueleto h-64" />
+        ) : semana.dados && semana.dados.some((d) => d.viagens > 0) ? (
+          <GraficoSemana dias={semana.dados} hoje={hoje} />
+        ) : (
+          <EstadoVazio
+            icone="tendencia"
+            tom="ceu"
+            titulo="Ainda sem viagens nesta semana"
+            descricao="Quando os motoristas registrarem os embarques, a presença de cada dia aparece aqui."
+          />
+        )}
       </Cartao>
     </>
   )

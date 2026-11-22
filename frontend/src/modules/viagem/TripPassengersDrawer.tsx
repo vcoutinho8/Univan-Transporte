@@ -1,4 +1,5 @@
 import Alerta from '../../shared/components/Alert.tsx'
+import EstadoVazio from '../../shared/components/EmptyState.tsx'
 import Gaveta from '../../shared/components/Drawer.tsx'
 import { useRequisicao } from '../../shared/hooks/useRequest.ts'
 import { formatarCelular, formatarHoraDe, formatarHorario, nomeCurto } from '../../shared/utils/formatar.ts'
@@ -36,7 +37,7 @@ export default function GavetaPassageirosViagem({ viagem, aoFechar }: { viagem: 
         {detalhe.erro && <Alerta mensagem={detalhe.erro} />}
         {detalhe.carregando && <p className="py-8 text-center text-sm text-slate-500">Carregando...</p>}
         {!detalhe.carregando && !detalhe.erro && chamadas.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-500">Nenhum passageiro nesta viagem.</p>
+          <EstadoVazio icone="passageiros" titulo="Nenhum passageiro nesta viagem" descricao="Ninguém da rota está ativo para este dia." compacto />
         )}
         <ol className="space-y-2">
           {chamadas.map((chamada, indice) => (

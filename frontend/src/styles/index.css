@@ -482,3 +482,30 @@ body {
     animation: none;
   }
 }
+
+/* Casa do motorista: gota azul com a casinha e o rótulo com o nome. */
+.pino-casa {
+  width: 40px;
+  height: 40px;
+  background: #0ea5e9;
+  border-width: 3px;
+}
+.pino-casa > svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  transform: rotate(45deg);
+}
+.leaflet-tooltip.rotulo-casa {
+  background: #0ea5e9;
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  box-shadow: 0 4px 10px -2px rgb(14 165 233 / 0.5);
+}
+.leaflet-tooltip.rotulo-casa::before {
+  border-top-color: #0ea5e9;
+}
