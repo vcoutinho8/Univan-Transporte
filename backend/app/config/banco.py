@@ -65,6 +65,9 @@ COLUNAS_NOVAS = (
     ("chamada", "horario_desembarque", "TEXT"),
     ("motorista", "fk_endereco", "INTEGER REFERENCES endereco (id)"),
     ("estudante", "fk_parada", "INTEGER REFERENCES instituicao_parada (id)"),
+    ("viagem", "motivo_encerramento", "TEXT"),
+    ("usuario", "email", "TEXT"),
+    ("usuario", "cpf", "TEXT"),
 )
 
 

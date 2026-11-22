@@ -29,6 +29,12 @@ class JornadaPedido(BaseModel):
     sentido: Sentido
 
 
+class JornadaEncerrarPedido(JornadaPedido):
+    """Concluir a jornada; `motivo` quando é encerrada antes da hora (pneu furou, troca de motorista...)."""
+
+    motivo: str | None = Field(default=None, max_length=200)
+
+
 class ChamadaDaJornada(ChamadaResposta):
     """Passageiro na fila da jornada, com a viagem (rota) e a instituição dele."""
 

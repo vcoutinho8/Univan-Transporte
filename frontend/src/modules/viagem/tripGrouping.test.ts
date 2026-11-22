@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Turno } from '../estudante/types.ts'
-import { agruparJornadas, contarPorTurno, statusDaJornada, turnoDaHora, turnoInicial } from './tripGrouping.ts'
+import { agruparJornadas, contarPorTurno, statusDaJornada, jornadasDoTurno, travaDaJornada, turnoDaHora, turnoInicial, type ResumoJornada } from './tripGrouping.ts'
 import type { Sentido, StatusViagem, Viagem } from './types.ts'
 
 const CARLOS = { id: 1, nome: 'Carlos' }
@@ -71,5 +71,38 @@ describe('agruparJornadas', () => {
     expect(carlos.passageiros.total).toBe(5)
     expect(carlos.veiculos).toHaveLength(1)
     expect(carlos.chave).toEqual({ data: '2026-11-23', fk_motorista: 1, turno: 'noite', sentido: 'ida' })
+  })
+})
+
+describe('travaDaJornada', () => {
+  const j = (turno: 'manha' | 'noite', sentido: 'ida' | 'volta', horario: string, status: ResumoJornada['status'] = 'agendada') =>
+    ({ chave: { data: '2026-11-22', fk_motorista: 1, turno, sentido }, status, horario_previsto: horario }) as ResumoJornada
+  const manhaIda = j('manha', 'ida', '06:30:00')
+  const manhaVolta = j('manha', 'volta', '12:10:00')
+  const noiteIda = j('noite', 'ida', '18:00:00')
+  const lista = [manhaIda, manhaVolta, noiteIda]
+  const as = (h: number, m = 0) => new Date(2026, 10, 22, h, m)
+
+  it('de manhã abre só o turno da manhã', () => {
+    expect(travaDaJornada(lista, manhaIda, as(6))).toBeNull()
+    expect(travaDaJornada(lista, noiteIda, as(6))).toBe('Abre às 16:00')
+  })
+
+  it('fecha depois da última saída do turno', () => {
+    expect(travaDaJornada(lista, manhaIda, as(13, 41))).toBe('Horário encerrado')
+  })
+
+  it('a volta espera a ida e nada abre com outra jornada rodando', () => {
+    expect(travaDaJornada(lista, manhaVolta, as(11))).toBe('Faça a ida primeiro')
+    const rodando = [{ ...manhaIda, status: 'em_andamento' } as ResumoJornada, manhaVolta, noiteIda]
+    expect(travaDaJornada(rodando, rodando[0], as(7))).toBeNull()
+    expect(travaDaJornada(rodando, noiteIda, as(17))).toBe('Termine a ida da manhã antes')
+  })
+
+  it('mostra só o turno da hora, e o que estiver rodando', () => {
+    expect(jornadasDoTurno(lista, as(7))).toEqual([manhaIda, manhaVolta])
+    expect(jornadasDoTurno(lista, as(17))).toEqual([noiteIda])
+    const rodando = { ...manhaVolta, status: 'em_andamento' } as ResumoJornada
+    expect(jornadasDoTurno([manhaIda, rodando, noiteIda], as(17))).toEqual([rodando, noiteIda])
   })
 })

@@ -39,6 +39,8 @@ export interface Viagem {
   /** AAAA-MM-DDTHH:MM:SS */
   horario_saida: string | null
   horario_chegada: string | null
+  /** Encerrada antes da hora (emergência): o motivo. */
+  motivo_encerramento?: string | null
   rota: { id: number; nome: string; turno: Turno; instituicao: { id: number; nome: string } }
   motorista: { id: number; nome: string }
   veiculo: { id: number; placa: string; modelo: string; capacidade: number }

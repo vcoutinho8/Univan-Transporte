@@ -89,3 +89,44 @@ export function agruparJornadas(viagens: Viagem[], turno: Turno): Record<Sentido
   resultado.volta.sort(ordem)
   return resultado
 }
+
+/** O turno abre este tanto antes da primeira saída e fecha este tanto depois da última. */
+const ABRE_ANTES_MIN = 120
+const FECHA_DEPOIS_MIN = 90
+const ROTULO_TURNO: Record<Turno, string> = { manha: 'manhã', tarde: 'tarde', noite: 'noite' }
+const emMinutos = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5))
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+
+/** Fora da janela do turno pelo relógio do aparelho: "Abre às 16:00" / "Horário encerrado"; null se dentro. */
+export function foraDoHorario(lista: ResumoJornada[], j: ResumoJornada, agora: Date): string | null {
+  const horarios = lista
+    .filter((x) => x.chave.turno === j.chave.turno)
+    .map((x) => x.horario_previsto)
+    .filter((h): h is string => Boolean(h))
+    .map(emMinutos)
+  if (!horarios.length) return null
+  const agoraMin = agora.getHours() * 60 + agora.getMinutes()
+  const abre = Math.max(0, Math.min(...horarios) - ABRE_ANTES_MIN)
+  if (agoraMin < abre) return `Abre às ${hhmm(abre)}`
+  if (agoraMin > Math.max(...horarios) + FECHA_DEPOIS_MIN) return 'Horário encerrado'
+  return null
+}
+
+/** O motorista só vê o turno da hora (de manhã, só a manhã); o que estiver rodando aparece sempre. */
+export function jornadasDoTurno(lista: ResumoJornada[], agora: Date): ResumoJornada[] {
+  return lista.filter((j) => j.status === 'em_andamento' || !foraDoHorario(lista, j, agora))
+}
+
+/**
+ * Trava do motorista pelo relógio do aparelho: só abre o turno da hora (para não iniciar a viagem
+ * errada). Devolve o motivo do bloqueio, ou null se pode abrir. Em andamento e concluída nunca
+ * travam; com outra jornada rodando, termina ela antes; a volta espera a ida do turno sair.
+ */
+export function travaDaJornada(lista: ResumoJornada[], j: ResumoJornada, agora: Date): string | null {
+  if (j.status !== 'agendada') return null
+  const rodando = lista.find((x) => x.status === 'em_andamento')
+  if (rodando) return `Termine a ${rodando.chave.sentido} da ${ROTULO_TURNO[rodando.chave.turno]} antes`
+  if (j.chave.sentido === 'volta' && lista.some((x) => x.chave.turno === j.chave.turno && x.chave.sentido === 'ida' && x.status === 'agendada'))
+    return 'Faça a ida primeiro'
+  return foraDoHorario(lista, j, agora)
+}

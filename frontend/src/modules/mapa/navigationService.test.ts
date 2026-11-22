@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatarMetros, instrucao, type Manobra } from './navigationService.ts'
+import { formatarMetros, instrucao, linhaRestante, type Manobra } from './navigationService.ts'
 
 const m = (tipo: string, modificador: string | null = null, rua = '', saida: number | null = null): Manobra => ({ tipo, modificador, rua, saida, local: null })
 
@@ -22,5 +22,25 @@ describe('instruções de navegação em português', () => {
     expect(formatarMetros(37)).toBe('40 m')
     expect(formatarMetros(230)).toBe('250 m')
     expect(formatarMetros(1840)).toBe('1,8 km')
+  })
+})
+
+describe('linhaRestante', () => {
+  // "L": norte e depois leste.
+  const linha: [number, number][] = [
+    [-20.0, -40.0],
+    [-19.999, -40.0],
+    [-19.999, -39.999],
+  ]
+
+  it('começa na rua, no ponto mais perto da van, e tira o trecho já andado', () => {
+    const resto = linhaRestante(linha, [-19.9995, -39.99995])
+    expect(resto[0][0]).toBeCloseTo(-19.9995, 6)
+    expect(resto[0][1]).toBeCloseTo(-40.0, 6)
+    expect(resto.slice(1)).toEqual(linha.slice(1))
+  })
+
+  it('depois da curva, só sobra o último trecho', () => {
+    expect(linhaRestante(linha, [-19.999, -39.9995]).length).toBe(2)
   })
 })

@@ -39,9 +39,11 @@ export default function Modal({ titulo, descricao, icone, tom = 'laranja', aoFec
   }, [aoFechar])
 
   return createPortal(
-    <div className="fixed inset-0 z-[1100] grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={titulo}>
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={titulo}>
       <div onClick={aoFechar} className="absolute inset-0 animate-aparecer bg-marinho-escuro/50 backdrop-blur-[2px]" />
-      <div className="relative w-full max-w-md animate-surgir rounded-2xl bg-white shadow-2xl">
+      <div className="relative max-h-[92dvh] w-full max-w-md animate-surgir overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
+        {/* No celular abre como gaveta de baixo: alça e botões grandes, fáceis de tocar */}
+        <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
         <div className="px-6 pt-6 pb-4 text-center">
           {icone && (
             <span className={`mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${TONS[tom]}`}>
@@ -52,7 +54,9 @@ export default function Modal({ titulo, descricao, icone, tom = 'laranja', aoFec
           {descricao && <p className="mt-1 text-sm text-slate-500">{descricao}</p>}
           {children && <div className="mt-4 text-left">{children}</div>}
         </div>
-        <footer className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">{acoes}</footer>
+        <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4 [&>*]:w-full [&>*]:justify-center sm:[&>*]:w-auto">
+          {acoes}
+        </footer>
       </div>
     </div>,
     document.body,

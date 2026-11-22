@@ -84,6 +84,19 @@ try:
         UNION SELECT fk_endereco FROM instituicao
         UNION SELECT fk_endereco FROM estudante
         UNION SELECT fk_endereco FROM motorista WHERE fk_endereco IS NOT NULL);
+    -- Teste do mapa do motorista (logins "motorista" e "joao"): todas as rotas deles rodam
+    -- também sábado e domingo, para sempre haver viagem "hoje"...
+    INSERT OR IGNORE INTO rota_dia SELECT r.id, d.dia FROM rota r, (SELECT 6 AS dia UNION SELECT 7) d
+        WHERE r.fk_motorista IN (1, 2);
+    -- ...e a manhã ganha passageiros: os da noite deles também vão de manhã (UVV para o
+    -- motorista 1, Novo Milênio para o 2), com CPF próprio.
+    INSERT INTO estudante (nome, apelido, cpf, celular, fk_instituicao, curso, turno, fk_endereco, fk_area,
+                           horario_embarque, valor_mensal, dia_vencimento, status)
+    SELECT e.nome, e.apelido, printf('%011d', 90000000000 + e.id), e.celular,
+           CASE a.fk_motorista WHEN 1 THEN 1 ELSE 4 END, e.curso, 'manha', e.fk_endereco, e.fk_area,
+           '06:00:00', e.valor_mensal, e.dia_vencimento, 'ativo'
+    FROM estudante e JOIN area a ON a.id = e.fk_area
+    WHERE a.fk_motorista IN (1, 2) AND e.turno = 'noite' AND e.status = 'ativo';
 """)
 
     problemas = conexao.execute("PRAGMA foreign_key_check").fetchall()
@@ -105,7 +118,18 @@ except BaseException:
 conexao.close()
 
 # Só troca o banco antigo depois que o novo ficou pronto.
-temporario.replace(arquivo)
+try:
+    temporario.replace(arquivo)
+except PermissionError:
+    # Windows: a API (ou outro programa) está com o banco aberto e o arquivo não pode ser
+    # trocado. Copia o conteúdo para dentro dele pelo próprio SQLite, que funciona aberto.
+    with sqlite3.connect(temporario) as novo, sqlite3.connect(arquivo, timeout=30) as destino:
+        novo.backup(destino)
+    novo.close()
+    destino.close()
+    temporario.unlink()
+    print("   O banco estava aberto (API rodando?): os dados foram copiados para dentro dele.")
+    print("   Reinicie a API para ela gerar as viagens de hoje.")
 EOF
 
 info "Banco pronto. Próximo passo:  bash scripts/2-backend.sh"

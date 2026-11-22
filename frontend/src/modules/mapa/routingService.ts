@@ -43,8 +43,11 @@ async function tracar(pontos: Coordenada[], sinal: AbortSignal): Promise<Trajeto
   }
 }
 
-/** Trajeto pelas ruas passando pelos pontos, na ordem. `carregando` enquanto busca. */
-export function useTrajeto(pontos: Coordenada[]) {
+/**
+ * Trajeto pelas ruas passando pelos pontos, na ordem. `carregando` enquanto busca.
+ * `manterAnterior`: enquanto busca, continua mostrando o trajeto antigo (a linha não pisca).
+ */
+export function useTrajeto(pontos: Coordenada[], manterAnterior = false) {
   const chave = pontos.map((p) => p.join(',')).join(';')
   const [estado, setEstado] = useState<{ chave: string; trajeto: Trajeto | null }>({ chave: '', trajeto: null })
 
@@ -59,5 +62,5 @@ export function useTrajeto(pontos: Coordenada[]) {
   }, [chave])
 
   const pronto = estado.chave === chave
-  return { trajeto: pronto ? estado.trajeto : null, carregando: pontos.length >= 2 && !pronto }
+  return { trajeto: pronto || manterAnterior ? estado.trajeto : null, carregando: pontos.length >= 2 && !pronto }
 }

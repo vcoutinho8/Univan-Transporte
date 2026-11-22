@@ -35,8 +35,9 @@ export const servicoViagem = {
     requisitar<Jornada>('/viagens/jornada/iniciar', { metodo: 'POST', corpo: chave }),
 
   /** Conclui todas as rotas em andamento da jornada; pendentes viram ausentes. */
-  concluirJornada: (chave: ChaveJornada) =>
-    requisitar<Jornada>('/viagens/jornada/concluir', { metodo: 'POST', corpo: chave }),
+  /** `motivo`: encerrada antes da hora (emergência). */
+  concluirJornada: (chave: ChaveJornada, motivo?: string) =>
+    requisitar<Jornada>('/viagens/jornada/concluir', { metodo: 'POST', corpo: motivo ? { ...chave, motivo } : chave }),
 
   iniciar: (id: number) => requisitar<Viagem>(`/viagens/${id}/iniciar`, { metodo: 'POST' }),
 

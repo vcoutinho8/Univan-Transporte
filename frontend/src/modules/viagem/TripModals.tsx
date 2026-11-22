@@ -162,6 +162,77 @@ export function ModalEncerrarAntes({
   )
 }
 
+const MOTIVOS_EMERGENCIA = ['Pneu furou', 'Problema mecânico', 'Troca de motorista', 'Acidente', 'Passageiro passou mal', 'Outro']
+
+/**
+ * Emergência do motorista: encerra a viagem antes da hora e guarda o motivo (pneu furou, troca de
+ * motorista...). Fica escondido atrás do botão de aviso: no dia a dia a viagem conclui sozinha.
+ */
+export function ModalEmergencia({
+  pendentes,
+  aBordo = 0,
+  aoConfirmar,
+  aoFechar,
+}: {
+  pendentes: number
+  aBordo?: number
+  aoConfirmar: (motivo: string) => void
+  aoFechar: () => void
+}) {
+  const [escolhido, setEscolhido] = useState<string | null>(null)
+  const [outro, setOutro] = useState('')
+  const motivo = escolhido === 'Outro' ? outro.trim() : escolhido
+  const partes = [
+    pendentes > 0 && `${pendentes} ainda na fila ficam como "não embarcou"`,
+    aBordo > 0 && `${aBordo} a bordo contam como desembarcados agora`,
+  ].filter(Boolean)
+  return (
+    <Modal
+      titulo="Emergência: encerrar a viagem?"
+      descricao={`Use só se não der para continuar.${partes.length ? ` ${partes.join(' e ')}.` : ''}`}
+      icone="alerta"
+      tom="vermelho"
+      aoFechar={aoFechar}
+      acoes={
+        <>
+          <Botao variante="secundario" onClick={aoFechar}>
+            Continuar a viagem
+          </Botao>
+          <Botao variante="perigo" disabled={!motivo} onClick={() => motivo && aoConfirmar(motivo)}>
+            Encerrar viagem
+          </Botao>
+        </>
+      }
+    >
+      <p className="mb-2 text-xs font-bold tracking-widest text-slate-400 uppercase">O que aconteceu?</p>
+      <div className="grid grid-cols-2 gap-2">
+        {MOTIVOS_EMERGENCIA.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setEscolhido(m)}
+            className={`rounded-xl px-3 py-3 text-sm font-bold transition-colors ${
+              escolhido === m ? 'bg-red-500 text-white shadow-md' : 'bg-fundo text-marinho hover:bg-slate-200'
+            }`}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+      {escolhido === 'Outro' && (
+        <input
+          autoFocus
+          value={outro}
+          onChange={(e) => setOutro(e.target.value)}
+          maxLength={200}
+          placeholder="Conte rapidamente o motivo"
+          className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm focus:border-red-400 focus:outline-none"
+        />
+      )}
+    </Modal>
+  )
+}
+
 const TEXTOS_INDISPONIVEL: Record<MotivoIndisponivel, { titulo: string; descricao: string }> = {
   feriado: {
     titulo: 'Dia sem aula',

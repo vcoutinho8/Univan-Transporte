@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
 
@@ -7,7 +7,7 @@ import Icone from '../../shared/components/Icon.tsx'
 import type { Coordenada } from '../area/types.ts'
 import { LinhaDirecional, MapaBase } from '../mapa/MapLayers.tsx'
 import { iconeInstituicao } from '../mapa/mapUtils.ts'
-import { formatarMetros, instrucao, metrosEntre, rumoEntre, useRotaNavegacao, type Manobra } from '../mapa/navigationService.ts'
+import { formatarMetros, instrucao, linhaRestante, metrosEntre, rumoEntre, useRotaNavegacao, type Manobra } from '../mapa/navigationService.ts'
 import type { ParadaRestante } from './myRoute.ts'
 
 /** Ângulo da seta de cada manobra (0 = em frente). */
@@ -86,6 +86,43 @@ function Acompanhar({ posicao, ativo, aoArrastar }: { posicao: Coordenada; ativo
   return null
 }
 
+/** Remede o mapa quando a caixa dele muda de tamanho (entrar/sair do 3D). */
+function Remedir({ chave }: { chave: boolean }) {
+  const mapa = useMap()
+  useEffect(() => {
+    mapa.invalidateSize()
+  }, [mapa, chave])
+  return null
+}
+
+/**
+ * Visão 3D (como Uber/Waze): o mapa deitado em perspectiva e girado para a frente da van ficar
+ * para cima. A caixa do mapa é maior que a tela, para o "horizonte" ter ruas carregadas, e a van
+ * fica a ~65% da altura. Pinos e balões giram de volta (--giro) para não ficarem tortos.
+ * shortcut: CSS 3D sobre o Leaflet, sem prédios; se quiser 3D de verdade, trocar por MapLibre GL.
+ */
+function estiloMapa3d(inclinado: boolean, giro: number): CSSProperties {
+  if (!inclinado) return { inset: 0 }
+  return {
+    left: '-70%',
+    width: '240%',
+    top: '-65%',
+    height: '260%',
+    transform: `perspective(1000px) rotateX(50deg) rotate(${-giro}deg)`,
+    transition: 'transform 0.8s ease-out',
+    ['--giro' as string]: `${giro}deg`,
+  }
+}
+
+/** "800 metros" / "1,2 quilômetros", para a voz. */
+const metrosFalados = (m: number) => formatarMetros(m).replace(' km', ' quilômetros').replace(' m', ' metros')
+
+/** O que o motorista faz na parada, em uma frase ("Hora de buscar Ana", "Desembarque na UVV"). */
+function oQueFazer(p: ParadaRestante): string {
+  if (p.tipo === 'faculdade') return `${p.acao === 'buscar' ? 'Embarque' : 'Desembarque'} na ${p.titulo}`
+  return `Hora de ${p.acao === 'buscar' ? 'buscar' : 'deixar'} ${p.titulo}`
+}
+
 /** Fala em português (se o aparelho tiver voz). */
 function falar(texto: string) {
   if (!('speechSynthesis' in window)) return
@@ -103,10 +140,10 @@ interface Propriedades {
   parada: ParadaRestante
   /** Quantas paradas faltam depois desta. */
   restantes: number
-  /** Botões de registro da parada (Embarcou, Desceu...). */
-  acoes: ReactNode
+  /** Abre o registro da parada (Embarcou, Desceu...). Sem ele, a viagem ainda não começou. */
+  aoRegistrar?: () => void
   aoSair: () => void
-  /** Encerrar a viagem agora (a tela pede confirmação antes). */
+  /** Emergência: encerrar a viagem agora (a tela pede o motivo antes). */
   aoEncerrar?: () => void
 }
 
@@ -115,13 +152,21 @@ interface Propriedades {
  * instrução da próxima manobra no topo, mapa seguindo a van e, embaixo, a parada com os botões
  * de registro. A rota é refeita conforme a van anda; registrando a parada, segue para a próxima.
  */
-export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restantes, acoes, aoSair, aoEncerrar }: Propriedades) {
+export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restantes, aoRegistrar, aoSair, aoEncerrar }: Propriedades) {
   const destino = parada.ponto
   const { rota } = useRotaNavegacao(posicao, destino)
   const [voz, setVoz] = useState(() => localStorage.getItem('univan.vozNavegacao') !== '0')
   const [seguir, setSeguir] = useState(true)
+  const [tresD, setTresD] = useState(() => localStorage.getItem('univan.nav3d') !== '0')
+  const inclinado = tresD && seguir && posicao !== null
+  // Giro acumulado: de 350° para 10° gira 20°, não 340° para trás.
+  const giro = useRef(0)
+  const rumoVan = rumo ?? rota?.rumoInicial ?? null
+  if (rumoVan !== null) giro.current += ((((rumoVan - giro.current) % 360) + 540) % 360) - 180
   const distanciaReta = posicao && destino ? metrosEntre(posicao, destino) : null
-  const chegou = distanciaReta !== null && distanciaReta <= 60
+  // Mesmo raio da tela "Minha rota": só perto assim o registro da parada libera.
+  const chegou = distanciaReta !== null && distanciaReta <= 80
+  const linha = rota ? (posicao ? linhaRestante(rota.linha, posicao) : rota.linha) : null
 
   // Tela sempre acesa enquanto navega (se o aparelho permitir).
   useEffect(() => {
@@ -137,28 +182,32 @@ export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restante
     }
   }, [])
 
-  // Voz: anuncia cada manobra nova e de novo quando estiver perto dela; e a chegada.
+  // Voz: diz para onde vai ao começar cada parada, cada manobra nova (e de novo perto dela) e,
+  // na chegada, o que fazer ali.
   const texto = rota ? instrucao(rota.proxima) : null
-  const avisado = useRef<{ texto: string; perto: boolean } | null>(null)
+  const avisado = useRef<{ parada: string; texto: string; perto: boolean } | null>(null)
   useEffect(() => {
     if (!voz) return
     if (chegou) {
-      if (avisado.current?.texto !== `chegou-${parada.chave}`) {
-        falar(`Você chegou. ${parada.titulo}.`)
-        avisado.current = { texto: `chegou-${parada.chave}`, perto: true }
+      if (avisado.current?.texto !== 'chegou' || avisado.current.parada !== parada.chave) {
+        falar(`Você chegou. ${oQueFazer(parada)}.`)
+        avisado.current = { parada: parada.chave, texto: 'chegou', perto: true }
       }
       return
     }
     if (!rota || !texto) return
     const perto = rota.distanciaAteManobraM <= 150
-    if (avisado.current?.texto !== texto) {
-      falar(`Em ${formatarMetros(rota.distanciaAteManobraM).replace('km', 'quilômetros').replace(' m', ' metros')}, ${texto}`)
-      avisado.current = { texto, perto }
+    if (avisado.current?.parada !== parada.chave) {
+      falar(`Próxima parada: ${oQueFazer(parada).replace(/^Hora de /, '')}, a ${metrosFalados(rota.distanciaM)}. ${texto}.`)
+      avisado.current = { parada: parada.chave, texto, perto }
+    } else if (avisado.current.texto !== texto) {
+      falar(`Em ${metrosFalados(rota.distanciaAteManobraM)}, ${texto}`)
+      avisado.current = { parada: parada.chave, texto, perto }
     } else if (perto && !avisado.current.perto) {
       falar(texto)
-      avisado.current = { texto, perto: true }
+      avisado.current = { parada: parada.chave, texto, perto: true }
     }
-  }, [voz, texto, rota, chegou, parada.chave, parada.titulo])
+  }, [voz, texto, rota, chegou, parada])
 
   const chegada = useMemo(() => {
     if (!rota) return null
@@ -172,7 +221,7 @@ export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restante
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex h-dvh flex-col bg-marinho">
       {/* Instrução da próxima manobra */}
-      <div className={`relative z-10 px-4 pt-4 pb-3 text-white shadow-lg ${chegou ? 'bg-emerald-600' : 'bg-marinho'}`}>
+      <div className={`relative z-10 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 text-white shadow-lg ${chegou ? 'bg-emerald-600' : 'bg-marinho'}`}>
         {chegou ? (
           <div className="flex items-center gap-4">
             <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15">
@@ -235,33 +284,58 @@ export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restante
       </div>
 
       {/* Mapa */}
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-[#dfe6ec]">
         {centro && (
-          <MapaBase className="h-full" zoom={17}>
-            {posicao && <Acompanhar posicao={posicao} ativo={seguir} aoArrastar={() => setSeguir(false)} />}
-            {rota ? (
-              <>
-                {/* Linha azul grossa de GPS, com contorno branco */}
-                <Polyline positions={rota.linha} pathOptions={{ color: '#ffffff', weight: 12, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
-                <Polyline positions={rota.linha} pathOptions={{ color: '#1d4ed8', weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />
-                {rota.proxima.local && !chegou && (
-                  <Marker position={rota.proxima.local} icon={iconeBalao(rota.proxima)} interactive={false} zIndexOffset={1500} />
-                )}
-              </>
-            ) : (
-              posicao && destino && <LinhaDirecional pontos={[posicao, destino]} cor="#1d4ed8" tracejada mostrarSetas={false} opacidade={0.6} />
-            )}
-            {destino &&
-              (parada.tipo === 'faculdade' ? (
-                <Marker position={destino} icon={iconeInstituicao('#f2600c')} />
+          <div className={`absolute ${inclinado ? 'nav-3d' : ''}`} style={estiloMapa3d(inclinado, giro.current)}>
+            <MapaBase className="h-full" zoom={17} seguindo>
+              <Remedir chave={inclinado} />
+              {posicao && <Acompanhar posicao={posicao} ativo={seguir} aoArrastar={() => setSeguir(false)} />}
+              {rota ? (
+                <>
+                  {/* Linha azul grossa de GPS, com contorno branco */}
+                  <Polyline positions={linha!} pathOptions={{ color: '#ffffff', weight: 12, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} />
+                  <Polyline positions={linha!} pathOptions={{ color: '#1d4ed8', weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round' }} />
+                  {rota.proxima.local && !chegou && (
+                    <Marker position={rota.proxima.local} icon={iconeBalao(rota.proxima)} interactive={false} zIndexOffset={1500} />
+                  )}
+                </>
               ) : (
-                <Marker position={destino} icon={iconeDestino()} />
-              ))}
-            {/* Seta da van: direção do GPS; parado (sem direção), o rumo da rota */}
-            {posicao && <Marker position={posicao} icon={iconeVan(rumo ?? rota?.rumoInicial ?? null)} zIndexOffset={2000} />}
-          </MapaBase>
+                posicao && destino && <LinhaDirecional pontos={[posicao, destino]} cor="#1d4ed8" tracejada mostrarSetas={false} opacidade={0.6} />
+              )}
+              {destino &&
+                (parada.tipo === 'faculdade' ? (
+                  <Marker position={destino} icon={iconeInstituicao('#f2600c')} />
+                ) : (
+                  <Marker position={destino} icon={iconeDestino()} />
+                ))}
+              {/* Seta da van: direção do GPS; parado (sem direção), o rumo da rota */}
+              {posicao && <Marker position={posicao} icon={iconeVan(rumoVan)} zIndexOffset={2000} />}
+            </MapaBase>
+          </div>
         )}
+        {/* Horizonte do 3D: esmaece o fundo distante, como nos apps de corrida */}
+        {inclinado && <div className="pointer-events-none absolute inset-x-0 top-0 z-[300] h-1/4 bg-gradient-to-b from-[#dfe6ec] to-transparent" />}
         <div className="absolute top-3 right-3 z-[400] flex flex-col gap-2">
+          {aoEncerrar && (
+            <button
+              onClick={aoEncerrar}
+              aria-label="Emergência: encerrar a viagem"
+              title="Emergência: encerrar a viagem"
+              className="grid h-11 w-11 place-items-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/30"
+            >
+              <Icone nome="alerta" className="h-5 w-5" />
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setTresD(!tresD)
+              localStorage.setItem('univan.nav3d', tresD ? '0' : '1')
+            }}
+            aria-label={tresD ? 'Ver mapa plano' : 'Ver mapa em 3D'}
+            className={`grid h-11 w-11 place-items-center rounded-full text-xs font-extrabold shadow-lg ${tresD ? 'bg-white text-marinho' : 'bg-slate-200 text-slate-500'}`}
+          >
+            {tresD ? '3D' : '2D'}
+          </button>
           <button
             onClick={() => {
               const nova = !voz
@@ -297,15 +371,14 @@ export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restante
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[300] h-6 bg-gradient-to-t from-black/10 to-transparent" />
       </div>
 
-      {/* Parada de destino e registro */}
-      <div className="relative z-10 rounded-t-3xl bg-white px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.3)]">
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+      {/* Parada de destino: compacta, para o mapa ficar grande no celular */}
+      <div className="relative z-10 rounded-t-3xl bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.3)] sm:px-5">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold tracking-widest text-laranja uppercase">
-              {parada.acao === 'buscar' ? 'Buscar' : 'Deixar'} · {restantes > 0 ? `mais ${restantes} parada(s) depois` : 'última parada'}
+            <p className="truncate text-[11px] font-bold tracking-widest text-laranja uppercase">
+              {parada.acao === 'buscar' ? 'Buscar' : 'Deixar'} · {restantes > 0 ? `mais ${restantes} depois` : 'última parada'}
             </p>
-            <p className="truncate text-lg font-extrabold text-marinho">{parada.titulo}</p>
+            <p className="truncate text-base font-extrabold text-marinho sm:text-lg">{parada.titulo}</p>
             <p className="truncate text-xs text-slate-500">{parada.detalhe}</p>
           </div>
           {rota && !chegou && (
@@ -314,30 +387,24 @@ export default function ModoNavegacao({ posicao, rumo, erroGps, parada, restante
                 {Math.max(1, Math.round(rota.duracaoS / 60))} <span className="text-base">min</span>
               </p>
               <p className="mt-1 text-xs font-semibold text-marinho tabular-nums">
-                {formatarMetros(rota.distanciaM)} · chega {chegada}
+                {formatarMetros(rota.distanciaM)} · {chegada}
               </p>
             </div>
           )}
         </div>
-        {acoes}
-        <div className={`mt-3 grid gap-2 ${aoEncerrar ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {aoRegistrar && chegou && (
           <button
-            onClick={aoSair}
-            className="flex items-center justify-center gap-2 rounded-xl bg-fundo py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200"
+            onClick={aoRegistrar}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3.5 text-base font-extrabold text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-600"
           >
-            <Icone nome="fechar" className="h-4 w-4" />
-            Sair do GPS
+            <Icone nome="ok" className="h-5 w-5" />
+            Registrar parada
           </button>
-          {aoEncerrar && (
-            <button
-              onClick={aoEncerrar}
-              className="flex items-center justify-center gap-2 rounded-xl bg-red-50 py-2.5 text-sm font-bold text-red-600 ring-1 ring-red-100 hover:bg-red-100"
-            >
-              <Icone nome="alerta" className="h-4 w-4" />
-              Encerrar viagem
-            </button>
-          )}
-        </div>
+        )}
+        <button onClick={aoSair} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-bold text-slate-500 hover:bg-fundo">
+          <Icone nome="fechar" className="h-4 w-4" />
+          Sair do GPS
+        </button>
       </div>
     </div>,
     document.body,

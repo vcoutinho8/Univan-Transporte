@@ -92,6 +92,35 @@ export function metrosEntre([lat1, lng1]: Coordenada, [lat2, lng2]: Coordenada):
   return 2 * 6371000 * Math.asin(Math.sqrt(a))
 }
 
+/** Ponto do segmento a-b mais perto de p (plano local; serve para distâncias de rua). */
+function projetar(p: Coordenada, a: Coordenada, b: Coordenada): Coordenada {
+  const k = Math.cos((p[0] * Math.PI) / 180)
+  const [ax, ay, bx, by, px, py] = [a[1] * k, a[0], b[1] * k, b[0], p[1] * k, p[0]]
+  const dx = bx - ax
+  const dy = by - ay
+  const t = dx || dy ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))) : 0
+  return [ay + dy * t, (ax + dx * t) / k]
+}
+
+/**
+ * O que falta da linha: começa no ponto da rua mais perto da van e some o trecho já andado.
+ * Assim a linha acompanha a van entre um recálculo e outro, sem "cortar caminho" nas curvas.
+ * Pega o primeiro trecho a menos de 25 m (num retorno, a rua de volta passa perto da de ida).
+ */
+export function linhaRestante(linha: Coordenada[], posicao: Coordenada): Coordenada[] {
+  if (linha.length < 2) return linha
+  let indice = 0
+  let ponto = linha[0]
+  let menor = Infinity
+  for (let i = 0; i < linha.length - 1; i++) {
+    const p = projetar(posicao, linha[i], linha[i + 1])
+    const d = metrosEntre(p, posicao)
+    if (d < menor) [menor, indice, ponto] = [d, i, p]
+    if (d < 25) break
+  }
+  return [ponto, ...linha.slice(indice + 1)]
+}
+
 interface PassoOsrm {
   distance: number
   name: string
@@ -139,6 +168,8 @@ const METROS_PARA_REFAZER = 30
 /** Se o servidor de rotas não responder nesse tempo, desiste e tenta de novo. */
 const LIMITE_MS = 8000
 const ESPERA_NOVA_TENTATIVA_MS = 3000
+/** Intervalo mínimo entre recálculos na mesma parada (andando rápido, não pede a cada leitura). */
+const INTERVALO_MINIMO_MS = 4000
 
 /** Direção (graus, 0 = norte) de um ponto até outro: a seta enquanto a rota não chega. */
 export function rumoEntre([lat1, lng1]: Coordenada, [lat2, lng2]: Coordenada): number {
@@ -160,6 +191,7 @@ export function useRotaNavegacao(posicao: Coordenada | null, destino: Coordenada
   const [tentativa, setTentativa] = useState(0)
   const ultima = useRef<{ origem: Coordenada; destino: string } | null>(null)
   const emAndamento = useRef(false)
+  const ultimoPedido = useRef(0)
   const vivo = useRef(true)
   const chaveDestino = destino?.join(',') ?? ''
   const destinoAtual = useRef(chaveDestino)
@@ -181,7 +213,10 @@ export function useRotaNavegacao(posicao: Coordenada | null, destino: Coordenada
   useEffect(() => {
     if (!posicao || !destino || emAndamento.current) return
     const anterior = ultima.current
-    if (anterior && anterior.destino === chaveDestino && metrosEntre(anterior.origem, posicao) < METROS_PARA_REFAZER) return
+    if (anterior && anterior.destino === chaveDestino) {
+      if (metrosEntre(anterior.origem, posicao) < METROS_PARA_REFAZER || Date.now() - ultimoPedido.current < INTERVALO_MINIMO_MS) return
+    }
+    ultimoPedido.current = Date.now()
     ultima.current = { origem: posicao, destino: chaveDestino }
     emAndamento.current = true
     const controle = new AbortController()

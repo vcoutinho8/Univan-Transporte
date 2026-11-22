@@ -569,3 +569,8 @@ body {
   height: 18px;
   flex-shrink: 0;
 }
+
+/* GPS em 3D: o mapa gira para a frente da van; pinos e balões giram de volta (ficam retos na tela). */
+.nav-3d .leaflet-marker-icon > :not(.nav-seta) {
+  rotate: var(--giro);
+}

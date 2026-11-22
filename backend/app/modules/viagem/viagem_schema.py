@@ -98,6 +98,7 @@ class ViagemResposta(BaseModel):
     horario_previsto: time | None = Field(description="Horário de ida ou de volta da rota, conforme o sentido.")
     horario_saida: datetime | None
     horario_chegada: datetime | None
+    motivo_encerramento: str | None = Field(default=None, description="Motivo, se foi encerrada antes da hora.")
     rota: RotaDaViagem
     motorista: Referencia
     veiculo: VeiculoDaViagem

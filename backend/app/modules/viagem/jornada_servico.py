@@ -112,8 +112,11 @@ class ServicoJornada:
         if not em_andamento:
             raise ConflitoDeDados("A jornada não está em andamento.")
         momento = viagem_servico.agora()
+        motivo = getattr(pedido, "motivo", None)
         for viagem in em_andamento:
             self.repositorio.concluir(viagem.id, momento)
+            if motivo:
+                self.repositorio.registrar_motivo(viagem.id, motivo)
         return self.obter(pedido)
 
     def _viagens(self, pedido: JornadaPedido) -> list[Viagem]:

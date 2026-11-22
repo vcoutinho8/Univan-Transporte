@@ -16,11 +16,25 @@ interface PropriedadesMapaBase {
   zoom?: number
   /** Zoom pela rodinha do mouse (desligado nos mapas pequenos, para não atrapalhar a rolagem). */
   rolagem?: boolean
+  /**
+   * Mapa que anda sozinho (seguindo a van): desenha as linhas numa área bem maior que a tela,
+   * senão elas somem nas bordas a cada passo até o Leaflet redesenhar.
+   */
+  seguindo?: boolean
 }
 
-export function MapaBase({ children, className = 'h-96', zoom = 13, rolagem = true }: PropriedadesMapaBase) {
+export function MapaBase({ children, className = 'h-96', zoom = 13, rolagem = true, seguindo = false }: PropriedadesMapaBase) {
+  const desenho = useMemo(() => (seguindo ? L.svg({ padding: 1.5 }) : undefined), [seguindo])
   return (
-    <MapContainer center={CENTRO_PADRAO} zoom={zoom} zoomSnap={0.25} scrollWheelZoom={rolagem} className={`z-0 ${className}`}>
+    <MapContainer
+      center={CENTRO_PADRAO}
+      zoom={zoom}
+      zoomSnap={0.25}
+      scrollWheelZoom={rolagem}
+      renderer={desenho}
+      zoomControl={!seguindo}
+      className={`z-0 ${className}`}
+    >
       <TileLayer url={CAMADA_FUNDO.url} attribution={CAMADA_FUNDO.atribuicao} className="mapa-suave" />
       {children}
     </MapContainer>

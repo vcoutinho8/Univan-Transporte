@@ -196,6 +196,8 @@ CREATE TABLE viagem (
     horario_saida   TEXT,
     horario_chegada TEXT,
     status          TEXT NOT NULL DEFAULT 'agendada',
+    -- Encerrada antes da hora (emergência): pneu, troca de motorista...
+    motivo_encerramento TEXT,
     CONSTRAINT viagem_fk_rota_data_sentido_key UNIQUE (fk_rota, data, sentido),
     CONSTRAINT viagem_sentido_check CHECK (sentido IN ('ida', 'volta')),
     CONSTRAINT viagem_status_check CHECK (status IN ('agendada', 'em_andamento', 'concluida', 'cancelada'))
@@ -267,6 +269,9 @@ CREATE TABLE usuario (
     fk_motorista  INTEGER REFERENCES motorista (id),
     status        TEXT NOT NULL DEFAULT 'ativo',
     ultimo_acesso TEXT,
+    -- Contato e documento (opcionais; o CPF do motorista fica no cadastro de motorista).
+    email         TEXT,
+    cpf           TEXT,
     CONSTRAINT usuario_login_key UNIQUE (login),
     CONSTRAINT usuario_login_check CHECK (length(login) BETWEEN 3 AND 30 AND login NOT GLOB '*[^a-z0-9._-]*'),
     CONSTRAINT usuario_fk_motorista_key UNIQUE (fk_motorista),
@@ -694,22 +699,22 @@ INSERT INTO veiculo VALUES (9, 9, 'QJI9J01', 'Renault Master Executiva', 'Preta'
 INSERT INTO veiculo VALUES (10, 10, 'MLD9012', 'Mercedes-Benz Sprinter 416', 'Branca', 20, 'inativo');
 
 -- viagem
-INSERT INTO viagem VALUES (1, 1, 1, 1, '2026-10-29', 'ida', '2026-10-29 17:35:00', '2026-10-29 18:00:00', 'concluida');
-INSERT INTO viagem VALUES (2, 2, 2, 2, '2026-10-29', 'ida', '2026-10-29 17:40:00', '2026-10-29 18:12:00', 'concluida');
-INSERT INTO viagem VALUES (3, 3, 3, 3, '2026-10-29', 'ida', '2026-10-29 17:45:00', '2026-10-29 18:15:00', 'concluida');
-INSERT INTO viagem VALUES (4, 4, 4, 4, '2026-10-29', 'ida', '2026-10-29 17:10:00', '2026-10-29 17:32:00', 'concluida');
-INSERT INTO viagem VALUES (5, 5, 5, 5, '2026-10-29', 'ida', '2026-10-29 17:50:00', '2026-10-29 18:18:00', 'concluida');
-INSERT INTO viagem VALUES (6, 6, 1, 1, '2026-10-29', 'ida', '2026-10-29 16:55:00', '2026-10-29 17:20:00', 'concluida');
-INSERT INTO viagem VALUES (7, 7, 2, 2, '2026-10-29', 'ida', '2026-10-29 06:05:00', '2026-10-29 06:31:00', 'concluida');
-INSERT INTO viagem VALUES (8, 8, 3, 3, '2026-10-29', 'ida', '2026-10-29 06:25:00', NULL, 'cancelada');
-INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendada');
-INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada');
+INSERT INTO viagem VALUES (1, 1, 1, 1, '2026-10-29', 'ida', '2026-10-29 17:35:00', '2026-10-29 18:00:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (2, 2, 2, 2, '2026-10-29', 'ida', '2026-10-29 17:40:00', '2026-10-29 18:12:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (3, 3, 3, 3, '2026-10-29', 'ida', '2026-10-29 17:45:00', '2026-10-29 18:15:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (4, 4, 4, 4, '2026-10-29', 'ida', '2026-10-29 17:10:00', '2026-10-29 17:32:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (5, 5, 5, 5, '2026-10-29', 'ida', '2026-10-29 17:50:00', '2026-10-29 18:18:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (6, 6, 1, 1, '2026-10-29', 'ida', '2026-10-29 16:55:00', '2026-10-29 17:20:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (7, 7, 2, 2, '2026-10-29', 'ida', '2026-10-29 06:05:00', '2026-10-29 06:31:00', 'concluida', NULL);
+INSERT INTO viagem VALUES (8, 8, 3, 3, '2026-10-29', 'ida', '2026-10-29 06:25:00', NULL, 'cancelada', NULL);
+INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL);
+INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL);
 
 -- usuario (login: admin, auxiliar, motorista e joao; senha de teste 123456 para todos: troque em produção)
-INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL);
-INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL);
-INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL);
-INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL);
+INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL);
+INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, NULL);
+INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL);
+INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL);
 
 -- =============================================================================
 -- Índices

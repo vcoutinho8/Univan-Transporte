@@ -305,6 +305,16 @@ def test_inicia_e_conclui_a_jornada_inteira(cliente, hoje_e_segunda):  # noqa: F
     assert cliente.post("/api/viagens/jornada/concluir", json=pedido).status_code == 409
 
 
+def test_encerrar_em_emergencia_guarda_o_motivo(cliente, hoje_e_segunda):  # noqa: F811
+    _gerar(cliente, SEGUNDA)
+    pedido, _ = _jornada_com_varias_rotas(cliente)
+    cliente.post("/api/viagens/jornada/iniciar", json=pedido)
+
+    resposta = cliente.post("/api/viagens/jornada/concluir", json={**pedido, "motivo": "Pneu furou"})
+    assert resposta.status_code == 200, resposta.text
+    assert {v["motivo_encerramento"] for v in resposta.json()["viagens"]} == {"Pneu furou"}
+
+
 def test_jornada_inexistente(cliente):  # noqa: F811
     _gerar(cliente, SEGUNDA)
     params = {"data": SEGUNDA, "fk_motorista": 10, "turno": "noite", "sentido": "ida"}

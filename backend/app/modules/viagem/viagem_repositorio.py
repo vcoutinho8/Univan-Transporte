@@ -167,6 +167,13 @@ class RepositorioViagem:
             self.sessao.rollback()
             raise
 
+    def registrar_motivo(self, id_viagem: int, motivo: str) -> None:
+        """Guarda por que a viagem foi encerrada antes da hora."""
+        self.sessao.execute(
+            text("UPDATE viagem SET motivo_encerramento = :motivo WHERE id = :viagem"), {"viagem": id_viagem, "motivo": motivo}
+        )
+        self.sessao.commit()
+
     def passageiros_confirmados(self, id_viagem: int) -> int:
         """Quem ainda pode embarcar: todos menos quem avisou que não vai."""
         return self.sessao.scalar(

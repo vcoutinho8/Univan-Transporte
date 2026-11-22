@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import EstadoVazio from '../../shared/components/EmptyState.tsx'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { pode } from '../../shared/auth/permissoes.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
@@ -251,6 +251,12 @@ export default function PaginaViagens() {
     }
   }
 
+  // O motorista inicia e conduz a viagem pela "Minha rota" (a central dele, com mapa e travas de
+  // horário); aqui ele só acompanha.
+  const navegar = useNavigate()
+  const irParaMinhaRota = (j: ResumoJornada, iniciar: boolean) =>
+    navegar(`/minha-rota?jornada=${j.chave.turno}-${j.chave.sentido}${iniciar ? '&iniciar=1' : ''}`)
+
   const cartao = (jornada: ResumoJornada, indice: number) => {
     const chave = `${jornada.chave.sentido}-${jornada.motorista.id}`
     return (
@@ -260,13 +266,16 @@ export default function PaginaViagens() {
         indice={indice}
         ocupado={jornada.viagens.some((v) => v.id === ocupada)}
         carregandoWhatsApp={preparandoWhatsApp === chave}
-        aoIniciar={() => setAberto({ tipo: 'iniciar', jornada })}
-        aoAcompanhar={() => setAberto({ tipo: 'andamento', jornada })}
+        aoIniciar={() => (perfil === 'motorista' ? irParaMinhaRota(jornada, true) : setAberto({ tipo: 'iniciar', jornada }))}
+        aoAcompanhar={() =>
+          perfil === 'motorista' && jornada.status === 'em_andamento' ? irParaMinhaRota(jornada, false) : setAberto({ tipo: 'andamento', jornada })
+        }
         aoCompartilharWhatsApp={() => void prepararChamadaWhatsApp(jornada)}
         aoVerPassageiros={(v) => setAberto({ tipo: 'passageiros', viagem: v })}
         aoTrocar={podeGerar ? (v) => setAberto({ tipo: 'troca', viagem: v }) : undefined}
         aoCancelar={podeGerar ? (v) => void cancelarRota(v) : undefined}
         somenteLeitura={!podeOperar}
+        rotuloContinuar={perfil === 'motorista' ? 'Abrir minha rota' : undefined}
       />
     )
   }
@@ -336,7 +345,7 @@ export default function PaginaViagens() {
               </button>
             ))}
           </div>
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] sm:ml-auto" aria-label="Filtrar por situação">
+          <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto" aria-label="Filtrar por situação">
             {SITUACOES.map((s) => (
               <button
                 key={s}
@@ -345,7 +354,7 @@ export default function PaginaViagens() {
                 aria-pressed={situacao === s}
                 disabled={totais[s] === 0 && situacao !== s}
                 title={totais[s] === 0 ? `Nenhuma jornada ${ROTULOS_STATUS_VIAGEM[s].toLowerCase()} neste turno` : undefined}
-                className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
                   situacao === s
                     ? 'bg-laranja text-white shadow-sm'
                     : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:text-marinho'

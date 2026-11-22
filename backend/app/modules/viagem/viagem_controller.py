@@ -12,7 +12,7 @@ from app.config.erros import AcessoNegado
 from app.config.seguranca import ADMIN, OPERACAO, TODOS, Logado, UsuarioLogado
 from app.modules.motorista.motorista_repositorio import RepositorioMotorista
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
-from app.modules.viagem.jornada_schema import JornadaPedido, JornadaResposta
+from app.modules.viagem.jornada_schema import JornadaEncerrarPedido, JornadaPedido, JornadaResposta
 from app.modules.viagem.jornada_servico import ServicoJornada
 from app.modules.viagem.viagem_repositorio import RepositorioViagem
 from app.modules.viagem.viagem_schema import (
@@ -124,7 +124,7 @@ def iniciar_jornada(dados: JornadaPedido, jornada: Jornada, usuario: Logado):
     summary="Concluir a jornada (quem ficou pendente vira ausente)",
     responses=erros(404, 409),
 )
-def concluir_jornada(dados: JornadaPedido, jornada: Jornada, usuario: Logado):
+def concluir_jornada(dados: JornadaEncerrarPedido, jornada: Jornada, usuario: Logado):
     garantir_motorista(usuario, dados.fk_motorista)
     return jornada.concluir(dados)
 

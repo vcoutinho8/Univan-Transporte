@@ -39,6 +39,8 @@ interface Propriedades {
   aoCancelar?: (v: Viagem) => void
   /** Só visualização (auxiliar): sem iniciar nem registrar embarque; vê os passageiros. */
   somenteLeitura?: boolean
+  /** Texto do botão da viagem em andamento (o motorista continua pela "Minha rota"). */
+  rotuloContinuar?: string
 }
 
 /**
@@ -57,6 +59,7 @@ export default function CartaoJornada({
   aoTrocar,
   aoCancelar,
   somenteLeitura = false,
+  rotuloContinuar,
 }: Propriedades) {
   const ida = jornada.chave.sentido === 'ida'
   // Destinos começam ocultos: o cartão mostra a viagem do motorista; as rotas ficam a um clique.
@@ -131,7 +134,7 @@ export default function CartaoJornada({
             {!somenteLeitura && jornada.status === 'em_andamento' && (
               <Botao onClick={aoAcompanhar} className="flex-1 py-3 sm:flex-initial sm:py-2">
                 <Icone nome="van" className="h-4 w-4" />
-                {aCaminho ? 'Confirmar desembarques' : 'Continuar embarque'}
+                {rotuloContinuar ?? (aCaminho ? 'Confirmar desembarques' : 'Continuar embarque')}
               </Botao>
             )}
             {!somenteLeitura && jornada.status === 'concluida' && (

@@ -39,6 +39,8 @@ class Viagem(Base):
         default=StatusViagem.AGENDADA,
         server_default=StatusViagem.AGENDADA.value,
     )
+    # Encerrada antes de registrar todos (emergência): o motivo informado pelo motorista.
+    motivo_encerramento: Mapped[str | None]
 
     rota: Mapped["Rota"] = relationship()
     veiculo: Mapped["Veiculo"] = relationship()
