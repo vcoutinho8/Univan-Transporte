@@ -167,6 +167,7 @@ Mais detalhes em [docs/architecture.md](docs/architecture.md).
 | [Arquitetura](docs/architecture.md) | MVC, camadas e organização em módulos |
 | [Banco de dados](docs/database.md) | Tabelas, relacionamentos e regras |
 | [Backend](docs/backend.md) | Estrutura da API e como criar um módulo novo |
+| [Swagger da API](http://localhost:8000/api/docs) | Documentação interativa das rotas (com a API rodando); ReDoc em `/api/redoc` |
 | [Frontend](docs/frontend.md) | Identidade visual, telas e componentes |
 | [Tarefas](docs/tarefas.md) | Situação de cada requisito do MVP |
 | [Documento do MVP](docs/documentacao-mvp.pdf) | Proposta, escopo e requisitos |

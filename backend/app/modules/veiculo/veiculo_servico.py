@@ -4,7 +4,11 @@ from app.config.erros import ConflitoDeDados, DadosInvalidos, RecursoNaoEncontra
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
 from app.modules.veiculo.veiculo_model import Veiculo
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
-from app.modules.veiculo.veiculo_schema import VeiculoAtualizacao, VeiculoCriacao
+from app.modules.veiculo.veiculo_schema import (
+    VeiculoAtualizacao,
+    VeiculoCriacao,
+    validar_capacidade_na_categoria,
+)
 from app.shared.enums import StatusCadastro
 
 
@@ -24,10 +28,12 @@ class ServicoVeiculo:
             raise RecursoNaoEncontrado("Veículo não encontrado.")
         return veiculo
 
-    def cadastrar(self, dados: VeiculoCriacao) -> Veiculo:
-        self._garantir_empresa_existe(dados.fk_empresa)
+    def cadastrar(self, dados: VeiculoCriacao, id_empresa: int) -> Veiculo:
+        """Cadastra o veículo na empresa de quem está usando o sistema."""
+        self._garantir_empresa_existe(id_empresa)
         self._garantir_placa_disponivel(dados.placa)
-        veiculo = Veiculo(**dados.model_dump())
+        campos_veiculo = dados.model_dump(exclude={"categoria"})
+        veiculo = Veiculo(**campos_veiculo, fk_empresa=id_empresa)
         self.repositorio.salvar(veiculo)
         return self.obter(veiculo.id)
 
@@ -35,12 +41,18 @@ class ServicoVeiculo:
         veiculo = self.obter(id_veiculo)
         alteracoes = dados.model_dump(exclude_unset=True)
 
-        for campo in ("fk_empresa", "placa", "modelo", "capacidade", "status"):
+        for campo in ("placa", "modelo", "capacidade", "status"):
             if campo in alteracoes and alteracoes[campo] is None:
                 raise DadosInvalidos(f"O campo {campo} não pode ficar vazio.")
 
-        if "fk_empresa" in alteracoes and alteracoes["fk_empresa"] != veiculo.fk_empresa:
-            self._garantir_empresa_existe(alteracoes["fk_empresa"])
+        categoria = alteracoes.pop("categoria", None)
+        capacidade_final = alteracoes.get("capacidade", veiculo.capacidade)
+        if "capacidade" in alteracoes or categoria is not None:
+            try:
+                validar_capacidade_na_categoria(capacidade_final, categoria)
+            except ValueError as erro:
+                raise DadosInvalidos(str(erro)) from erro
+
         if "placa" in alteracoes and alteracoes["placa"] != veiculo.placa:
             self._garantir_placa_disponivel(alteracoes["placa"])
 

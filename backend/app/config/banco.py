@@ -56,8 +56,56 @@ def criar_banco_sqlite(arquivo: Path, script: Path = SCRIPT_SQLITE) -> None:
         conexao.close()
 
 
+# Colunas criadas depois da primeira versão do script: (tabela, coluna, tipo).
+# Um banco criado antes delas ganha a coluna ao subir a API (os dados são mantidos).
+COLUNAS_NOVAS = (
+    ("motorista", "apelido", "TEXT"),
+    ("instituicao", "parada_latitude", "NUMERIC"),
+    ("instituicao", "parada_longitude", "NUMERIC"),
+    ("chamada", "horario_desembarque", "TEXT"),
+    ("motorista", "fk_endereco", "INTEGER REFERENCES endereco (id)"),
+    ("estudante", "fk_parada", "INTEGER REFERENCES instituicao_parada (id)"),
+    ("viagem", "motivo_encerramento", "TEXT"),
+    ("usuario", "email", "TEXT"),
+    ("usuario", "cpf", "TEXT"),
+)
+
+
+# Tabelas criadas depois da primeira versão do script: num banco antigo, são criadas (com os dados
+# de teste delas) a partir do próprio docs/univan-sqlite.sql.
+TABELAS_NOVAS = ("usuario", "instituicao_parada")
+
+
+def _sql_da_tabela(tabela: str) -> str:
+    """CREATE TABLE e INSERTs da tabela, copiados de docs/univan-sqlite.sql."""
+    script = SCRIPT_SQLITE.read_text(encoding="utf-8")
+    inicio = script.index(f"CREATE TABLE {tabela} (")
+    criar = script[inicio : script.index(");", inicio) + 2]
+    inserts = [linha for linha in script.splitlines() if linha.startswith(f"INSERT INTO {tabela} VALUES")]
+    return "\n".join([criar, *inserts])
+
+
+def atualizar_estrutura(arquivo: Path) -> None:
+    """Completa um banco antigo: tabelas de TABELAS_NOVAS e colunas de COLUNAS_NOVAS que faltarem."""
+    conexao = sqlite3.connect(arquivo)
+    try:
+        existentes_tabelas = {linha[0] for linha in conexao.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        for tabela in TABELAS_NOVAS:
+            if existentes_tabelas and tabela not in existentes_tabelas:
+                log.warning("Banco %s: criando a tabela %s.", arquivo.name, tabela)
+                conexao.executescript(_sql_da_tabela(tabela))
+        for tabela, coluna, tipo in COLUNAS_NOVAS:
+            existentes = {linha[1] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
+            if existentes and coluna not in existentes:
+                log.warning("Banco %s: adicionando a coluna %s.%s.", arquivo.name, tabela, coluna)
+                conexao.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+        conexao.commit()
+    finally:
+        conexao.close()
+
+
 def preparar_banco(url: str) -> None:
-    """Se o arquivo do banco ainda não existir, cria a partir do script."""
+    """Se o arquivo do banco ainda não existir, cria a partir do script; se existir, completa a estrutura."""
     endereco = make_url(url)
     if endereco.database in (None, "", ":memory:"):
         return
@@ -65,6 +113,8 @@ def preparar_banco(url: str) -> None:
     if not arquivo.exists():
         log.warning("Banco %s não encontrado. Criando a partir de %s.", arquivo, SCRIPT_SQLITE.name)
         criar_banco_sqlite(arquivo)
+    else:
+        atualizar_estrutura(arquivo)
 
 
 configuracoes = obter_configuracoes()

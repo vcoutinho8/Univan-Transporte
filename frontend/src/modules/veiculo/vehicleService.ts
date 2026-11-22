@@ -3,7 +3,7 @@ import type { StatusCadastro } from '../../shared/types/api.ts'
 import type { DadosVeiculo, Veiculo } from './types.ts'
 
 export const servicoVeiculo = {
-  listar: (filtros: { status?: StatusCadastro | ''; fk_empresa?: number } = {}) =>
+  listar: (filtros: { status?: StatusCadastro | '' } = {}) =>
     requisitar<Veiculo[]>('/veiculos', { parametros: filtros }),
 
   cadastrar: (dados: DadosVeiculo) => requisitar<Veiculo>('/veiculos', { metodo: 'POST', corpo: dados }),

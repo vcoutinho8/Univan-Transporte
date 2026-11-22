@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
+from app.config.seguranca import ADMIN_OU_AUXILIAR
 from app.modules.empresa.empresa_repositorio import RepositorioEmpresa
 from app.modules.empresa.empresa_schema import EmpresaResumo
 from app.modules.empresa.empresa_servico import ServicoEmpresa
 
-roteador = APIRouter(prefix="/empresas", tags=["Empresas"])
+roteador = APIRouter(prefix="/empresas", tags=["Empresas"], dependencies=[ADMIN_OU_AUXILIAR])
 
 
 def obter_servico_empresa(sessao: Annotated[Session, Depends(obter_sessao)]) -> ServicoEmpresa:

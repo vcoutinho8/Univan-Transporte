@@ -101,6 +101,12 @@ Dentro da pasta `backend` (os testes criam bancos temporários e não mexem no `
 .venv\Scripts\python -m pytest      # PowerShell / CMD
 ```
 
+E os do frontend, dentro da pasta `frontend`:
+
+```bash
+npm test
+```
+
 ## Problemas comuns
 
 | Sintoma | Causa | Solução |

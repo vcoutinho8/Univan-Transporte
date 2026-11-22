@@ -13,7 +13,7 @@ from app.shared.enums import StatusCadastro, Turno
 if TYPE_CHECKING:
     from app.modules.area.area_model import Area
     from app.modules.endereco.endereco_model import Endereco
-    from app.modules.instituicao.instituicao_model import Instituicao
+    from app.modules.instituicao.instituicao_model import Instituicao, InstituicaoParada
 
 
 class Estudante(Base):
@@ -45,6 +45,10 @@ class Estudante(Base):
         server_default=StatusCadastro.ATIVO.value,
     )
 
+    # Parada da faculdade onde desce/embarca (vazio = a principal).
+    fk_parada: Mapped[int | None] = mapped_column(ForeignKey("instituicao_parada.id"))
+
     instituicao: Mapped["Instituicao"] = relationship()
+    parada: Mapped["InstituicaoParada | None"] = relationship()
     endereco: Mapped["Endereco"] = relationship()
     area: Mapped["Area | None"] = relationship()

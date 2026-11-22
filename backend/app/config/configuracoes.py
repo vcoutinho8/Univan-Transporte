@@ -28,8 +28,17 @@ class Configuracoes(BaseSettings):
     nome_aplicacao: str = Field(default="UniVan API", alias="APP_NAME")
     # Arquivo do banco SQLite, relativo à raiz do projeto.
     url_banco: str = Field(default="sqlite:///backend/univan.db", alias="DATABASE_URL")
+    nivel_log: str = Field(default="INFO", alias="LOG_LEVEL", pattern="(?i)^(DEBUG|INFO|WARNING|ERROR)$")
     exibir_sql: bool = Field(default=False, alias="DATABASE_ECHO")
     origens_cors: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
+    # Empresa usada enquanto o login não existe (ver app/config/empresa_atual.py).
+    id_empresa_atual: int = Field(default=1, gt=0, alias="EMPRESA_ATUAL_ID")
+    # Assina os tokens de sessão. Em produção, defina SECRET_KEY no .env com um valor longo e aleatório.
+    chave_secreta: str = Field(default="univan-dev-troque-esta-chave-em-producao", alias="SECRET_KEY", min_length=16)
+    minutos_sessao: int = Field(default=8 * 60, gt=0, alias="SESSION_MINUTES")
+    # Roteador de ruas (OSRM) para o cálculo da melhor ordem das paradas. O público é de demonstração;
+    # em produção use um servidor próprio. Vazio = só a estimativa em linha reta.
+    url_osrm: str = Field(default="https://router.project-osrm.org", alias="OSRM_URL")
 
     @property
     def url_banco_resolvida(self) -> str:

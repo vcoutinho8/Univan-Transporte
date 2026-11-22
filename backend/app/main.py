@@ -3,43 +3,88 @@
 Executar (a partir de backend/):  uvicorn app.main:app --reload
 """
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.modules as _registro_models  # noqa: F401  (registra todos os models)
-from app.config.banco import preparar_banco
+from app.config.banco import obter_sessao, preparar_banco
 from app.config.configuracoes import obter_configuracoes
+from app.config.documentacao import DESCRICAO, ERROS_COMUNS, PARAMETROS_SWAGGER, TAGS, erros
 from app.config.erros import registrar_tratadores_erro
+from app.config.registro_log import configurar_log, registrar_log_requisicoes
+from app.modules.area import area_controller
+from app.modules.chamada import chamada_controller
+from app.modules.dia_sem_aula import dia_sem_aula_controller
 from app.modules.empresa import empresa_controller
+from app.modules.estudante import estudante_controller
+from app.modules.instituicao import instituicao_controller
+from app.modules.motorista import motorista_controller
+from app.modules.motorista.motorista_repositorio import RepositorioMotorista
 from app.modules.painel import painel_controller
+from app.modules.relatorio import relatorio_controller
+from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
+from app.modules.usuario import conta_controller, usuario_controller
 from app.modules.veiculo import veiculo_controller
+from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
+from app.modules.viagem import viagem_controller
+from app.modules.viagem.viagem_repositorio import RepositorioViagem
+from app.modules.viagem.viagem_servico import ServicoViagem
 
 PREFIXO_API = "/api"
 
 # Cada módulo com rotas HTTP expõe um `roteador`. Para um módulo novo, basta incluí-lo aqui.
-CONTROLLERS = (saude_controller, painel_controller, empresa_controller, veiculo_controller)
+CONTROLLERS = (
+    saude_controller,
+    usuario_controller,
+    conta_controller,
+    painel_controller,
+    empresa_controller,
+    veiculo_controller,
+    estudante_controller,
+    instituicao_controller,
+    area_controller,
+    motorista_controller,
+    rota_controller,
+    viagem_controller,
+    chamada_controller,
+    dia_sem_aula_controller,
+    relatorio_controller,
+)
 
 
 @asynccontextmanager
 async def ciclo_de_vida(_: FastAPI):
     # Na primeira execução com SQLite, cria o arquivo do banco a partir de docs/univan-sqlite.sql.
     preparar_banco(obter_configuracoes().url_banco_resolvida)
+    # Gera/sincroniza automaticamente as viagens da semana atual ao iniciar a API.
+    with closing(next(obter_sessao())) as sessao:
+        ServicoViagem(
+            RepositorioViagem(sessao),
+            RepositorioMotorista(sessao),
+            RepositorioVeiculo(sessao),
+        ).gerar_semana()
     yield
 
 
 def criar_aplicacao() -> FastAPI:
     configuracoes = obter_configuracoes()
+    configurar_log(configuracoes.nivel_log)
 
     app = FastAPI(
         lifespan=ciclo_de_vida,
         title=configuracoes.nome_aplicacao,
-        description="API do sistema de gestão de transporte universitário UniVan.",
-        version="0.2.0",
+        summary="Gestão de transporte universitário: passageiros, frota, bairros, rotas, viagens e relatórios.",
+        description=DESCRICAO,
+        version="0.3.0",
+        openapi_tags=TAGS,
+        # Swagger (testar as rotas) e ReDoc (leitura), ambos atrás do prefixo /api.
         docs_url=f"{PREFIXO_API}/docs",
+        redoc_url=f"{PREFIXO_API}/redoc",
         openapi_url=f"{PREFIXO_API}/openapi.json",
+        swagger_ui_parameters=PARAMETROS_SWAGGER,
     )
 
     app.add_middleware(
@@ -50,9 +95,13 @@ def criar_aplicacao() -> FastAPI:
     )
 
     registrar_tratadores_erro(app)
+    registrar_log_requisicoes(app)
 
+    # Saúde e login são públicos; as demais rotas exigem login (401) e, conforme o perfil, negam (403).
+    publicos = {saude_controller, usuario_controller}
     for controller in CONTROLLERS:
-        app.include_router(controller.roteador, prefix=PREFIXO_API)
+        respostas = ERROS_COMUNS if controller in publicos else {**ERROS_COMUNS, **erros(401, 403)}
+        app.include_router(controller.roteador, prefix=PREFIXO_API, responses=respostas)
 
     return app
 

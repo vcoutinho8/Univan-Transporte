@@ -13,6 +13,139 @@
   --color-laranja: #f2600c;
   --color-laranja-claro: #fe6f07;
   --color-fundo: #f2f2f2;
+
+  /*
+   * Animações (classes animate-*). Para escalonar uma lista, use style={{ animationDelay }}:
+   * o `both` mantém o item invisível até a vez dele.
+   */
+  --animate-surgir: surgir 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-aparecer: aparecer 0.3s ease-out both;
+  --animate-gaveta: gaveta 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-flutuar: flutuar 9s ease-in-out infinite;
+  --animate-dirigir: dirigir 14s linear infinite;
+  --animate-brilho: brilho 1.4s ease-in-out infinite;
+  /* Cena da estrada no painel: camadas que rolam (paralaxe), faixa da pista, van sacolejando. */
+  --animate-rolar-lento: rolar 70s linear infinite;
+  --animate-rolar-medio: rolar 32s linear infinite;
+  --animate-rolar-rapido: rolar 11s linear infinite;
+  --animate-faixa: faixa 0.45s linear infinite;
+  --animate-sacolejo: sacolejo 0.5s ease-in-out infinite alternate;
+  --animate-girar: girar 0.45s linear infinite;
+  --animate-fumaca: fumaca 1.4s ease-out infinite;
+  --animate-piscar: piscar 3s ease-in-out infinite;
+  /* Fila de embarque: o passageiro da vez entra deslizando. */
+  --animate-entrar-fila: entrar-fila 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes entrar-fila {
+    from {
+      opacity: 0;
+      transform: translateX(24px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes gaveta {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes flutuar {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(18px, -14px) scale(1.06);
+    }
+  }
+  @keyframes dirigir {
+    from {
+      transform: translateX(-80px);
+    }
+    to {
+      transform: translateX(calc(100cqw + 80px));
+    }
+  }
+  @keyframes rolar {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes faixa {
+    from {
+      background-position-x: 0;
+    }
+    to {
+      background-position-x: -56px;
+    }
+  }
+  @keyframes sacolejo {
+    from {
+      transform: translateY(0) rotate(0deg);
+    }
+    to {
+      transform: translateY(-2px) rotate(-0.6deg);
+    }
+  }
+  @keyframes girar {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes fumaca {
+    0% {
+      opacity: 0.55;
+      transform: translate(0, 0) scale(0.6);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-34px, -10px) scale(1.8);
+    }
+  }
+  @keyframes piscar {
+    0%,
+    100% {
+      opacity: 0.9;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+  @keyframes brilho {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
 }
 
 body {
@@ -22,6 +155,422 @@ body {
 /* Campos de formulário padronizados (usar a classe `campo`). */
 @layer components {
   .campo {
-    @apply mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-marinho-escuro placeholder:text-slate-400 focus:border-laranja focus:ring-2 focus:ring-laranja/20 focus:outline-none;
+    @apply mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-marinho-escuro transition-shadow placeholder:text-slate-400 focus:border-laranja focus:ring-2 focus:ring-laranja/20 focus:outline-none disabled:bg-fundo disabled:text-slate-400;
   }
+
+  /* Bloco cinza pulsando no lugar de um conteúdo que ainda está carregando. */
+  .esqueleto {
+    @apply animate-brilho rounded-lg bg-slate-200/80;
+  }
+}
+
+/* Quem pediu ao sistema operacional menos movimento não vê animações. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ Mapa (Leaflet) */
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #e9eef2;
+}
+
+/* Deixa o mapa de fundo mais neutro para as áreas e os pinos se destacarem. */
+.mapa-suave {
+  filter: saturate(0.55) brightness(1.04);
+}
+
+/* Pino de passageiro: gota laranja com as iniciais. */
+.pino {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--color-laranja);
+  border: 3px solid #fff;
+  box-shadow: 0 6px 14px -4px rgb(16 45 64 / 0.55);
+  transition: transform 0.2s;
+}
+.pino > span {
+  transform: rotate(45deg);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.pino-sem-area {
+  background: #eab308;
+}
+.pino-apagado {
+  background: #94a3b8;
+  opacity: 0.6;
+}
+.pino-instituicao {
+  background: var(--color-marinho);
+  border-radius: 12px;
+  transform: none;
+  width: 34px;
+  height: 34px;
+}
+.pino-instituicao > svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+}
+.leaflet-marker-icon:hover .pino:not(.pino-instituicao) {
+  transform: rotate(-45deg) scale(1.12);
+}
+
+/* Etiquetas (tooltips) fixas: nome do passageiro e nome da área. */
+.leaflet-tooltip.etiqueta-nome {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-marinho-escuro);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px -2px rgb(16 45 64 / 0.35);
+}
+.leaflet-tooltip.etiqueta-nome::before {
+  display: none;
+}
+.leaflet-tooltip.etiqueta-area {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 0 6px #fff;
+}
+.leaflet-tooltip.etiqueta-area::before {
+  display: none;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  box-shadow: 0 12px 30px -10px rgb(16 45 64 / 0.4);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Editor de áreas: vértices arrastáveis e "meios" que viram vértice ao clicar. */
+.vertice {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--color-laranja);
+  box-shadow: 0 1px 4px rgb(16 45 64 / 0.4);
+  cursor: grab;
+  transition: transform 0.15s;
+}
+.vertice:hover {
+  transform: scale(1.3);
+}
+.vertice-primeiro {
+  border-color: var(--color-marinho);
+}
+.vertice-meio {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-laranja);
+  opacity: 0.45;
+  border: 2px solid #fff;
+  cursor: copy;
+}
+.vertice-meio:hover {
+  opacity: 1;
+}
+.mapa-desenhando {
+  cursor: crosshair;
+}
+
+/* Minha rota: a próxima parada pulsa; a posição do motorista é um ponto azul. */
+.pino-proxima {
+  animation: pino-pulsar 1.6s ease-in-out infinite;
+}
+@keyframes pino-pulsar {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(242 96 12 / 0.55), 0 6px 14px -4px rgb(16 45 64 / 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgb(242 96 12 / 0), 0 6px 14px -4px rgb(16 45 64 / 0.55);
+  }
+}
+.pino-feito {
+  background: #94a3b8;
+  opacity: 0.75;
+}
+
+/* Login: estrada de linhas laranja correndo, van balançando, faróis e estrelas. */
+.login-faixa {
+  stroke-dasharray: 22 30;
+  animation: login-correr 1.2s linear infinite;
+}
+.login-faixa-centro {
+  stroke-dasharray: 26 34;
+  animation-duration: 0.8s;
+}
+@keyframes login-correr {
+  to {
+    stroke-dashoffset: -52;
+  }
+}
+.login-van,
+.login-sombra {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: login-balanco 0.9s ease-in-out infinite;
+}
+.login-sombra {
+  transform-origin: center;
+  animation-name: login-sombra;
+}
+@keyframes login-balanco {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes login-sombra {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleX(0.94);
+    opacity: 0.3;
+  }
+}
+.login-farol {
+  animation: login-farol 2.4s ease-in-out infinite;
+}
+@keyframes login-farol {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.login-estrela {
+  animation: login-piscar 3s ease-in-out infinite;
+}
+@keyframes login-piscar {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+.login-van {
+  transform-origin: 50% 100%;
+  animation-name: login-correndo;
+}
+@keyframes login-correndo {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2.5px) rotate(-0.6deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-1.5px) rotate(0.4deg);
+  }
+}
+.login-roda {
+  animation: login-girar 0.45s linear infinite;
+}
+@keyframes login-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.login-vento {
+  transform-box: fill-box;
+  animation: login-vento 0.9s ease-in infinite;
+}
+@keyframes login-vento {
+  0% {
+    transform: translateX(-30px) scaleX(0.3);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(70px) scaleX(1);
+    opacity: 0;
+  }
+}
+.login-rastro {
+  animation: login-rastro 0.9s ease-in-out infinite;
+}
+@keyframes login-rastro {
+  0%,
+  100% {
+    transform: translateX(8px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(20px);
+    opacity: 1;
+  }
+}
+/* Parallax: o pai define --px e --py (de -1 a 1) conforme o mouse. */
+.login-parallax-fundo,
+.login-parallax-van {
+  transition: transform 0.4s ease-out;
+}
+.login-parallax-fundo {
+  transform: translate(calc(var(--px, 0) * -6px), calc(var(--py, 0) * -4px));
+}
+.login-parallax-van {
+  transform: translate(calc(var(--px, 0) * 10px), calc(var(--py, 0) * 5px));
+}
+/* Acelerando (digitando ou entrando): tudo mais rápido. */
+.login-rapido .login-faixa {
+  animation-duration: 0.45s !important;
+}
+.login-rapido .login-roda {
+  animation-duration: 0.18s;
+}
+.login-rapido .login-vento {
+  animation-duration: 0.45s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-rastro,
+  .login-roda,
+  .login-vento,
+  .login-faixa,
+  .login-van,
+  .login-sombra,
+  .login-farol,
+  .login-estrela {
+    animation: none;
+  }
+}
+
+/* Casa do motorista: gota azul com a casinha e o rótulo com o nome. */
+.pino-casa {
+  width: 40px;
+  height: 40px;
+  background: #0ea5e9;
+  border-width: 3px;
+}
+.pino-casa > svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  transform: rotate(45deg);
+}
+.leaflet-tooltip.rotulo-casa {
+  background: #0ea5e9;
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  box-shadow: 0 4px 10px -2px rgb(14 165 233 / 0.5);
+}
+.leaflet-tooltip.rotulo-casa::before {
+  border-top-color: #0ea5e9;
+}
+
+/* Navegação: posição do motorista (seta na direção do movimento, ou bolinha sem direção). */
+.nav-posicao {
+  width: 22px;
+  height: 22px;
+  margin: 7px;
+  border-radius: 999px;
+  background: #0ea5e9;
+  border: 4px solid #fff;
+  box-shadow: 0 0 0 8px rgb(14 165 233 / 0.25), 0 4px 10px rgb(0 0 0 / 0.3);
+}
+.nav-seta {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 8px rgb(14 165 233 / 0.25), 0 4px 10px rgb(0 0 0 / 0.3);
+  transition: transform 0.4s ease;
+}
+.nav-seta svg {
+  width: 22px;
+  height: 22px;
+  fill: #0ea5e9;
+}
+
+/* Navegação: balão da próxima manobra, preso na curva da rota. */
+.nav-balao {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 6px 12px 6px 8px;
+  border-radius: 14px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px -6px rgb(29 78 216 / 0.6);
+}
+.nav-balao::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: #1d4ed8;
+  border-bottom: 0;
+}
+.nav-balao svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* GPS em 3D: o mapa gira para a frente da van; pinos e balões giram de volta (ficam retos na tela). */
+.nav-3d .leaflet-marker-icon > :not(.nav-seta) {
+  rotate: var(--giro);
 }

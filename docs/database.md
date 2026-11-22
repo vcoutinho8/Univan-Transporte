@@ -140,4 +140,4 @@ O trigger e as views ficam dentro do próprio banco.
 | Enums | Tipos `ENUM` (o de cadastro chamado `status`) | `TEXT` com `CHECK (coluna IN (...))` |
 | Planilha do motorista | Função `texto_planilha(rota, data, sentido)` | **Não existe**; precisará ser feita no backend |
 | Arrependimento do "não vou" | Chamada volta para `pendente` | Não há rotina; regra a implementar no backend |
-| Dados de teste | Guarapari/Vila Velha (ES) | Criciúma e região (SC) |
+| Dados de teste | Guarapari/Vila Velha (ES) | Guarapari → Vila Velha/Vitória (ES): 41 passageiros em 10 bairros com o contorno oficial do OpenStreetMap (2 bairros por motorista) e 31 rotas cobrindo todos os passageiros |

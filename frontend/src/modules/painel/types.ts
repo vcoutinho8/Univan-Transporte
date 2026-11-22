@@ -16,7 +16,12 @@ export interface ResumoPainel {
   viagens_hoje: ViagensDoDia
 }
 
-export interface Saude {
-  api: string
-  banco: string
+/** Um dia do gráfico da semana (GET /api/painel/semana). */
+export interface DiaDaSemana {
+  data: string
+  viagens: number
+  presentes: number
+  ausentes: number
+  nao_vai: number
+  pendentes: number
 }

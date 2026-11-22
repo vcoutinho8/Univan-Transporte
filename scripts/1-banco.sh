@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# PASSO 1 de 3 · Cria o banco SQLite com 5 registros de exemplo por tabela.
+# PASSO 1 de 3 · Cria o banco SQLite com os dados de exemplo (5 registros na maioria das
+# tabelas; todos os bairros, e os passageiros e rotas das 5 primeiras instituições).
 #
 # Uso, na raiz do projeto (Git Bash, Linux ou macOS):
 #   bash scripts/1-banco.sh          pergunta antes de apagar um banco que já existe
@@ -57,48 +58,78 @@ temporario = arquivo.with_name(arquivo.name + ".novo")
 temporario.unlink(missing_ok=True)
 
 conexao = sqlite3.connect(temporario)
-conexao.executescript(pathlib.Path("docs/univan-sqlite.sql").read_text(encoding="utf-8"))
+try:
+    conexao.executescript(pathlib.Path("docs/univan-sqlite.sql").read_text(encoding="utf-8"))
 
-# Fica com os registros 1 a 5 de cada tabela. Nos dados de teste eles só apontam
-# uns para os outros, então nenhuma chave estrangeira fica quebrada.
-conexao.executescript("""
+    # Fica com os registros 1 a 5 de cada tabela. Nos dados de teste eles só apontam
+    # uns para os outros, então nenhuma chave estrangeira fica quebrada. Exceções, para o
+    # mapa não ficar vazio: ficam todos os bairros (já divididos entre os 5 primeiros
+    # motoristas) e todos os passageiros e rotas das 5 instituições que sobram.
+    conexao.executescript("""
     DELETE FROM chamada        WHERE fk_viagem > 5;
     DELETE FROM viagem         WHERE id > 5;
-    DELETE FROM rota_dia       WHERE fk_rota > 5;
-    DELETE FROM rota           WHERE id > 5;
+    DELETE FROM rota           WHERE fk_instituicao > 5 OR fk_motorista > 5;
+    DELETE FROM rota_dia       WHERE fk_rota NOT IN (SELECT id FROM rota);
     DELETE FROM titulo_receber WHERE id > 5;
     DELETE FROM titulo_pagar   WHERE id > 5;
     DELETE FROM dia_sem_aula   WHERE id > 5;
-    DELETE FROM estudante      WHERE id > 5;
-    DELETE FROM area           WHERE id > 5;
+    DELETE FROM estudante      WHERE fk_instituicao > 5;
     DELETE FROM motorista      WHERE id > 5;
     DELETE FROM veiculo        WHERE id > 5;
     DELETE FROM instituicao    WHERE id > 5;
     DELETE FROM empresa        WHERE id > 5;
-    -- endereços: só os usados pelas empresas, instituições e estudantes que ficaram
+    -- endereços: só os usados pelas empresas, instituições, estudantes e motoristas que ficaram
     DELETE FROM endereco WHERE id NOT IN (
         SELECT fk_endereco FROM empresa WHERE fk_endereco IS NOT NULL
         UNION SELECT fk_endereco FROM instituicao
-        UNION SELECT fk_endereco FROM estudante);
+        UNION SELECT fk_endereco FROM estudante
+        UNION SELECT fk_endereco FROM motorista WHERE fk_endereco IS NOT NULL);
+    -- Teste do mapa do motorista (logins "motorista" e "joao"): todas as rotas deles rodam
+    -- também sábado e domingo, para sempre haver viagem "hoje"...
+    INSERT OR IGNORE INTO rota_dia SELECT r.id, d.dia FROM rota r, (SELECT 6 AS dia UNION SELECT 7) d
+        WHERE r.fk_motorista IN (1, 2);
+    -- ...e a manhã ganha passageiros: os da noite deles também vão de manhã (UVV para o
+    -- motorista 1, Novo Milênio para o 2), com CPF próprio.
+    INSERT INTO estudante (nome, apelido, cpf, celular, fk_instituicao, curso, turno, fk_endereco, fk_area,
+                           horario_embarque, valor_mensal, dia_vencimento, status)
+    SELECT e.nome, e.apelido, printf('%011d', 90000000000 + e.id), e.celular,
+           CASE a.fk_motorista WHEN 1 THEN 1 ELSE 4 END, e.curso, 'manha', e.fk_endereco, e.fk_area,
+           '06:00:00', e.valor_mensal, e.dia_vencimento, 'ativo'
+    FROM estudante e JOIN area a ON a.id = e.fk_area
+    WHERE a.fk_motorista IN (1, 2) AND e.turno = 'noite' AND e.status = 'ativo';
 """)
 
-problemas = conexao.execute("PRAGMA foreign_key_check").fetchall()
-if problemas:
-    conexao.close()
-    temporario.unlink()
-    sys.exit(f"Chaves estrangeiras quebradas: {problemas}")
-conexao.commit()
-conexao.execute("VACUUM")
+    problemas = conexao.execute("PRAGMA foreign_key_check").fetchall()
+    if problemas:
+        sys.exit(f"Chaves estrangeiras quebradas: {problemas}")
+    conexao.commit()
+    conexao.execute("VACUUM")
 
-tabelas = [n for (n,) in conexao.execute(
-    "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
-for tabela in tabelas:
-    total = conexao.execute(f"SELECT count(*) FROM {tabela}").fetchone()[0]
-    print(f"   {tabela:<15} {total:>3} registros")
+    tabelas = [n for (n,) in conexao.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
+    for tabela in tabelas:
+        total = conexao.execute(f"SELECT count(*) FROM {tabela}").fetchone()[0]
+        print(f"   {tabela:<15} {total:>3} registros")
+except BaseException:
+    # Qualquer falha: não deixa o .novo para trás e mantém o banco antigo intacto.
+    conexao.close()
+    temporario.unlink(missing_ok=True)
+    raise
 conexao.close()
 
 # Só troca o banco antigo depois que o novo ficou pronto.
-temporario.replace(arquivo)
+try:
+    temporario.replace(arquivo)
+except PermissionError:
+    # Windows: a API (ou outro programa) está com o banco aberto e o arquivo não pode ser
+    # trocado. Copia o conteúdo para dentro dele pelo próprio SQLite, que funciona aberto.
+    with sqlite3.connect(temporario) as novo, sqlite3.connect(arquivo, timeout=30) as destino:
+        novo.backup(destino)
+    novo.close()
+    destino.close()
+    temporario.unlink()
+    print("   O banco estava aberto (API rodando?): os dados foram copiados para dentro dele.")
+    print("   Reinicie a API para ela gerar as viagens de hoje.")
 EOF
 
 info "Banco pronto. Próximo passo:  bash scripts/2-backend.sh"

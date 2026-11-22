@@ -1,1 +1,1 @@
-"""Módulo instituicao: faculdades de destino. Só model por enquanto."""
+"""Módulo instituicao: faculdades de destino. Listagem."""

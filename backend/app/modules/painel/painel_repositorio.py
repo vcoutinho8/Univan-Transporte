@@ -1,10 +1,11 @@
 """Consultas de contagem usadas pelo painel. Nenhuma gravação."""
 
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.modules.chamada.chamada_model import Chamada
 from app.modules.estudante.estudante_model import Estudante
 from app.modules.motorista.motorista_model import Motorista
 from app.modules.rota.rota_model import Rota
@@ -49,3 +50,35 @@ class RepositorioPainel:
             .group_by(Viagem.status)
         )
         return {status: quantidade for status, quantidade in self.sessao.execute(consulta)}
+
+    def semana(self, fim: date) -> list[dict]:
+        """Os 7 dias que terminam em `fim`: viagens e chamadas por situação (sem as canceladas)."""
+        inicio = fim - timedelta(days=6)
+        dias = {inicio + timedelta(days=i): {"viagens": 0, "presente": 0, "ausente": 0, "nao_vai": 0, "pendente": 0} for i in range(7)}
+        viagens = self.sessao.execute(
+            select(Viagem.data, func.count())
+            .where(Viagem.data.between(inicio, fim), Viagem.status != StatusViagem.CANCELADA)
+            .group_by(Viagem.data)
+        )
+        for dia, total in viagens:
+            dias[dia]["viagens"] = total
+        chamadas = self.sessao.execute(
+            select(Viagem.data, Chamada.status, func.count())
+            .join(Viagem, Viagem.id == Chamada.fk_viagem)
+            .where(Viagem.data.between(inicio, fim), Viagem.status != StatusViagem.CANCELADA)
+            .group_by(Viagem.data, Chamada.status)
+        )
+        for dia, status, total in chamadas:
+            chave = status.value if hasattr(status, "value") else str(status)
+            dias[dia][chave] = total
+        return [
+            {
+                "data": dia,
+                "viagens": c["viagens"],
+                "presentes": c["presente"],
+                "ausentes": c["ausente"],
+                "nao_vai": c["nao_vai"],
+                "pendentes": c["pendente"],
+            }
+            for dia, c in sorted(dias.items())
+        ]
