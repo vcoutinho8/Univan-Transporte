@@ -124,6 +124,19 @@ export const MENU: GrupoMenu[] = [
       },
     ],
   },
+  {
+    titulo: 'Sistema',
+    itens: [
+      {
+        para: '/configuracoes',
+        rotulo: 'Configurações',
+        icone: 'engrenagem',
+        requisito: 'RF1',
+        descricao: 'Minha conta (e-mail, senha) e, para o administrador, usuários e instituições.',
+        pronto: true,
+      },
+    ],
+  },
 ]
 
 export const ITENS_MENU = MENU.flatMap((grupo) => grupo.itens)

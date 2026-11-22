@@ -30,5 +30,8 @@ class Usuario(Base):
         enum_do_banco(StatusCadastro), default=StatusCadastro.ATIVO, server_default=StatusCadastro.ATIVO.value
     )
     ultimo_acesso: Mapped[datetime | None]
+    email: Mapped[str | None] = mapped_column(String(120))
+    # CPF de admin e auxiliar (o do motorista fica no cadastro de motorista).
+    cpf: Mapped[str | None] = mapped_column(String(11))
 
     motorista: Mapped["Motorista | None"] = relationship()

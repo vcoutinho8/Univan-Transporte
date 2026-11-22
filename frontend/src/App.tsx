@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import PaginaChamadas from './modules/chamada/CallsPage.tsx'
+import PaginaConfiguracoes from './modules/configuracao/SettingsPage.tsx'
 import PaginaCalendario from './modules/dia_sem_aula/NoClassDaysPage.tsx'
 import PaginaEstudantes from './modules/estudante/StudentsPage.tsx'
 import PaginaMapa from './modules/mapa/MapPage.tsx'
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="minha-rota" element={<PaginaMinhaRota />} />
         <Route path="calendario" element={<PaginaCalendario />} />
         <Route path="chamadas" element={<PaginaChamadas />} />
+        <Route path="configuracoes" element={<PaginaConfiguracoes />} />
         <Route path="dias-sem-aula" element={<Navigate to="/calendario" replace />} />
         <Route path="relatorios" element={<PaginaRelatorios />} />
         <Route path="relatorios/:id" element={<PaginaRelatorio />} />

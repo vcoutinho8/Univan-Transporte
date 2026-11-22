@@ -32,6 +32,7 @@ const TELAS: Record<string, Perfil[]> = {
   '/chamadas': ['admin', 'auxiliar', 'motorista'],
   '/relatorios': ['admin', 'auxiliar'],
   '/minha-rota': ['motorista'],
+  '/configuracoes': ['admin', 'auxiliar', 'motorista'],
 }
 
 export const pode = (perfil: Perfil | undefined, acao: Acao) => Boolean(perfil && ACOES[acao].includes(perfil))

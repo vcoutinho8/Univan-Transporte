@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 
 import { telaInicial } from '../auth/permissoes.ts'
 import { useSessao } from '../auth/useSessao.ts'
@@ -56,7 +56,6 @@ function Campo({ rotulo, erro, children }: { rotulo: string; erro?: string; chil
 export default function PaginaLogin() {
   const { sessao, entrar } = useSessao()
   const navegar = useNavigate()
-  const local = useLocation()
   const [usuario, setUsuario] = useState(() => localStorage.getItem(CHAVE_LEMBRAR) ?? '')
   const [lembrar, setLembrar] = useState(() => Boolean(localStorage.getItem(CHAVE_LEMBRAR)))
   const [senha, setSenha] = useState('')
@@ -64,23 +63,16 @@ export default function PaginaLogin() {
   const [enviando, setEnviando] = useState(false)
   const [tocado, setTocado] = useState(false)
   const [destaque, setDestaque] = useState(0)
-  // A van acelera por um instante a cada tecla (e enquanto entra).
-  const [digitando, setDigitando] = useState(false)
   const avisos = useAviso()
-
-  useEffect(() => {
-    if (!digitando) return
-    const pausa = window.setTimeout(() => setDigitando(false), 700)
-    return () => window.clearTimeout(pausa)
-  }, [digitando, usuario, senha])
 
   useEffect(() => {
     const relogio = window.setInterval(() => setDestaque((d) => (d + 1) % DESTAQUES.length), 5000)
     return () => window.clearInterval(relogio)
   }, [])
 
-  const destino = (local.state as { de?: string } | null)?.de
-  if (sessao) return <Navigate to={destino ?? telaInicial(sessao.usuario.perfil)} replace />
+  // Sempre a tela inicial do perfil: voltar para a tela de antes levava o próximo usuário
+  // (ex.: o admin) para a tela de quem saiu (ex.: /minha-rota do motorista).
+  if (sessao) return <Navigate to={telaInicial(sessao.usuario.perfil)} replace />
 
   const erros = tocado ? validarLogin(usuario, senha) : {}
 
@@ -94,7 +86,7 @@ export default function PaginaLogin() {
       const nova = await entrar(login, senha)
       if (lembrar) localStorage.setItem(CHAVE_LEMBRAR, login)
       else localStorage.removeItem(CHAVE_LEMBRAR)
-      navegar(destino ?? telaInicial(nova.usuario.perfil), { replace: true })
+      navegar(telaInicial(nova.usuario.perfil), { replace: true })
     } catch (e) {
       const bloqueado = e instanceof ErroApi && e.status === 429
       avisos.mostrar({
@@ -129,7 +121,7 @@ export default function PaginaLogin() {
         <main className="flex flex-col px-5 py-6 sm:px-10 sm:py-8">
           <Logo className="w-32" />
 
-          <div className="my-auto py-10">
+          <div className="mt-8 sm:mt-10">
             <h1 className="text-3xl font-extrabold tracking-tight text-marinho">Entrar</h1>
             <p className="mt-2 text-sm text-slate-500">Acesse sua conta do UniVan para continuar.</p>
 
@@ -141,10 +133,7 @@ export default function PaginaLogin() {
                   autoCapitalize="none"
                   spellCheck={false}
                   value={usuario}
-                  onChange={(e) => {
-                    setUsuario(e.target.value)
-                    setDigitando(true)
-                  }}
+                  onChange={(e) => setUsuario(e.target.value)}
                   placeholder="Digite seu usuário"
                   aria-invalid={Boolean(erros.usuario)}
                   className={campo(erros.usuario)}
@@ -157,10 +146,7 @@ export default function PaginaLogin() {
                   type={verSenha ? 'text' : 'password'}
                   autoComplete="current-password"
                   value={senha}
-                  onChange={(e) => {
-                    setSenha(e.target.value)
-                    setDigitando(true)
-                  }}
+                  onChange={(e) => setSenha(e.target.value)}
                   placeholder="Sua senha"
                   aria-invalid={Boolean(erros.senha)}
                   className={`${campo(erros.senha)} pr-12`}
@@ -191,7 +177,8 @@ export default function PaginaLogin() {
                     avisos.mostrar({
                       tipo: 'info',
                       titulo: 'Esqueceu a senha?',
-                      descricao: 'Peça ao administrador da sua empresa para criar uma senha nova para o seu usuário.',
+                      descricao:
+                        'Peça ao administrador: em Configurações › Usuários ele define uma senha nova para você. Se quem esqueceu foi o administrador, outro administrador (ou o suporte técnico) redefine.',
                     })
                   }
                   className="font-semibold text-laranja hover:underline"
@@ -211,7 +198,7 @@ export default function PaginaLogin() {
             </form>
           </div>
 
-          <p className="text-xs text-slate-400">UniVan · Gestão de transporte universitário</p>
+          <p className="mt-auto pt-8 text-xs text-slate-400">UniVan · Gestão de transporte universitário</p>
         </main>
 
         {/* Cena: a van na estrada, com as frases se revezando */}
@@ -227,10 +214,10 @@ export default function PaginaLogin() {
           }}
           className="relative order-first h-44 overflow-hidden rounded-2xl bg-marinho sm:h-56 lg:order-none lg:h-auto lg:min-h-[560px]">
           <div className="h-full lg:hidden">
-            <CenaVanNaEstrada compacta acelerando={digitando || enviando} />
+            <CenaVanNaEstrada compacta acelerando={enviando} />
           </div>
           <div className="hidden h-full lg:block">
-            <CenaVanNaEstrada acelerando={digitando || enviando} />
+            <CenaVanNaEstrada acelerando={enviando} />
           </div>
           <div className="absolute inset-x-0 top-0 hidden bg-gradient-to-b from-[#0b2233] via-[#0b2233]/70 to-transparent px-8 pt-8 pb-16 text-white lg:block">
             <p className="text-xs font-bold tracking-widest text-laranja uppercase">Transporte universitário</p>

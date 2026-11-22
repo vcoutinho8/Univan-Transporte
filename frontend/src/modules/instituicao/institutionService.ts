@@ -1,4 +1,5 @@
 import { requisitar } from '../../shared/services/api.ts'
+import type { DadosEndereco } from '../endereco/types.ts'
 import type { Instituicao } from './types.ts'
 
 export interface DadosParadaExtra {
@@ -9,6 +10,11 @@ export interface DadosParadaExtra {
 
 export const servicoInstituicao = {
   listar: () => requisitar<Instituicao[]>('/instituicoes'),
+
+  /** Só o admin (tela de Configurações). */
+  criar: (dados: { nome: string; endereco: DadosEndereco }) => requisitar<Instituicao>('/instituicoes', { metodo: 'POST', corpo: dados }),
+  alterar: (id: number, dados: { nome?: string; endereco?: DadosEndereco }) =>
+    requisitar<Instituicao>(`/instituicoes/${id}`, { metodo: 'PUT', corpo: dados }),
 
   /** Move o ponto de parada na rua; `null` volta a usar a localização do endereço. */
   ajustarParada: (id: number, ponto: [number, number] | null) =>

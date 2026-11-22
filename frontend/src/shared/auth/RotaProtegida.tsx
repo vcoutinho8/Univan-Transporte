@@ -6,14 +6,15 @@ import { abreTela, ROTULOS_PERFIL, telaInicial } from './permissoes.ts'
 import { useSessao } from './useSessao.ts'
 
 /**
- * Só mostra o conteúdo com alguém logado; sem sessão, vai para o login (e volta depois).
+ * Só mostra o conteúdo com alguém logado; sem sessão, vai para o login (que leva à tela inicial
+ * do perfil, nunca à tela de quem saiu).
  * Tela que o perfil não abre mostra "sem acesso" (a API recusaria os dados de qualquer jeito).
  */
 export default function RotaProtegida({ children }: { children: ReactNode }) {
   const { usuario } = useSessao()
   const local = useLocation()
 
-  if (!usuario) return <Navigate to="/login" replace state={{ de: local.pathname + local.search }} />
+  if (!usuario) return <Navigate to="/login" replace />
   if (local.pathname === '/' && usuario.perfil === 'motorista') return <Navigate to={telaInicial('motorista')} replace />
   if (!abreTela(usuario.perfil, local.pathname)) {
     return (

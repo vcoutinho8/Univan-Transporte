@@ -26,7 +26,7 @@ from app.modules.painel import painel_controller
 from app.modules.relatorio import relatorio_controller
 from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
-from app.modules.usuario import usuario_controller
+from app.modules.usuario import conta_controller, usuario_controller
 from app.modules.veiculo import veiculo_controller
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
 from app.modules.viagem import viagem_controller
@@ -39,6 +39,7 @@ PREFIXO_API = "/api"
 CONTROLLERS = (
     saude_controller,
     usuario_controller,
+    conta_controller,
     painel_controller,
     empresa_controller,
     veiculo_controller,

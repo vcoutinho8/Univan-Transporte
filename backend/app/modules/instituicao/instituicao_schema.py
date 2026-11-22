@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
-from app.modules.endereco.endereco_schema import EnderecoResposta
+from app.modules.endereco.endereco_schema import EnderecoEntrada, EnderecoResposta
 
 
 class ParadaExtra(BaseModel):
@@ -71,3 +71,38 @@ class ParadaExtraPedido(BaseModel):
         if not nome:
             raise ValueError("Informe o nome da parada (ex.: Biopráticas).")
         return nome
+
+
+def _nome_instituicao(valor: str) -> str:
+    nome = " ".join(valor.split())
+    if not nome:
+        raise ValueError("Informe o nome da instituição.")
+    return nome
+
+
+class InstituicaoNova(BaseModel):
+    """Nova faculdade de destino: nome e endereço (o pino no mapa vira o ponto de parada)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nome: str = Field(max_length=100)
+    endereco: EnderecoEntrada
+
+    @field_validator("nome")
+    @classmethod
+    def validar_nome(cls, valor: str) -> str:
+        return _nome_instituicao(valor)
+
+
+class InstituicaoAlteracao(BaseModel):
+    """Só os campos enviados mudam."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nome: str | None = Field(default=None, max_length=100)
+    endereco: EnderecoEntrada | None = None
+
+    @field_validator("nome")
+    @classmethod
+    def validar_nome(cls, valor: str | None) -> str | None:
+        return None if valor is None else _nome_instituicao(valor)

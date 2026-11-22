@@ -9,10 +9,17 @@ from sqlalchemy.orm import Session
 from app.config.banco import obter_sessao
 from app.config.documentacao import erros
 from app.config.erros import ConflitoDeDados, DadosInvalidos, RecursoNaoEncontrado
-from app.config.seguranca import ADMIN_OU_AUXILIAR, TODOS
+from app.config.seguranca import ADMIN, ADMIN_OU_AUXILIAR, TODOS
+from app.modules.endereco.endereco_model import Endereco
 from app.modules.instituicao.instituicao_model import Instituicao, InstituicaoParada
 from app.modules.instituicao.instituicao_repositorio import RepositorioInstituicao
-from app.modules.instituicao.instituicao_schema import InstituicaoResposta, ParadaExtraPedido, ParadaPedido
+from app.modules.instituicao.instituicao_schema import (
+    InstituicaoAlteracao,
+    InstituicaoNova,
+    InstituicaoResposta,
+    ParadaExtraPedido,
+    ParadaPedido,
+)
 
 roteador = APIRouter(prefix="/instituicoes", tags=["Instituições"], dependencies=[TODOS])
 
@@ -37,6 +44,37 @@ Repositorio = Annotated[RepositorioInstituicao, Depends(obter_repositorio_instit
 @roteador.get("", response_model=list[InstituicaoResposta], summary="Listar instituições")
 def listar_instituicoes(repositorio: Repositorio):
     return repositorio.listar()
+
+
+@roteador.post(
+    "",
+    response_model=InstituicaoResposta,
+    status_code=201,
+    dependencies=[ADMIN],
+    summary="Criar instituição (faculdade de destino)",
+    responses=erros(409, 422),
+)
+def criar_instituicao(dados: InstituicaoNova, repositorio: Repositorio):
+    return repositorio.salvar(Instituicao(nome=dados.nome, endereco=Endereco(**dados.endereco.model_dump())))
+
+
+@roteador.put(
+    "/{id_instituicao}",
+    response_model=InstituicaoResposta,
+    dependencies=[ADMIN],
+    summary="Alterar nome ou endereço da instituição",
+    responses=erros(404, 422),
+)
+def alterar_instituicao(id_instituicao: int, dados: InstituicaoAlteracao, repositorio: Repositorio):
+    instituicao = repositorio.buscar_por_id(id_instituicao)
+    if instituicao is None:
+        raise RecursoNaoEncontrado("Instituição não encontrada.")
+    if dados.nome is not None:
+        instituicao.nome = dados.nome
+    if dados.endereco is not None:
+        for campo, valor in dados.endereco.model_dump().items():
+            setattr(instituicao.endereco, campo, valor)
+    return repositorio.salvar(instituicao)
 
 
 @roteador.patch(
