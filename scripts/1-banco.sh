@@ -58,13 +58,14 @@ temporario = arquivo.with_name(arquivo.name + ".novo")
 temporario.unlink(missing_ok=True)
 
 conexao = sqlite3.connect(temporario)
-conexao.executescript(pathlib.Path("docs/univan-sqlite.sql").read_text(encoding="utf-8"))
+try:
+    conexao.executescript(pathlib.Path("docs/univan-sqlite.sql").read_text(encoding="utf-8"))
 
-# Fica com os registros 1 a 5 de cada tabela. Nos dados de teste eles só apontam
-# uns para os outros, então nenhuma chave estrangeira fica quebrada. Exceções, para o
-# mapa não ficar vazio: ficam todos os bairros (já divididos entre os 5 primeiros
-# motoristas) e todos os passageiros e rotas das 5 instituições que sobram.
-conexao.executescript("""
+    # Fica com os registros 1 a 5 de cada tabela. Nos dados de teste eles só apontam
+    # uns para os outros, então nenhuma chave estrangeira fica quebrada. Exceções, para o
+    # mapa não ficar vazio: ficam todos os bairros (já divididos entre os 5 primeiros
+    # motoristas) e todos os passageiros e rotas das 5 instituições que sobram.
+    conexao.executescript("""
     DELETE FROM chamada        WHERE fk_viagem > 5;
     DELETE FROM viagem         WHERE id > 5;
     DELETE FROM rota           WHERE fk_instituicao > 5 OR fk_motorista > 5;
@@ -77,26 +78,30 @@ conexao.executescript("""
     DELETE FROM veiculo        WHERE id > 5;
     DELETE FROM instituicao    WHERE id > 5;
     DELETE FROM empresa        WHERE id > 5;
-    -- endereços: só os usados pelas empresas, instituições e estudantes que ficaram
+    -- endereços: só os usados pelas empresas, instituições, estudantes e motoristas que ficaram
     DELETE FROM endereco WHERE id NOT IN (
         SELECT fk_endereco FROM empresa WHERE fk_endereco IS NOT NULL
         UNION SELECT fk_endereco FROM instituicao
-        UNION SELECT fk_endereco FROM estudante);
+        UNION SELECT fk_endereco FROM estudante
+        UNION SELECT fk_endereco FROM motorista WHERE fk_endereco IS NOT NULL);
 """)
 
-problemas = conexao.execute("PRAGMA foreign_key_check").fetchall()
-if problemas:
-    conexao.close()
-    temporario.unlink()
-    sys.exit(f"Chaves estrangeiras quebradas: {problemas}")
-conexao.commit()
-conexao.execute("VACUUM")
+    problemas = conexao.execute("PRAGMA foreign_key_check").fetchall()
+    if problemas:
+        sys.exit(f"Chaves estrangeiras quebradas: {problemas}")
+    conexao.commit()
+    conexao.execute("VACUUM")
 
-tabelas = [n for (n,) in conexao.execute(
-    "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
-for tabela in tabelas:
-    total = conexao.execute(f"SELECT count(*) FROM {tabela}").fetchone()[0]
-    print(f"   {tabela:<15} {total:>3} registros")
+    tabelas = [n for (n,) in conexao.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")]
+    for tabela in tabelas:
+        total = conexao.execute(f"SELECT count(*) FROM {tabela}").fetchone()[0]
+        print(f"   {tabela:<15} {total:>3} registros")
+except BaseException:
+    # Qualquer falha: não deixa o .novo para trás e mantém o banco antigo intacto.
+    conexao.close()
+    temporario.unlink(missing_ok=True)
+    raise
 conexao.close()
 
 # Só troca o banco antigo depois que o novo ficou pronto.
