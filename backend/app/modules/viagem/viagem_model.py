@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import Sentido, StatusViagem
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from app.modules.veiculo.veiculo_model import Veiculo
 
 
-class Viagem(Base):
+class Viagem(DaEmpresa, Base):
     """Gerada pela função `gerar_dia` do banco.
 
     Motorista e veículo ficam também aqui para registrar substituições do dia

@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.shared.empresa import CHAVE as CHAVE_EMPRESA
 from app.modules.dia_sem_aula.dia_sem_aula_model import DiaSemAula, FeriadoImportado
 from app.modules.viagem import viagem_servico
 
@@ -73,12 +74,18 @@ def importar_feriados(sessao: Session, ano: int) -> int:
     ja_tem = set(
         sessao.scalars(
             select(DiaSemAula.data).where(
-                DiaSemAula.fk_instituicao.is_(None), DiaSemAula.data.between(date(ano, 1, 1), date(ano, 12, 31))
+                DiaSemAula.fk_instituicao.is_(None), DiaSemAula.fk_empresa.is_(None), DiaSemAula.data.between(date(ano, 1, 1), date(ano, 12, 31))
             )
         )
     )
     novos = {dia: nome for dia, nome in feriados if dia not in ja_tem}
-    sessao.add_all(DiaSemAula(data=dia, fk_instituicao=None, motivo=nome) for dia, nome in sorted(novos.items()))
-    sessao.add(FeriadoImportado(ano=ano, fonte=fonte, importado_em=viagem_servico.agora()))
-    sessao.commit()
+    # Feriado nacional é de todas as empresas: grava sem a empresa de quem abriu a tela.
+    empresa = sessao.info.pop(CHAVE_EMPRESA, None)
+    try:
+        sessao.add_all(DiaSemAula(data=dia, fk_instituicao=None, motivo=nome) for dia, nome in sorted(novos.items()))
+        sessao.add(FeriadoImportado(ano=ano, fonte=fonte, importado_em=viagem_servico.agora()))
+        sessao.commit()
+    finally:
+        if empresa is not None:
+            sessao.info[CHAVE_EMPRESA] = empresa
     return len(novos)

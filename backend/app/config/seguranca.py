@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from app.config.banco import obter_sessao
 from app.config.configuracoes import obter_configuracoes
 from app.config.erros import AcessoNegado, NaoAutenticado
+from app.shared.empresa import CHAVE as CHAVE_EMPRESA
 
 PERFIS = ("admin", "auxiliar", "motorista", "univan")
 
@@ -144,6 +145,8 @@ def usuario_logado(
     if usuario is None or usuario.status != "ativo":
         raise NaoAutenticado("Usuário inativo ou removido. Fale com o administrador.")
     logado = UsuarioLogado(usuario.id, usuario.perfil.value, usuario.fk_empresa, usuario.fk_motorista)
+    if usuario.perfil.value != "univan":
+        sessao.info[CHAVE_EMPRESA] = usuario.fk_empresa  # daqui em diante a sessão só vê esta empresa
     requisicao.state.usuario = logado
     return logado
 

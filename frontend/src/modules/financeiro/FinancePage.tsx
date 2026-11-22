@@ -16,7 +16,6 @@ import { ErroApi } from '../../shared/services/api.ts'
 import { combinaBusca } from '../../shared/utils/busca.ts'
 import { dataIso, formatarData, formatarMoeda, soDigitos } from '../../shared/utils/formatar.ts'
 import { servicoMotorista } from '../motorista/driverService.ts'
-import { servicoVeiculo } from '../veiculo/vehicleService.ts'
 import { ROTULOS_CATEGORIA, servicoFinanceiro, type CategoriaGasto, type Gasto, type Mensalidade, type NovoGasto } from './financeService.ts'
 
 type Aba = 'receber' | 'pagar'
@@ -335,10 +334,17 @@ function ListaGastos({
                     <td className={`${td} tabular-nums ${g.vencido ? 'font-semibold text-red-600' : ''}`}>{formatarData(g.data_vencimento)}</td>
                     <td className={`${td} tabular-nums`}>{g.data_pagamento ? formatarData(g.data_pagamento) : '—'}</td>
                     <td className={td}>
-                      <Situacao status={g.status} vencido={g.vencido} />
+                      {g.bloqueado ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap text-slate-600" title="Motorista inativo: reative para pagar">
+                          <Icone nome="cadeado" className="h-3 w-3" />
+                          Bloqueado
+                        </span>
+                      ) : (
+                        <Situacao status={g.status} vencido={g.vencido} />
+                      )}
                     </td>
                     <td className={td}>
-                      {g.status === 'aberto' && (
+                      {g.status === 'aberto' && !g.bloqueado && (
                         <div className="flex items-center justify-end gap-2">
                           {g.categoria !== 'salario' && (
                             <Botao
@@ -393,13 +399,11 @@ function Erro({ texto }: { texto?: string }) {
 /** Novo gasto: o motorista escolhido traz o veículo vinculado a ele. Erro da API mantém o que foi digitado. */
 function FormularioGasto({ aoSalvar, aoFechar }: { aoSalvar: (dados: NovoGasto) => Promise<void>; aoFechar: () => void }) {
   const motoristas = useRequisicao(() => servicoMotorista.listar({ status: 'ativo' }))
-  const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: 'ativo' }))
   const [categoria, setCategoria] = useState<CategoriaGasto>('manutencao')
   const [descricao, setDescricao] = useState('')
   const [valor, setValor] = useState<number | null>(null)
   const [vencimento, setVencimento] = useState(dataIso())
   const [motorista, setMotorista] = useState('')
-  const [veiculo, setVeiculo] = useState('')
   const [tocado, setTocado] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erroApi, setErroApi] = useState<string | null>(null)
@@ -411,11 +415,8 @@ function FormularioGasto({ aoSalvar, aoFechar }: { aoSalvar: (dados: NovoGasto) 
   }
   const mostrar = (campo: keyof typeof erros) => (tocado ? erros[campo] : undefined)
 
-  function escolherMotorista(id: string) {
-    setMotorista(id)
-    const vinculado = (motoristas.dados ?? []).find((m) => String(m.id) === id)?.fk_veiculo
-    if (vinculado) setVeiculo(String(vinculado))
-  }
+  // O veículo não se escolhe: é o vinculado ao motorista (só para conferir).
+  const veiculoDoMotorista = (motoristas.dados ?? []).find((m) => String(m.id) === motorista)?.veiculo ?? null
 
   async function enviar(e: FormEvent) {
     e.preventDefault()
@@ -430,7 +431,7 @@ function FormularioGasto({ aoSalvar, aoFechar }: { aoSalvar: (dados: NovoGasto) 
         valor: valor!,
         data_vencimento: vencimento,
         fk_motorista: motorista ? Number(motorista) : null,
-        fk_veiculo: veiculo ? Number(veiculo) : null,
+        fk_veiculo: veiculoDoMotorista?.id ?? null,
       })
     } catch (erro) {
       setErroApi(mensagemDeErro(erro))
@@ -441,7 +442,6 @@ function FormularioGasto({ aoSalvar, aoFechar }: { aoSalvar: (dados: NovoGasto) 
 
   const rotulo = 'block text-sm font-semibold text-marinho'
   const campo = (erro?: string) => `campo ${erro ? 'border-red-300 ring-2 ring-red-100' : ''}`
-  const motoristasDoVeiculo = (id: number) => (motoristas.dados ?? []).filter((m) => m.fk_veiculo === id).map((m) => m.nome.split(' ')[0])
 
   return (
     <Gaveta titulo="Novo gasto" descricao="Manutenção, combustível ou outro gasto da operação." aoFechar={aoFechar} largura="max-w-lg">
@@ -488,8 +488,8 @@ function FormularioGasto({ aoSalvar, aoFechar }: { aoSalvar: (dados: NovoGasto) 
             </label>
           </div>
           <label className={rotulo}>
-            Motorista <span className="font-normal text-slate-400">(opcional: traz o veículo dele)</span>
-            <select value={motorista} onChange={(e) => escolherMotorista(e.target.value)} className="campo">
+            Motorista <span className="font-normal text-slate-400">(opcional: o veículo vem junto)</span>
+            <select value={motorista} onChange={(e) => setMotorista(e.target.value)} className="campo">
               <option value="">—</option>
               {(motoristas.dados ?? []).map((m) => (
                 <option key={m.id} value={m.id}>
@@ -499,21 +499,13 @@ function FormularioGasto({ aoSalvar, aoFechar }: { aoSalvar: (dados: NovoGasto) 
               ))}
             </select>
           </label>
-          <label className={rotulo}>
-            Veículo <span className="font-normal text-slate-400">(opcional)</span>
-            <select value={veiculo} onChange={(e) => setVeiculo(e.target.value)} className="campo">
-              <option value="">—</option>
-              {(veiculos.dados ?? []).map((v) => {
-                const nomes = motoristasDoVeiculo(v.id)
-                return (
-                  <option key={v.id} value={v.id}>
-                    {v.placa} · {v.modelo}
-                    {nomes.length ? ` (${nomes.join(', ')})` : ''}
-                  </option>
-                )
-              })}
-            </select>
-          </label>
+          <div>
+            <p className={rotulo}>Veículo</p>
+            <p className="mt-1.5 flex items-center gap-2 rounded-xl bg-fundo px-3 py-2.5 text-sm text-marinho ring-1 ring-slate-200">
+              <Icone nome="van" className="h-4 w-4 text-laranja" />
+              {veiculoDoMotorista ? `${veiculoDoMotorista.placa} · ${veiculoDoMotorista.modelo}` : motorista ? 'Este motorista não tem veículo vinculado' : 'Escolha o motorista para ver o veículo'}
+            </p>
+          </div>
         </div>
         <footer className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
           <Botao type="button" variante="secundario" onClick={aoFechar}>

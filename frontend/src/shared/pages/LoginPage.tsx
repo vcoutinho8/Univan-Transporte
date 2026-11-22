@@ -8,6 +8,8 @@ import Logo from '../components/Logo.tsx'
 import { useAviso, useConfirmacao } from '../components/NoticeModal.tsx'
 import { requisitar } from '../services/api.ts'
 import { ErroApi } from '../services/api.ts'
+import { cpfValido } from '../../modules/motorista/driverUtils.ts'
+import { cnpjValido, formatarCnpj, formatarCpf, soDigitos } from '../utils/formatar.ts'
 import CenaVanNaEstrada from './LoginScene.tsx'
 
 const FORMATO_USUARIO = /^[a-z0-9._-]{3,30}$/
@@ -27,11 +29,19 @@ export const normalizarLogin = (usuario: string) => {
   return /^[\d.\-/\s]+$/.test(login) ? login.replace(/\D/g, '') : login
 }
 
+/** Enquanto digita: números viram CPF (até 11) ou CNPJ (12 a 14); letras ficam como estão (o univan). */
+export function mascararLogin(texto: string): string {
+  if (!/\d/.test(texto) || !/^[\d.\-/\s]*$/.test(texto)) return texto
+  const d = soDigitos(texto)
+  return d.length <= 11 ? formatarCpf(d) : formatarCnpj(d)
+}
+
 /** Mensagem do campo, ou nada se estiver certo (mesmas regras da API). */
 export function validarLogin(usuario: string, senha: string): { usuario?: string; senha?: string } {
   const erros: { usuario?: string; senha?: string } = {}
   const login = normalizarLogin(usuario)
-  if (!login) erros.usuario = 'Informe o usuário.'
+  if (!login) erros.usuario = 'Informe o CPF ou o CNPJ.'
+  else if (/^\d+$/.test(login) && login.length !== 11 && login.length !== 14) erros.usuario = 'Confira: o CPF tem 11 números e o CNPJ, 14.'
   else if (!FORMATO_USUARIO.test(login)) erros.usuario = 'Use de 3 a 30 letras, números, ponto, hífen ou sublinhado.'
   if (!senha) erros.senha = 'Informe a senha.'
   return erros
@@ -63,7 +73,7 @@ function Campo({ rotulo, erro, children }: { rotulo: string; erro?: string; chil
 export default function PaginaLogin() {
   const { sessao, entrar } = useSessao()
   const navegar = useNavigate()
-  const [usuario, setUsuario] = useState(() => localStorage.getItem(CHAVE_LEMBRAR) ?? '')
+  const [usuario, setUsuario] = useState(() => mascararLogin(localStorage.getItem(CHAVE_LEMBRAR) ?? ''))
   const [lembrar, setLembrar] = useState(() => Boolean(localStorage.getItem(CHAVE_LEMBRAR)))
   const [senha, setSenha] = useState('')
   const [verSenha, setVerSenha] = useState(false)
@@ -81,7 +91,12 @@ export default function PaginaLogin() {
       titulo: 'Esqueceu a senha?',
       descricao: 'Sem problema! Informe seu acesso (o CPF, ou o CNPJ da empresa se você for o gestor) e a gente resolve.',
       botao: 'Continuar',
-      campo: { rotulo: 'CPF ou CNPJ', placeholder: 'Somente números ou com pontuação' },
+      campo: {
+        rotulo: 'CPF ou CNPJ',
+        placeholder: '000.000.000-00 ou 00.000.000/0000-00',
+        mascara: (t) => mascararLogin(soDigitos(t)),
+        validar: (t) => (cpfValido(t) || cnpjValido(t) ? undefined : soDigitos(t).length > 11 ? 'CNPJ inválido. Confira os 14 números.' : 'CPF inválido. Confira os 11 números.'),
+      },
     })
     if (!informado) return
     try {
@@ -163,14 +178,14 @@ export default function PaginaLogin() {
             <p className="mt-2 text-sm text-slate-500">Acesse sua conta do UniVan para continuar.</p>
 
             <form onSubmit={enviar} noValidate className="mt-8 space-y-6">
-              <Campo rotulo="Usuário" erro={erros.usuario}>
+              <Campo rotulo="CPF ou CNPJ" erro={erros.usuario}>
                 <input
                   autoFocus={!usuario}
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
                   value={usuario}
-                  onChange={(e) => setUsuario(e.target.value)}
+                  onChange={(e) => setUsuario(mascararLogin(e.target.value))}
                   placeholder="CPF, CNPJ ou usuário"
                   aria-invalid={Boolean(erros.usuario)}
                   className={campo(erros.usuario)}

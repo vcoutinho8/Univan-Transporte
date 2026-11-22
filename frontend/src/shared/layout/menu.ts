@@ -28,7 +28,6 @@ export const MENU: GrupoMenu[] = [
       { para: '/univan', rotulo: 'Painel', icone: 'painel', requisito: 'SaaS', descricao: 'Gestores ativos e pagamentos da assinatura.', pronto: true },
       { para: '/univan/gestores', rotulo: 'Gestores', icone: 'empresa', requisito: 'SaaS', descricao: 'Empresas que assinam o app.', pronto: true },
       { para: '/univan/pagamentos', rotulo: 'Pagamentos', icone: 'dinheiro', requisito: 'SaaS', descricao: 'Assinatura de cada gestor, mês a mês.', pronto: true },
-      { para: '/univan/inadimplencia', rotulo: 'Inadimplência', icone: 'relatorio', requisito: 'SaaS', descricao: 'Gestores com a assinatura em atraso.', pronto: true },
     ],
   },
   {

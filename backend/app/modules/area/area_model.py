@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import StatusCadastro
 
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
     from app.modules.motorista.motorista_model import Motorista
 
 
-class Area(Base):
+class Area(DaEmpresa, Base):
     """Bairro/região no mapa. Define quais estudantes cada motorista busca."""
 
     __tablename__ = "area"

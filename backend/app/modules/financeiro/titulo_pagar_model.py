@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import CategoriaTituloPagar, StatusTitulo
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from app.modules.veiculo.veiculo_model import Veiculo
 
 
-class TituloPagar(Base):
+class TituloPagar(DaEmpresa, Base):
     """Conta a pagar. Salário exige motorista; só um salário por motorista por mês."""
 
     __tablename__ = "titulo_pagar"

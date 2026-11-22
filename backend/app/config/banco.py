@@ -75,7 +75,38 @@ COLUNAS_NOVAS = (
     ("empresa", "status", "TEXT NOT NULL DEFAULT 'ativa' CHECK (status IN ('ativa', 'em_negociacao', 'inativa'))"),
     ("empresa", "valor_assinatura", "NUMERIC NOT NULL DEFAULT 199.90"),
     ("empresa", "motivo_inativacao", "TEXT"),
+    *((tabela, "fk_empresa", "INTEGER REFERENCES empresa (id)") for tabela in (
+        "instituicao", "estudante", "area", "rota", "viagem", "chamada", "titulo_receber", "dia_sem_aula")),
 )
+
+# Banco de antes da separação por empresa: cada registro herda a empresa de quem ele depende (na
+# falta, a primeira empresa, que era a única). O dia sem aula geral fica de todas (feriado nacional).
+EMPRESA_DOS_DADOS = """
+UPDATE instituicao    SET fk_empresa = (SELECT min(id) FROM empresa) WHERE fk_empresa IS NULL;
+UPDATE area           SET fk_empresa = (SELECT fk_empresa FROM motorista m WHERE m.id = area.fk_motorista) WHERE fk_empresa IS NULL;
+UPDATE rota           SET fk_empresa = (SELECT fk_empresa FROM motorista m WHERE m.id = rota.fk_motorista) WHERE fk_empresa IS NULL;
+UPDATE estudante      SET fk_empresa = coalesce((SELECT fk_empresa FROM area a WHERE a.id = estudante.fk_area),
+                                                (SELECT fk_empresa FROM instituicao i WHERE i.id = estudante.fk_instituicao)) WHERE fk_empresa IS NULL;
+UPDATE viagem         SET fk_empresa = (SELECT fk_empresa FROM rota r WHERE r.id = viagem.fk_rota) WHERE fk_empresa IS NULL;
+UPDATE chamada        SET fk_empresa = (SELECT fk_empresa FROM viagem v WHERE v.id = chamada.fk_viagem) WHERE fk_empresa IS NULL;
+UPDATE titulo_receber SET fk_empresa = (SELECT fk_empresa FROM estudante e WHERE e.id = titulo_receber.fk_estudante) WHERE fk_empresa IS NULL;
+UPDATE dia_sem_aula   SET fk_empresa = (SELECT fk_empresa FROM instituicao i WHERE i.id = dia_sem_aula.fk_instituicao)
+    WHERE fk_empresa IS NULL AND fk_instituicao IS NOT NULL;
+DROP INDEX IF EXISTS dia_sem_aula_data_fk_instituicao_key;
+CREATE UNIQUE INDEX dia_sem_aula_data_fk_instituicao_key ON dia_sem_aula (data, ifnull(fk_instituicao, -1), ifnull(fk_empresa, -1));
+"""
+
+# Login de antes: o gestor passa a entrar com o CNPJ (e o nome da empresa), o motorista com o CPF do
+# cadastro e o auxiliar com o CPF dele (sem CPF, o gestor informa em Configurações > Usuários).
+LOGINS_POR_DOCUMENTO = """
+UPDATE OR IGNORE usuario SET login = (SELECT cnpj FROM empresa e WHERE e.id = usuario.fk_empresa)
+    WHERE perfil = 'admin' AND login GLOB '*[^0-9]*';
+UPDATE usuario SET nome = (SELECT coalesce(nome_fantasia, razao_social) FROM empresa e WHERE e.id = usuario.fk_empresa)
+    WHERE perfil = 'admin' AND nome = 'Administrador';
+UPDATE OR IGNORE usuario SET login = (SELECT cpf FROM motorista m WHERE m.id = usuario.fk_motorista)
+    WHERE perfil = 'motorista' AND login GLOB '*[^0-9]*';
+UPDATE OR IGNORE usuario SET login = cpf WHERE perfil = 'auxiliar' AND cpf IS NOT NULL AND login GLOB '*[^0-9]*';
+"""
 
 
 # Tabelas criadas depois da primeira versão do script: num banco antigo, são criadas (com os dados
@@ -111,9 +142,37 @@ def atualizar_estrutura(arquivo: Path) -> None:
                 log.warning("Banco %s: adicionando a coluna %s.%s.", arquivo.name, tabela, coluna)
                 conexao.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
         _perfil_univan(conexao, arquivo)
+        if {"empresa", "usuario", "motorista", "rota", "dia_sem_aula"} <= {t for (t,) in conexao.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}:
+            conexao.executescript(EMPRESA_DOS_DADOS + LOGINS_POR_DOCUMENTO)
+            _gestor_de_cada_empresa(conexao)
+            _gatilhos_por_empresa(conexao)
         conexao.commit()
     finally:
         conexao.close()
+
+
+def _gatilhos_por_empresa(conexao: sqlite3.Connection) -> None:
+    """Gatilhos de antes da separação por empresa achavam o bairro do passageiro em qualquer empresa:
+    recria os de docs/univan-sqlite.sql (que só olham os bairros da empresa dele)."""
+    script = SCRIPT_SQLITE.read_text(encoding="utf-8")
+    for nome in ("tg_estudante_area_insert", "tg_estudante_area_update"):
+        (atual,) = conexao.execute("SELECT ifnull(max(sql), '') FROM sqlite_master WHERE type = 'trigger' AND name = ?", (nome,)).fetchone()
+        if "fk_empresa" not in atual:
+            inicio = script.index(f"CREATE TRIGGER {nome}")
+            conexao.executescript(f"DROP TRIGGER IF EXISTS {nome}; " + script[inicio : script.index("END;", inicio) + 4])
+
+
+def _gestor_de_cada_empresa(conexao: sqlite3.Connection) -> None:
+    """Empresa sem gestor ganha o acesso dele: login = CNPJ, senha 123456 (trocada no primeiro acesso)."""
+    from app.config.seguranca import gerar_hash
+
+    conexao.execute(
+        "INSERT INTO usuario (fk_empresa, nome, login, senha_hash, perfil, status, trocar_senha) "
+        "SELECT e.id, coalesce(e.nome_fantasia, e.razao_social), e.cnpj, ?, 'admin', 'ativo', 1 FROM empresa e "
+        "WHERE NOT EXISTS (SELECT 1 FROM usuario u WHERE u.fk_empresa = e.id AND u.perfil = 'admin') "
+        "AND NOT EXISTS (SELECT 1 FROM usuario u WHERE u.login = e.cnpj)",
+        (gerar_hash("123456"),),
+    )
 
 
 def _perfil_univan(conexao: sqlite3.Connection, arquivo: Path) -> None:

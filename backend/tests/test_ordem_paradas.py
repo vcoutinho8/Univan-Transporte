@@ -90,7 +90,7 @@ def test_ordem_incompleta_e_recusada(cliente):  # noqa: F811
 
 
 def test_motorista_nao_mexe_na_ordem(cliente):  # noqa: F811
-    entrar(cliente, "motorista", "123456")
+    entrar(cliente, "20130140155", "123456")
     assert cliente.get("/api/rotas/ordem", params={"fk_motorista": 1, "turno": "noite"}).status_code == 403
 
 

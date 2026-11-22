@@ -23,8 +23,8 @@
 -- -----------------------------------------------------------------------------
 
 -- 1/2 · viagens
-INSERT INTO viagem (fk_rota, fk_veiculo, fk_motorista, data, sentido)
-SELECT r.id, m.fk_veiculo, m.id, :data, s.sentido
+INSERT INTO viagem (fk_rota, fk_veiculo, fk_motorista, data, sentido, fk_empresa)
+SELECT r.id, m.fk_veiculo, m.id, :data, s.sentido, r.fk_empresa
 FROM rota r
 JOIN motorista m ON m.id = r.fk_motorista
 CROSS JOIN (SELECT 'ida' AS sentido UNION ALL SELECT 'volta') s
@@ -37,13 +37,15 @@ WHERE r.status = 'ativo'
   -- não é feriado / recesso?
   AND NOT EXISTS (SELECT 1 FROM dia_sem_aula d
                   WHERE d.data = :data
+                    AND (d.fk_empresa IS NULL OR d.fk_empresa = r.fk_empresa)
                     AND (d.fk_instituicao IS NULL OR d.fk_instituicao = r.fk_instituicao))
 ON CONFLICT (fk_rota, data, sentido) DO NOTHING;
 
 -- 2/2 · chamadas
-INSERT INTO chamada (fk_viagem, fk_estudante, horario_previsto)
+INSERT INTO chamada (fk_viagem, fk_estudante, horario_previsto, fk_empresa)
 SELECT v.id, e.id,
-       CASE v.sentido WHEN 'ida' THEN e.horario_embarque ELSE r.horario_volta END
+       CASE v.sentido WHEN 'ida' THEN e.horario_embarque ELSE r.horario_volta END,
+       v.fk_empresa
 FROM viagem v
 JOIN rota r      ON r.id = v.fk_rota
 JOIN area a      ON a.fk_motorista = r.fk_motorista AND a.status = 'ativo'
@@ -105,11 +107,12 @@ WHERE fk_viagem = :viagem AND status = 'presente' AND horario_desembarque IS NUL
 -- -----------------------------------------------------------------------------
 
 -- 1/2 · mensalidades
-INSERT INTO titulo_receber (fk_estudante, competencia, valor, data_vencimento)
+INSERT INTO titulo_receber (fk_estudante, competencia, valor, data_vencimento, fk_empresa)
 SELECT e.id,
        date(:competencia, 'start of month'),
        e.valor_mensal,
-       date(:competencia, 'start of month', '+' || (e.dia_vencimento - 1) || ' days')
+       date(:competencia, 'start of month', '+' || (e.dia_vencimento - 1) || ' days'),
+       e.fk_empresa
 FROM estudante e
 WHERE e.status = 'ativo'
 ON CONFLICT DO NOTHING;

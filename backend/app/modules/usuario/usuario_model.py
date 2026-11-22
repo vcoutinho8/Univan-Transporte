@@ -6,14 +6,16 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import PerfilUsuario, StatusCadastro
 
 if TYPE_CHECKING:
+    from app.modules.empresa.empresa_model import Empresa
     from app.modules.motorista.motorista_model import Motorista
 
 
-class Usuario(Base):
+class Usuario(DaEmpresa, Base):
     """Usuário do sistema. Perfil motorista exige `fk_motorista` (as próprias viagens)."""
 
     __tablename__ = "usuario"
@@ -39,3 +41,4 @@ class Usuario(Base):
     pediu_senha_em: Mapped[datetime | None]
 
     motorista: Mapped["Motorista | None"] = relationship()
+    empresa: Mapped["Empresa"] = relationship()

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import StatusCadastro, Turno
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from app.modules.instituicao.instituicao_model import Instituicao, InstituicaoParada
 
 
-class Estudante(Base):
+class Estudante(DaEmpresa, Base):
     """Aluno universitário (maior de idade, paga a própria mensalidade).
 
     `fk_area` é preenchido pelo trigger `tg_estudante_area` do banco a partir da

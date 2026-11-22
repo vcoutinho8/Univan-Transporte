@@ -68,7 +68,8 @@ CREATE TABLE instituicao (
     parada_latitude  NUMERIC,
     parada_longitude NUMERIC,
     -- Código da IES no e-MEC/INEP (cadastro oficial): a mesma faculdade não entra duas vezes.
-    codigo_inep      INTEGER
+    codigo_inep      INTEGER,
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id)
 );
 
 -- Paradas extras da faculdade além da principal (ex.: UVV: Biopráticas e fundos). O passageiro escolhe
@@ -131,6 +132,7 @@ CREATE TABLE area (
     coordenadas  TEXT NOT NULL,
     fk_motorista INTEGER REFERENCES motorista (id),
     status       TEXT NOT NULL DEFAULT 'ativo',
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     CONSTRAINT area_status_check CHECK (status IN ('ativo', 'inativo'))
 );
 
@@ -154,6 +156,7 @@ CREATE TABLE estudante (
     status           TEXT NOT NULL DEFAULT 'ativo',
     -- Parada da faculdade onde desce/embarca (vazio = parada principal da instituição).
     fk_parada        INTEGER REFERENCES instituicao_parada (id),
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     CONSTRAINT estudante_cpf_key UNIQUE (cpf),
     CONSTRAINT estudante_cpf_check CHECK (length(cpf) = 11 AND cpf NOT GLOB '*[^0-9]*'),
     CONSTRAINT estudante_dia_vencimento_check CHECK (dia_vencimento >= 1 AND dia_vencimento <= 28),
@@ -173,6 +176,7 @@ CREATE TABLE rota (
     horario_ida    TEXT,
     horario_volta  TEXT,
     status         TEXT NOT NULL DEFAULT 'ativo',
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     CONSTRAINT rota_fk_motorista_fk_instituicao_turno_key UNIQUE (fk_motorista, fk_instituicao, turno),
     CONSTRAINT rota_turno_check CHECK (turno IN ('manha', 'tarde', 'noite')),
     CONSTRAINT rota_status_check CHECK (status IN ('ativo', 'inativo'))
@@ -189,7 +193,9 @@ CREATE TABLE dia_sem_aula (
     id             INTEGER PRIMARY KEY,
     data           TEXT NOT NULL,
     fk_instituicao INTEGER REFERENCES instituicao (id),
-    motivo         TEXT NOT NULL
+    motivo         TEXT NOT NULL,
+    -- Empresa dona do registro (NULL = feriado nacional, vale para todas).
+    fk_empresa     INTEGER REFERENCES empresa (id)
 );
 
 -- Anos cujos feriados nacionais já entraram no calendário (BrasilAPI ou, fora do ar, o cálculo
@@ -214,6 +220,7 @@ CREATE TABLE viagem (
     status          TEXT NOT NULL DEFAULT 'agendada',
     -- Encerrada antes da hora (emergência): pneu, troca de motorista...
     motivo_encerramento TEXT,
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     CONSTRAINT viagem_fk_rota_data_sentido_key UNIQUE (fk_rota, data, sentido),
     CONSTRAINT viagem_sentido_check CHECK (sentido IN ('ida', 'volta')),
     CONSTRAINT viagem_status_check CHECK (status IN ('agendada', 'em_andamento', 'concluida', 'cancelada'))
@@ -227,6 +234,7 @@ CREATE TABLE chamada (
     horario_aviso    TEXT,
     horario_embarque TEXT,
     horario_desembarque TEXT,
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     CONSTRAINT chamada_pkey PRIMARY KEY (fk_viagem, fk_estudante),
     CONSTRAINT chamada_status_check CHECK (status IN ('pendente', 'nao_vai', 'presente', 'ausente'))
 );
@@ -256,6 +264,7 @@ CREATE TABLE titulo_receber (
     data_recebimento TEXT,
     valor_recebido   NUMERIC,
     status           TEXT NOT NULL DEFAULT 'aberto',
+    fk_empresa    INTEGER NOT NULL REFERENCES empresa (id),
     CONSTRAINT titulo_receber_fk_estudante_competencia_key UNIQUE (fk_estudante, competencia),
     CONSTRAINT titulo_receber_competencia_check CHECK (strftime('%d', competencia) = '01'),
     CONSTRAINT titulo_receber_valor_check CHECK (valor >= 0),
@@ -319,40 +328,40 @@ CREATE TABLE usuario (
 -- =============================================================================
 
 -- area (contornos dos bairros: OpenStreetMap, simplificados)
-INSERT INTO area VALUES (1, 'Centro', '((-40.507475,-20.669402),(-40.506673,-20.673133),(-40.505434,-20.673921),(-40.502632,-20.673538),(-40.501913,-20.674149),(-40.504432,-20.677286),(-40.502442,-20.678057),(-40.501370,-20.677815),(-40.501656,-20.677016),(-40.500723,-20.675961),(-40.501666,-20.676790),(-40.501718,-20.676235),(-40.499559,-20.674988),(-40.497439,-20.674967),(-40.496839,-20.676767),(-40.495953,-20.676596),(-40.496201,-20.675199),(-40.495283,-20.675356),(-40.495746,-20.674794),(-40.495254,-20.674082),(-40.496929,-20.674789),(-40.497323,-20.673526),(-40.496760,-20.673464),(-40.496255,-20.671620),(-40.495053,-20.671678),(-40.494799,-20.672326),(-40.493644,-20.669507),(-40.492650,-20.669938),(-40.491314,-20.669067),(-40.491823,-20.668351),(-40.491530,-20.667415),(-40.492780,-20.667036),(-40.493152,-20.667627),(-40.494195,-20.666873),(-40.492405,-20.665134),(-40.493886,-20.664767),(-40.495504,-20.665373),(-40.499939,-20.668896),(-40.504759,-20.669705),(-40.507309,-20.669414))', 1, 'ativo');
-INSERT INTO area VALUES (2, 'Muquiçaba', '((-40.506917,-20.656136),(-40.505375,-20.657152),(-40.504581,-20.658006),(-40.503481,-20.658137),(-40.500926,-20.666661),(-40.501710,-20.667852),(-40.501603,-20.668538),(-40.501026,-20.668821),(-40.499939,-20.668896),(-40.499166,-20.668412),(-40.497030,-20.666322),(-40.497242,-20.666023),(-40.497016,-20.665621),(-40.497236,-20.665457),(-40.497450,-20.664585),(-40.497242,-20.663067),(-40.496452,-20.662568),(-40.496139,-20.662668),(-40.495999,-20.663098),(-40.495634,-20.663285),(-40.494527,-20.662954),(-40.494865,-20.662388),(-40.495024,-20.662395),(-40.494751,-20.661828),(-40.495128,-20.661392),(-40.494766,-20.660219),(-40.496148,-20.660045),(-40.495998,-20.658476),(-40.496268,-20.655822),(-40.494630,-20.651546),(-40.496627,-20.653317),(-40.496916,-20.653875),(-40.497790,-20.653099),(-40.501958,-20.654727),(-40.503396,-20.654811),(-40.503953,-20.652985))', 2, 'ativo');
-INSERT INTO area VALUES (3, 'Praia do Morro', '((-40.496268,-20.655822),(-40.496148,-20.660045),(-40.494766,-20.660219),(-40.488219,-20.655008),(-40.483711,-20.653042),(-40.479219,-20.652513),(-40.475714,-20.653372),(-40.473587,-20.655082),(-40.475501,-20.657870),(-40.475088,-20.661037),(-40.472296,-20.659738),(-40.471854,-20.661091),(-40.468901,-20.660693),(-40.467474,-20.658229),(-40.466632,-20.658682),(-40.466352,-20.657257),(-40.468910,-20.656971),(-40.465309,-20.654427),(-40.466201,-20.653806),(-40.464969,-20.652393),(-40.471998,-20.653962),(-40.472536,-20.650732),(-40.470002,-20.649134),(-40.469706,-20.647671),(-40.475971,-20.646993),(-40.478835,-20.645505),(-40.481882,-20.641292),(-40.483897,-20.640569),(-40.494710,-20.651477),(-40.496175,-20.655658))', 3, 'ativo');
-INSERT INTO area VALUES (4, 'Itapebussu', '((-40.515738,-20.658472),(-40.514950,-20.661191),(-40.515013,-20.662197),(-40.514121,-20.664162),(-40.514157,-20.664561),(-40.515022,-20.665481),(-40.514117,-20.667096),(-40.513361,-20.667745),(-40.511711,-20.668178),(-40.509837,-20.668965),(-40.508122,-20.669354),(-40.504759,-20.669705),(-40.499939,-20.668896),(-40.501333,-20.668743),(-40.501725,-20.668184),(-40.501525,-20.667490),(-40.500926,-20.666661),(-40.503481,-20.658137),(-40.504581,-20.658006),(-40.505375,-20.657152),(-40.507194,-20.655930),(-40.507867,-20.656608),(-40.509971,-20.657151),(-40.510612,-20.657125),(-40.511095,-20.657425),(-40.513414,-20.657211),(-40.514731,-20.656822),(-40.515306,-20.656869),(-40.515586,-20.656994),(-40.515666,-20.658092))', 4, 'ativo');
-INSERT INTO area VALUES (5, 'Jardim Boa Vista', '((-40.483897,-20.640569),(-40.482788,-20.641095),(-40.482632,-20.640802),(-40.481882,-20.641292),(-40.482022,-20.641453),(-40.481005,-20.642579),(-40.479758,-20.643475),(-40.480198,-20.644033),(-40.478835,-20.645505),(-40.478698,-20.645385),(-40.477797,-20.645691),(-40.475838,-20.645276),(-40.474266,-20.641575),(-40.473429,-20.641172),(-40.474013,-20.640963),(-40.472835,-20.639097),(-40.473715,-20.638979),(-40.474041,-20.638506),(-40.474600,-20.638396),(-40.477282,-20.639223),(-40.477907,-20.639593),(-40.479027,-20.639704),(-40.481167,-20.638210),(-40.481319,-20.637646),(-40.483151,-20.639735))', 3, 'ativo');
-INSERT INTO area VALUES (6, 'Ipiranga', '((-40.514250,-20.675443),(-40.513935,-20.676391),(-40.512773,-20.677204),(-40.512656,-20.677984),(-40.513305,-20.677481),(-40.512960,-20.679475),(-40.513128,-20.679516),(-40.512619,-20.680198),(-40.512728,-20.681330),(-40.510929,-20.681449),(-40.507941,-20.681220),(-40.508376,-20.682801),(-40.506307,-20.684244),(-40.503871,-20.682171),(-40.503464,-20.680681),(-40.503042,-20.680012),(-40.502594,-20.679880),(-40.502472,-20.680092),(-40.502201,-20.680066),(-40.502049,-20.679853),(-40.501789,-20.680086),(-40.501718,-20.679880),(-40.501516,-20.679898),(-40.501957,-20.678450),(-40.501370,-20.677815),(-40.502442,-20.678057),(-40.503311,-20.677847),(-40.506209,-20.676572),(-40.507397,-20.675736),(-40.508080,-20.674810),(-40.509070,-20.674048),(-40.509668,-20.673135),(-40.510358,-20.673576),(-40.510895,-20.673159),(-40.514149,-20.675410))', 1, 'ativo');
-INSERT INTO area VALUES (7, 'Bela Vista', '((-40.517757,-20.641572),(-40.517507,-20.642925),(-40.516884,-20.643972),(-40.514796,-20.645507),(-40.510672,-20.640707),(-40.510841,-20.639784),(-40.509567,-20.638770),(-40.508762,-20.637023),(-40.509112,-20.636514),(-40.511241,-20.637155),(-40.511072,-20.637697),(-40.512473,-20.637971),(-40.512495,-20.638603),(-40.513042,-20.638915),(-40.513626,-20.638743),(-40.514047,-20.638122),(-40.514641,-20.638458),(-40.514601,-20.639633),(-40.515078,-20.639959),(-40.515191,-20.638740),(-40.515929,-20.637677),(-40.516394,-20.639170),(-40.516737,-20.639399),(-40.517625,-20.639380),(-40.517756,-20.641452))', 2, 'ativo');
-INSERT INTO area VALUES (8, 'Lameirão', '((-40.550854,-20.690285),(-40.550073,-20.692763),(-40.548819,-20.693187),(-40.548628,-20.697598),(-40.547568,-20.699740),(-40.542819,-20.697179),(-40.540890,-20.699141),(-40.537776,-20.699985),(-40.534823,-20.703851),(-40.531307,-20.705217),(-40.529358,-20.708276),(-40.529726,-20.709878),(-40.527755,-20.711476),(-40.524862,-20.718338),(-40.525920,-20.719607),(-40.528511,-20.719520),(-40.525839,-20.720231),(-40.523211,-20.721944),(-40.515813,-20.708899),(-40.513169,-20.696976),(-40.508239,-20.686688),(-40.506307,-20.684244),(-40.508295,-20.682798),(-40.510745,-20.682370),(-40.511169,-20.684301),(-40.512863,-20.686388),(-40.514446,-20.686986),(-40.517553,-20.686606),(-40.521342,-20.688181),(-40.529669,-20.686957),(-40.533978,-20.685353),(-40.535260,-20.686394),(-40.537916,-20.687004),(-40.538402,-20.687735),(-40.542876,-20.688497),(-40.547349,-20.688443),(-40.550620,-20.689599),(-40.550853,-20.690192))', 4, 'ativo');
-INSERT INTO area VALUES (9, 'Santa Mônica', '((-40.466803,-20.618756),(-40.466379,-20.619615),(-40.466507,-20.621438),(-40.466052,-20.623087),(-40.466009,-20.624593),(-40.464653,-20.624566),(-40.464261,-20.623976),(-40.463749,-20.623712),(-40.460104,-20.623255),(-40.458296,-20.623265),(-40.453969,-20.623810),(-40.453388,-20.621401),(-40.453776,-20.621329),(-40.452886,-20.616717),(-40.454361,-20.616417),(-40.452437,-20.614464),(-40.452283,-20.614094),(-40.454667,-20.613593),(-40.458023,-20.611648),(-40.458972,-20.611403),(-40.461467,-20.611245),(-40.461559,-20.612565),(-40.462259,-20.613456),(-40.462626,-20.614339),(-40.464593,-20.617478),(-40.465933,-20.617922),(-40.466636,-20.618650))', 5, 'ativo');
-INSERT INTO area VALUES (10, 'Aeroporto', '((-40.498415,-20.652573),(-40.496916,-20.653875),(-40.496627,-20.653317),(-40.494389,-20.651203),(-40.492314,-20.648744),(-40.490459,-20.647952),(-40.485453,-20.642325),(-40.489383,-20.638864),(-40.489343,-20.639223),(-40.489928,-20.639406),(-40.490238,-20.639838),(-40.491224,-20.640522),(-40.492498,-20.640798),(-40.493897,-20.640401),(-40.494494,-20.639399),(-40.494695,-20.639551),(-40.494930,-20.640000),(-40.494492,-20.641063),(-40.494726,-20.642509),(-40.495788,-20.643624),(-40.496455,-20.645437),(-40.496381,-20.648328),(-40.496551,-20.649047),(-40.497218,-20.650702),(-40.498142,-20.652334))', 5, 'ativo');
+INSERT INTO area VALUES (1, 'Centro', '((-40.507475,-20.669402),(-40.506673,-20.673133),(-40.505434,-20.673921),(-40.502632,-20.673538),(-40.501913,-20.674149),(-40.504432,-20.677286),(-40.502442,-20.678057),(-40.501370,-20.677815),(-40.501656,-20.677016),(-40.500723,-20.675961),(-40.501666,-20.676790),(-40.501718,-20.676235),(-40.499559,-20.674988),(-40.497439,-20.674967),(-40.496839,-20.676767),(-40.495953,-20.676596),(-40.496201,-20.675199),(-40.495283,-20.675356),(-40.495746,-20.674794),(-40.495254,-20.674082),(-40.496929,-20.674789),(-40.497323,-20.673526),(-40.496760,-20.673464),(-40.496255,-20.671620),(-40.495053,-20.671678),(-40.494799,-20.672326),(-40.493644,-20.669507),(-40.492650,-20.669938),(-40.491314,-20.669067),(-40.491823,-20.668351),(-40.491530,-20.667415),(-40.492780,-20.667036),(-40.493152,-20.667627),(-40.494195,-20.666873),(-40.492405,-20.665134),(-40.493886,-20.664767),(-40.495504,-20.665373),(-40.499939,-20.668896),(-40.504759,-20.669705),(-40.507309,-20.669414))', 1, 'ativo', 1);
+INSERT INTO area VALUES (2, 'Muquiçaba', '((-40.506917,-20.656136),(-40.505375,-20.657152),(-40.504581,-20.658006),(-40.503481,-20.658137),(-40.500926,-20.666661),(-40.501710,-20.667852),(-40.501603,-20.668538),(-40.501026,-20.668821),(-40.499939,-20.668896),(-40.499166,-20.668412),(-40.497030,-20.666322),(-40.497242,-20.666023),(-40.497016,-20.665621),(-40.497236,-20.665457),(-40.497450,-20.664585),(-40.497242,-20.663067),(-40.496452,-20.662568),(-40.496139,-20.662668),(-40.495999,-20.663098),(-40.495634,-20.663285),(-40.494527,-20.662954),(-40.494865,-20.662388),(-40.495024,-20.662395),(-40.494751,-20.661828),(-40.495128,-20.661392),(-40.494766,-20.660219),(-40.496148,-20.660045),(-40.495998,-20.658476),(-40.496268,-20.655822),(-40.494630,-20.651546),(-40.496627,-20.653317),(-40.496916,-20.653875),(-40.497790,-20.653099),(-40.501958,-20.654727),(-40.503396,-20.654811),(-40.503953,-20.652985))', 2, 'ativo', 1);
+INSERT INTO area VALUES (3, 'Praia do Morro', '((-40.496268,-20.655822),(-40.496148,-20.660045),(-40.494766,-20.660219),(-40.488219,-20.655008),(-40.483711,-20.653042),(-40.479219,-20.652513),(-40.475714,-20.653372),(-40.473587,-20.655082),(-40.475501,-20.657870),(-40.475088,-20.661037),(-40.472296,-20.659738),(-40.471854,-20.661091),(-40.468901,-20.660693),(-40.467474,-20.658229),(-40.466632,-20.658682),(-40.466352,-20.657257),(-40.468910,-20.656971),(-40.465309,-20.654427),(-40.466201,-20.653806),(-40.464969,-20.652393),(-40.471998,-20.653962),(-40.472536,-20.650732),(-40.470002,-20.649134),(-40.469706,-20.647671),(-40.475971,-20.646993),(-40.478835,-20.645505),(-40.481882,-20.641292),(-40.483897,-20.640569),(-40.494710,-20.651477),(-40.496175,-20.655658))', 3, 'ativo', 1);
+INSERT INTO area VALUES (4, 'Itapebussu', '((-40.515738,-20.658472),(-40.514950,-20.661191),(-40.515013,-20.662197),(-40.514121,-20.664162),(-40.514157,-20.664561),(-40.515022,-20.665481),(-40.514117,-20.667096),(-40.513361,-20.667745),(-40.511711,-20.668178),(-40.509837,-20.668965),(-40.508122,-20.669354),(-40.504759,-20.669705),(-40.499939,-20.668896),(-40.501333,-20.668743),(-40.501725,-20.668184),(-40.501525,-20.667490),(-40.500926,-20.666661),(-40.503481,-20.658137),(-40.504581,-20.658006),(-40.505375,-20.657152),(-40.507194,-20.655930),(-40.507867,-20.656608),(-40.509971,-20.657151),(-40.510612,-20.657125),(-40.511095,-20.657425),(-40.513414,-20.657211),(-40.514731,-20.656822),(-40.515306,-20.656869),(-40.515586,-20.656994),(-40.515666,-20.658092))', 4, 'ativo', 1);
+INSERT INTO area VALUES (5, 'Jardim Boa Vista', '((-40.483897,-20.640569),(-40.482788,-20.641095),(-40.482632,-20.640802),(-40.481882,-20.641292),(-40.482022,-20.641453),(-40.481005,-20.642579),(-40.479758,-20.643475),(-40.480198,-20.644033),(-40.478835,-20.645505),(-40.478698,-20.645385),(-40.477797,-20.645691),(-40.475838,-20.645276),(-40.474266,-20.641575),(-40.473429,-20.641172),(-40.474013,-20.640963),(-40.472835,-20.639097),(-40.473715,-20.638979),(-40.474041,-20.638506),(-40.474600,-20.638396),(-40.477282,-20.639223),(-40.477907,-20.639593),(-40.479027,-20.639704),(-40.481167,-20.638210),(-40.481319,-20.637646),(-40.483151,-20.639735))', 3, 'ativo', 1);
+INSERT INTO area VALUES (6, 'Ipiranga', '((-40.514250,-20.675443),(-40.513935,-20.676391),(-40.512773,-20.677204),(-40.512656,-20.677984),(-40.513305,-20.677481),(-40.512960,-20.679475),(-40.513128,-20.679516),(-40.512619,-20.680198),(-40.512728,-20.681330),(-40.510929,-20.681449),(-40.507941,-20.681220),(-40.508376,-20.682801),(-40.506307,-20.684244),(-40.503871,-20.682171),(-40.503464,-20.680681),(-40.503042,-20.680012),(-40.502594,-20.679880),(-40.502472,-20.680092),(-40.502201,-20.680066),(-40.502049,-20.679853),(-40.501789,-20.680086),(-40.501718,-20.679880),(-40.501516,-20.679898),(-40.501957,-20.678450),(-40.501370,-20.677815),(-40.502442,-20.678057),(-40.503311,-20.677847),(-40.506209,-20.676572),(-40.507397,-20.675736),(-40.508080,-20.674810),(-40.509070,-20.674048),(-40.509668,-20.673135),(-40.510358,-20.673576),(-40.510895,-20.673159),(-40.514149,-20.675410))', 1, 'ativo', 1);
+INSERT INTO area VALUES (7, 'Bela Vista', '((-40.517757,-20.641572),(-40.517507,-20.642925),(-40.516884,-20.643972),(-40.514796,-20.645507),(-40.510672,-20.640707),(-40.510841,-20.639784),(-40.509567,-20.638770),(-40.508762,-20.637023),(-40.509112,-20.636514),(-40.511241,-20.637155),(-40.511072,-20.637697),(-40.512473,-20.637971),(-40.512495,-20.638603),(-40.513042,-20.638915),(-40.513626,-20.638743),(-40.514047,-20.638122),(-40.514641,-20.638458),(-40.514601,-20.639633),(-40.515078,-20.639959),(-40.515191,-20.638740),(-40.515929,-20.637677),(-40.516394,-20.639170),(-40.516737,-20.639399),(-40.517625,-20.639380),(-40.517756,-20.641452))', 2, 'ativo', 1);
+INSERT INTO area VALUES (8, 'Lameirão', '((-40.550854,-20.690285),(-40.550073,-20.692763),(-40.548819,-20.693187),(-40.548628,-20.697598),(-40.547568,-20.699740),(-40.542819,-20.697179),(-40.540890,-20.699141),(-40.537776,-20.699985),(-40.534823,-20.703851),(-40.531307,-20.705217),(-40.529358,-20.708276),(-40.529726,-20.709878),(-40.527755,-20.711476),(-40.524862,-20.718338),(-40.525920,-20.719607),(-40.528511,-20.719520),(-40.525839,-20.720231),(-40.523211,-20.721944),(-40.515813,-20.708899),(-40.513169,-20.696976),(-40.508239,-20.686688),(-40.506307,-20.684244),(-40.508295,-20.682798),(-40.510745,-20.682370),(-40.511169,-20.684301),(-40.512863,-20.686388),(-40.514446,-20.686986),(-40.517553,-20.686606),(-40.521342,-20.688181),(-40.529669,-20.686957),(-40.533978,-20.685353),(-40.535260,-20.686394),(-40.537916,-20.687004),(-40.538402,-20.687735),(-40.542876,-20.688497),(-40.547349,-20.688443),(-40.550620,-20.689599),(-40.550853,-20.690192))', 4, 'ativo', 1);
+INSERT INTO area VALUES (9, 'Santa Mônica', '((-40.466803,-20.618756),(-40.466379,-20.619615),(-40.466507,-20.621438),(-40.466052,-20.623087),(-40.466009,-20.624593),(-40.464653,-20.624566),(-40.464261,-20.623976),(-40.463749,-20.623712),(-40.460104,-20.623255),(-40.458296,-20.623265),(-40.453969,-20.623810),(-40.453388,-20.621401),(-40.453776,-20.621329),(-40.452886,-20.616717),(-40.454361,-20.616417),(-40.452437,-20.614464),(-40.452283,-20.614094),(-40.454667,-20.613593),(-40.458023,-20.611648),(-40.458972,-20.611403),(-40.461467,-20.611245),(-40.461559,-20.612565),(-40.462259,-20.613456),(-40.462626,-20.614339),(-40.464593,-20.617478),(-40.465933,-20.617922),(-40.466636,-20.618650))', 5, 'ativo', 1);
+INSERT INTO area VALUES (10, 'Aeroporto', '((-40.498415,-20.652573),(-40.496916,-20.653875),(-40.496627,-20.653317),(-40.494389,-20.651203),(-40.492314,-20.648744),(-40.490459,-20.647952),(-40.485453,-20.642325),(-40.489383,-20.638864),(-40.489343,-20.639223),(-40.489928,-20.639406),(-40.490238,-20.639838),(-40.491224,-20.640522),(-40.492498,-20.640798),(-40.493897,-20.640401),(-40.494494,-20.639399),(-40.494695,-20.639551),(-40.494930,-20.640000),(-40.494492,-20.641063),(-40.494726,-20.642509),(-40.495788,-20.643624),(-40.496455,-20.645437),(-40.496381,-20.648328),(-40.496551,-20.649047),(-40.497218,-20.650702),(-40.498142,-20.652334))', 5, 'ativo', 1);
 
 -- chamada
-INSERT INTO chamada VALUES (1, 1, 'presente', '17:40:00', NULL, '2026-10-29 17:41:00', NULL);
-INSERT INTO chamada VALUES (2, 2, 'presente', '17:45:00', NULL, '2026-10-29 17:46:00', NULL);
-INSERT INTO chamada VALUES (3, 3, 'nao_vai', '17:50:00', '2026-10-29 14:20:00', NULL, NULL);
-INSERT INTO chamada VALUES (4, 4, 'presente', '17:15:00', NULL, '2026-10-29 17:16:00', NULL);
-INSERT INTO chamada VALUES (5, 5, 'ausente', '17:55:00', NULL, NULL, NULL);
-INSERT INTO chamada VALUES (6, 6, 'presente', '17:00:00', NULL, '2026-10-29 17:02:00', NULL);
-INSERT INTO chamada VALUES (7, 7, 'presente', '06:10:00', NULL, '2026-10-29 06:11:00', NULL);
-INSERT INTO chamada VALUES (8, 8, 'nao_vai', '06:30:00', '2026-10-28 21:00:00', NULL, NULL);
-INSERT INTO chamada VALUES (9, 9, 'pendente', '12:20:00', NULL, NULL, NULL);
-INSERT INTO chamada VALUES (10, 10, 'pendente', '12:00:00', NULL, NULL, NULL);
+INSERT INTO chamada VALUES (1, 1, 'presente', '17:40:00', NULL, '2026-10-29 17:41:00', NULL, 1);
+INSERT INTO chamada VALUES (2, 2, 'presente', '17:45:00', NULL, '2026-10-29 17:46:00', NULL, 1);
+INSERT INTO chamada VALUES (3, 3, 'nao_vai', '17:50:00', '2026-10-29 14:20:00', NULL, NULL, 1);
+INSERT INTO chamada VALUES (4, 4, 'presente', '17:15:00', NULL, '2026-10-29 17:16:00', NULL, 1);
+INSERT INTO chamada VALUES (5, 5, 'ausente', '17:55:00', NULL, NULL, NULL, 1);
+INSERT INTO chamada VALUES (6, 6, 'presente', '17:00:00', NULL, '2026-10-29 17:02:00', NULL, 1);
+INSERT INTO chamada VALUES (7, 7, 'presente', '06:10:00', NULL, '2026-10-29 06:11:00', NULL, 1);
+INSERT INTO chamada VALUES (8, 8, 'nao_vai', '06:30:00', '2026-10-28 21:00:00', NULL, NULL, 1);
+INSERT INTO chamada VALUES (9, 9, 'pendente', '12:20:00', NULL, NULL, NULL, 1);
+INSERT INTO chamada VALUES (10, 10, 'pendente', '12:00:00', NULL, NULL, NULL, 1);
 
 -- dia_sem_aula
-INSERT INTO dia_sem_aula VALUES (1, '2026-11-02', NULL, 'Finados');
-INSERT INTO dia_sem_aula VALUES (2, '2026-11-15', NULL, 'Proclamação da República');
-INSERT INTO dia_sem_aula VALUES (3, '2026-11-20', NULL, 'Dia da Consciência Negra');
-INSERT INTO dia_sem_aula VALUES (4, '2026-12-25', NULL, 'Natal');
-INSERT INTO dia_sem_aula VALUES (5, '2027-01-01', NULL, 'Confraternização Universal');
-INSERT INTO dia_sem_aula VALUES (6, '2026-11-06', 1, 'Semana acadêmica UVV');
-INSERT INTO dia_sem_aula VALUES (7, '2026-11-13', 2, 'Conselho de classe UniSales');
-INSERT INTO dia_sem_aula VALUES (8, '2026-11-27', 4, 'Formatura Novo Milênio');
-INSERT INTO dia_sem_aula VALUES (9, '2026-12-04', 6, 'Recesso UFES');
-INSERT INTO dia_sem_aula VALUES (10, '2026-11-19', 8, 'Jornada pedagógica IFES Guarapari');
+INSERT INTO dia_sem_aula VALUES (1, '2026-11-02', NULL, 'Finados', NULL);
+INSERT INTO dia_sem_aula VALUES (2, '2026-11-15', NULL, 'Proclamação da República', NULL);
+INSERT INTO dia_sem_aula VALUES (3, '2026-11-20', NULL, 'Dia da Consciência Negra', NULL);
+INSERT INTO dia_sem_aula VALUES (4, '2026-12-25', NULL, 'Natal', NULL);
+INSERT INTO dia_sem_aula VALUES (5, '2027-01-01', NULL, 'Confraternização Universal', NULL);
+INSERT INTO dia_sem_aula VALUES (6, '2026-11-06', 1, 'Semana acadêmica UVV', 1);
+INSERT INTO dia_sem_aula VALUES (7, '2026-11-13', 2, 'Conselho de classe UniSales', 1);
+INSERT INTO dia_sem_aula VALUES (8, '2026-11-27', 4, 'Formatura Novo Milênio', 1);
+INSERT INTO dia_sem_aula VALUES (9, '2026-12-04', 6, 'Recesso UFES', 1);
+INSERT INTO dia_sem_aula VALUES (10, '2026-11-19', 8, 'Jornada pedagógica IFES Guarapari', 1);
 
 -- empresa
 INSERT INTO empresa VALUES (1, 'Guarapari Vans Transportes Ltda', 'Guarapari Vans', '11222333000181', '2733611001', 1, 'Roberto Almeida', 'ativa', 199.90, NULL);
@@ -439,106 +448,106 @@ INSERT INTO endereco VALUES (69, '29216805', 'Rua José Carlos', '800', NULL, 'J
 INSERT INTO endereco VALUES (70, '29206000', 'Estrada para o Morro da Telha', '500', NULL, 'Lameirão', 'Guarapari', 'ES', -20.698044, -40.535021);
 
 -- estudante
-INSERT INTO estudante VALUES (1, 'Ana Beatriz Souza', 'Bia', '11122233301', '27998880001', 'ana.souza@email.com', 1, 'Medicina', 'noite', 21, 1, '17:40:00', 450.0, 10, 'ativo', 1);
-INSERT INTO estudante VALUES (2, 'Bruno Henrique Costa', 'Bruno', '11122233302', '27998880002', 'bruno.costa@email.com', 2, 'Engenharia de Produção', 'noite', 22, 2, '17:45:00', 420.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (3, 'Camila Rodrigues', 'Cami', '11122233303', '27998880003', 'camila.r@email.com', 3, 'Engenharia Elétrica', 'noite', 23, 3, '17:50:00', 380.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (4, 'Diego Fernandes', NULL, '11122233304', '27998880004', 'diego.f@email.com', 4, 'Direito', 'noite', 24, 4, '17:15:00', 520.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (5, 'Eduarda Lima', 'Duda', '11122233305', '27998880005', 'eduarda.lima@email.com', 5, 'Enfermagem', 'noite', 25, 9, '17:55:00', 350.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (6, 'Felipe Augusto Ramos', 'Felipão', '11122233306', '27998880006', NULL, 6, 'Engenharia de Computação', 'noite', 26, 6, '17:00:00', 600.0, 20, 'ativo', NULL);
-INSERT INTO estudante VALUES (7, 'Gabriela Martins', 'Gabi', '11122233307', '27998880007', 'gabi.martins@email.com', 7, 'Medicina', 'manha', 27, 7, '06:10:00', 480.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (8, 'Henrique Oliveira', NULL, '11122233308', '27998880008', 'henrique.o@email.com', 8, 'Administração', 'manha', 28, 5, '06:30:00', 400.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (9, 'Isabela Pereira', 'Isa', '11122233309', '27998880009', 'isabela.p@email.com', 9, 'Pedagogia', 'tarde', 29, 8, '12:20:00', 360.0, 25, 'ativo', NULL);
-INSERT INTO estudante VALUES (10, 'João Vitor Almeida', 'JV', '11122233310', '27998880010', 'jv.almeida@email.com', 10, 'Engenharia Civil', 'tarde', 30, 10, '12:00:00', 390.0, 28, 'inativo', NULL);
-INSERT INTO estudante VALUES (11, 'Larissa Coutinho', 'Lari', '11122233311', '27998880011', 'larissa11@email.com', 1, 'Medicina', 'noite', 31, 1, '17:17:00', 620.0, 5, 'ativo', 1);
-INSERT INTO estudante VALUES (12, 'Mateus Rangel', NULL, '11122233312', '27998880012', 'mateus.12@email.com', 1, 'Odontologia', 'noite', 32, 1, '17:21:00', 600.0, 15, 'ativo', 1);
-INSERT INTO estudante VALUES (13, 'Juliana Nascimento', 'Ju', '11122233313', '27998880013', 'juliana13@email.com', 3, 'Sistemas de Informação', 'noite', 33, 1, '17:17:00', 550.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (14, 'Pedro Henrique Vieira', 'PH', '11122233314', '27998880014', 'pedro14@email.com', 2, 'Ciências Contábeis', 'noite', 34, 1, '17:17:00', 580.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (15, 'Beatriz Loureiro', 'Bea', '11122233315', '27998880015', 'beatriz15@email.com', 1, 'Psicologia', 'manha', 35, 1, '05:47:00', 600.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (16, 'Rafael Simões', NULL, '11122233316', '27998880016', NULL, 3, 'Sistemas de Informação', 'noite', 36, 2, '17:12:00', 550.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (17, 'Letícia Barcellos', 'Lelê', '11122233317', '27998880017', 'leticia17@email.com', 4, 'Biomedicina', 'noite', 37, 2, '17:18:00', 550.0, 20, 'ativo', NULL);
-INSERT INTO estudante VALUES (18, 'Gustavo Pimentel', 'Guto', '11122233318', '27998880018', NULL, 1, 'Direito', 'noite', 38, 2, '17:12:00', 550.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (19, 'Mariana Rocha', 'Mari', '11122233319', '27998880019', 'mariana.19@email.com', 2, 'Engenharia de Produção', 'noite', 39, 2, '17:14:00', 580.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (20, 'Thiago Bravin', NULL, '11122233320', '27998880020', 'thiago20@email.com', 5, 'Direito', 'noite', 40, 2, '17:16:00', 580.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (21, 'Amanda Zanotti', 'Mandi', '11122233321', '27998880021', NULL, 3, 'Fisioterapia', 'noite', 41, 3, '17:22:00', 580.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (22, 'Lucas Sossai', 'Luquinhas', '11122233322', '27998880022', 'lucas22@email.com', 1, 'Psicologia', 'noite', 42, 3, '17:24:00', 600.0, 10, 'ativo', 2);
-INSERT INTO estudante VALUES (23, 'Carolina Gama', 'Carol', '11122233323', '27998880023', 'carolina.23@email.com', 6, 'Ciência da Computação', 'noite', 43, 3, '17:26:00', 580.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (24, 'Vinícius Lacerda', 'Vini', '11122233324', '27998880024', NULL, 2, 'Direito', 'manha', 44, 3, '05:52:00', 520.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (25, 'Fernanda Bortolini', 'Nanda', '11122233325', '27998880025', 'fernanda25@email.com', 3, 'Enfermagem', 'noite', 45, 3, '17:20:00', 520.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (26, 'Rodrigo Merçon', NULL, '11122233326', '27998880026', NULL, 4, 'Nutrição', 'noite', 46, 3, '17:26:00', 620.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (27, 'Natália Frisso', 'Nati', '11122233327', '27998880027', 'natalia.27@email.com', 1, 'Odontologia', 'noite', 47, 4, '17:05:00', 580.0, 20, 'ativo', 1);
-INSERT INTO estudante VALUES (28, 'Caio Andrade', NULL, '11122233328', '27998880028', 'caio28@email.com', 8, 'Técnico em Mecânica', 'noite', 48, 4, '17:09:00', 550.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (29, 'Júlia Ferraço', 'Jujuba', '11122233329', '27998880029', 'julia29@email.com', 5, 'Direito', 'noite', 49, 5, '17:10:00', 600.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (30, 'Leonardo Pinheiro', 'Leo', '11122233330', '27998880030', 'leonardo.30@email.com', 3, 'Engenharia Mecânica', 'noite', 50, 5, '17:10:00', 520.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (31, 'Sofia Meneguelli', 'Sofi', '11122233331', '27998880031', NULL, 1, 'Odontologia', 'noite', 51, 6, '17:12:00', 600.0, 15, 'ativo', 1);
-INSERT INTO estudante VALUES (32, 'Daniel Coelho', 'Dani', '11122233332', '27998880032', 'daniel.32@email.com', 2, 'Engenharia de Produção', 'noite', 52, 6, '17:16:00', 520.0, 20, 'ativo', NULL);
-INSERT INTO estudante VALUES (33, 'Isadora Lyrio', 'Isa L.', '11122233333', '27998880033', NULL, 4, 'Nutrição', 'manha', 53, 7, '05:46:00', 520.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (34, 'Bernardo Tristão', NULL, '11122233334', '27998880034', 'bernardo34@email.com', 7, 'Medicina', 'noite', 54, 7, '17:20:00', 550.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (35, 'Yasmin Guerra', 'Yas', '11122233335', '27998880035', 'yasmin.35@email.com', 1, 'Psicologia', 'noite', 55, 8, '17:02:00', 620.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (36, 'Arthur Calmon', NULL, '11122233336', '27998880036', 'arthur36@email.com', 3, 'Fisioterapia', 'noite', 56, 8, '17:00:00', 520.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (37, 'Lívia Dalla Bernardina', 'Livinha', '11122233337', '27998880037', 'livia37@email.com', 2, 'Ciências Contábeis', 'noite', 57, 9, '17:31:00', 550.0, 10, 'ativo', NULL);
-INSERT INTO estudante VALUES (38, 'Enzo Scárdua', NULL, '11122233338', '27998880038', NULL, 6, 'Oceanografia', 'noite', 58, 9, '17:31:00', 520.0, 15, 'ativo', NULL);
-INSERT INTO estudante VALUES (39, 'Manuela Kiefer', 'Manu', '11122233339', '27998880039', 'manuela39@email.com', 1, 'Direito', 'noite', 59, 10, '17:26:00', 580.0, 5, 'ativo', NULL);
-INSERT INTO estudante VALUES (40, 'Samuel Gobbi', 'Samu', '11122233340', '27998880040', 'samuel40@email.com', 8, 'Técnico em Administração', 'noite', 60, 10, '17:24:00', 520.0, 20, 'ativo', NULL);
-INSERT INTO estudante VALUES (41, 'Paula Rezende', NULL, '11122233341', '27998880041', NULL, 5, 'Publicidade', 'noite', 61, NULL, '17:32:00', 580.0, 5, 'ativo', NULL);
+INSERT INTO estudante VALUES (1, 'Ana Beatriz Souza', 'Bia', '11122233301', '27998880001', 'ana.souza@email.com', 1, 'Medicina', 'noite', 21, 1, '17:40:00', 450.0, 10, 'ativo', 1, 1);
+INSERT INTO estudante VALUES (2, 'Bruno Henrique Costa', 'Bruno', '11122233302', '27998880002', 'bruno.costa@email.com', 2, 'Engenharia de Produção', 'noite', 22, 2, '17:45:00', 420.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (3, 'Camila Rodrigues', 'Cami', '11122233303', '27998880003', 'camila.r@email.com', 3, 'Engenharia Elétrica', 'noite', 23, 3, '17:50:00', 380.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (4, 'Diego Fernandes', NULL, '11122233304', '27998880004', 'diego.f@email.com', 4, 'Direito', 'noite', 24, 4, '17:15:00', 520.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (5, 'Eduarda Lima', 'Duda', '11122233305', '27998880005', 'eduarda.lima@email.com', 5, 'Enfermagem', 'noite', 25, 9, '17:55:00', 350.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (6, 'Felipe Augusto Ramos', 'Felipão', '11122233306', '27998880006', NULL, 6, 'Engenharia de Computação', 'noite', 26, 6, '17:00:00', 600.0, 20, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (7, 'Gabriela Martins', 'Gabi', '11122233307', '27998880007', 'gabi.martins@email.com', 7, 'Medicina', 'manha', 27, 7, '06:10:00', 480.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (8, 'Henrique Oliveira', NULL, '11122233308', '27998880008', 'henrique.o@email.com', 8, 'Administração', 'manha', 28, 5, '06:30:00', 400.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (9, 'Isabela Pereira', 'Isa', '11122233309', '27998880009', 'isabela.p@email.com', 9, 'Pedagogia', 'tarde', 29, 8, '12:20:00', 360.0, 25, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (10, 'João Vitor Almeida', 'JV', '11122233310', '27998880010', 'jv.almeida@email.com', 10, 'Engenharia Civil', 'tarde', 30, 10, '12:00:00', 390.0, 28, 'inativo', NULL, 1);
+INSERT INTO estudante VALUES (11, 'Larissa Coutinho', 'Lari', '11122233311', '27998880011', 'larissa11@email.com', 1, 'Medicina', 'noite', 31, 1, '17:17:00', 620.0, 5, 'ativo', 1, 1);
+INSERT INTO estudante VALUES (12, 'Mateus Rangel', NULL, '11122233312', '27998880012', 'mateus.12@email.com', 1, 'Odontologia', 'noite', 32, 1, '17:21:00', 600.0, 15, 'ativo', 1, 1);
+INSERT INTO estudante VALUES (13, 'Juliana Nascimento', 'Ju', '11122233313', '27998880013', 'juliana13@email.com', 3, 'Sistemas de Informação', 'noite', 33, 1, '17:17:00', 550.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (14, 'Pedro Henrique Vieira', 'PH', '11122233314', '27998880014', 'pedro14@email.com', 2, 'Ciências Contábeis', 'noite', 34, 1, '17:17:00', 580.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (15, 'Beatriz Loureiro', 'Bea', '11122233315', '27998880015', 'beatriz15@email.com', 1, 'Psicologia', 'manha', 35, 1, '05:47:00', 600.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (16, 'Rafael Simões', NULL, '11122233316', '27998880016', NULL, 3, 'Sistemas de Informação', 'noite', 36, 2, '17:12:00', 550.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (17, 'Letícia Barcellos', 'Lelê', '11122233317', '27998880017', 'leticia17@email.com', 4, 'Biomedicina', 'noite', 37, 2, '17:18:00', 550.0, 20, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (18, 'Gustavo Pimentel', 'Guto', '11122233318', '27998880018', NULL, 1, 'Direito', 'noite', 38, 2, '17:12:00', 550.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (19, 'Mariana Rocha', 'Mari', '11122233319', '27998880019', 'mariana.19@email.com', 2, 'Engenharia de Produção', 'noite', 39, 2, '17:14:00', 580.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (20, 'Thiago Bravin', NULL, '11122233320', '27998880020', 'thiago20@email.com', 5, 'Direito', 'noite', 40, 2, '17:16:00', 580.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (21, 'Amanda Zanotti', 'Mandi', '11122233321', '27998880021', NULL, 3, 'Fisioterapia', 'noite', 41, 3, '17:22:00', 580.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (22, 'Lucas Sossai', 'Luquinhas', '11122233322', '27998880022', 'lucas22@email.com', 1, 'Psicologia', 'noite', 42, 3, '17:24:00', 600.0, 10, 'ativo', 2, 1);
+INSERT INTO estudante VALUES (23, 'Carolina Gama', 'Carol', '11122233323', '27998880023', 'carolina.23@email.com', 6, 'Ciência da Computação', 'noite', 43, 3, '17:26:00', 580.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (24, 'Vinícius Lacerda', 'Vini', '11122233324', '27998880024', NULL, 2, 'Direito', 'manha', 44, 3, '05:52:00', 520.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (25, 'Fernanda Bortolini', 'Nanda', '11122233325', '27998880025', 'fernanda25@email.com', 3, 'Enfermagem', 'noite', 45, 3, '17:20:00', 520.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (26, 'Rodrigo Merçon', NULL, '11122233326', '27998880026', NULL, 4, 'Nutrição', 'noite', 46, 3, '17:26:00', 620.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (27, 'Natália Frisso', 'Nati', '11122233327', '27998880027', 'natalia.27@email.com', 1, 'Odontologia', 'noite', 47, 4, '17:05:00', 580.0, 20, 'ativo', 1, 1);
+INSERT INTO estudante VALUES (28, 'Caio Andrade', NULL, '11122233328', '27998880028', 'caio28@email.com', 8, 'Técnico em Mecânica', 'noite', 48, 4, '17:09:00', 550.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (29, 'Júlia Ferraço', 'Jujuba', '11122233329', '27998880029', 'julia29@email.com', 5, 'Direito', 'noite', 49, 5, '17:10:00', 600.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (30, 'Leonardo Pinheiro', 'Leo', '11122233330', '27998880030', 'leonardo.30@email.com', 3, 'Engenharia Mecânica', 'noite', 50, 5, '17:10:00', 520.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (31, 'Sofia Meneguelli', 'Sofi', '11122233331', '27998880031', NULL, 1, 'Odontologia', 'noite', 51, 6, '17:12:00', 600.0, 15, 'ativo', 1, 1);
+INSERT INTO estudante VALUES (32, 'Daniel Coelho', 'Dani', '11122233332', '27998880032', 'daniel.32@email.com', 2, 'Engenharia de Produção', 'noite', 52, 6, '17:16:00', 520.0, 20, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (33, 'Isadora Lyrio', 'Isa L.', '11122233333', '27998880033', NULL, 4, 'Nutrição', 'manha', 53, 7, '05:46:00', 520.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (34, 'Bernardo Tristão', NULL, '11122233334', '27998880034', 'bernardo34@email.com', 7, 'Medicina', 'noite', 54, 7, '17:20:00', 550.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (35, 'Yasmin Guerra', 'Yas', '11122233335', '27998880035', 'yasmin.35@email.com', 1, 'Psicologia', 'noite', 55, 8, '17:02:00', 620.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (36, 'Arthur Calmon', NULL, '11122233336', '27998880036', 'arthur36@email.com', 3, 'Fisioterapia', 'noite', 56, 8, '17:00:00', 520.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (37, 'Lívia Dalla Bernardina', 'Livinha', '11122233337', '27998880037', 'livia37@email.com', 2, 'Ciências Contábeis', 'noite', 57, 9, '17:31:00', 550.0, 10, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (38, 'Enzo Scárdua', NULL, '11122233338', '27998880038', NULL, 6, 'Oceanografia', 'noite', 58, 9, '17:31:00', 520.0, 15, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (39, 'Manuela Kiefer', 'Manu', '11122233339', '27998880039', 'manuela39@email.com', 1, 'Direito', 'noite', 59, 10, '17:26:00', 580.0, 5, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (40, 'Samuel Gobbi', 'Samu', '11122233340', '27998880040', 'samuel40@email.com', 8, 'Técnico em Administração', 'noite', 60, 10, '17:24:00', 520.0, 20, 'ativo', NULL, 1);
+INSERT INTO estudante VALUES (41, 'Paula Rezende', NULL, '11122233341', '27998880041', NULL, 5, 'Publicidade', 'noite', 61, NULL, '17:32:00', 580.0, 5, 'ativo', NULL, 1);
 
 -- instituicao
-INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11, NULL, NULL, 664);
-INSERT INTO instituicao VALUES (2, 'UniSales - Centro Universitário Salesiano', 12, NULL, NULL, 1494);
-INSERT INTO instituicao VALUES (3, 'Multivix Vila Velha', 13, NULL, NULL, 18979);
-INSERT INTO instituicao VALUES (4, 'Faculdade Novo Milênio', 14, NULL, NULL, 1308);
-INSERT INTO instituicao VALUES (5, 'Estácio - Campus Vila Velha', 15, NULL, NULL, 1496);
-INSERT INTO instituicao VALUES (6, 'UFES - Campus Goiabeiras', 16, NULL, NULL, 573);
-INSERT INTO instituicao VALUES (7, 'Emescam', 17, NULL, NULL, 501);
-INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18, NULL, NULL, 1808);
-INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19, NULL, NULL, NULL);
-INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20, NULL, NULL, 1240);
+INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11, NULL, NULL, 664, 1);
+INSERT INTO instituicao VALUES (2, 'UniSales - Centro Universitário Salesiano', 12, NULL, NULL, 1494, 1);
+INSERT INTO instituicao VALUES (3, 'Multivix Vila Velha', 13, NULL, NULL, 18979, 1);
+INSERT INTO instituicao VALUES (4, 'Faculdade Novo Milênio', 14, NULL, NULL, 1308, 1);
+INSERT INTO instituicao VALUES (5, 'Estácio - Campus Vila Velha', 15, NULL, NULL, 1496, 1);
+INSERT INTO instituicao VALUES (6, 'UFES - Campus Goiabeiras', 16, NULL, NULL, 573, 1);
+INSERT INTO instituicao VALUES (7, 'Emescam', 17, NULL, NULL, 501, 1);
+INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18, NULL, NULL, 1808, 1);
+INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19, NULL, NULL, NULL, 1);
+INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20, NULL, NULL, 1240, 1);
 INSERT INTO instituicao_parada VALUES (1, 1, 'Biopráticas', -20.351902, -40.296912);
 INSERT INTO instituicao_parada VALUES (2, 1, 'Fundos da UVV', -20.356611, -40.300705);
 
 -- motorista
 INSERT INTO motorista VALUES (1, 1, 1, 'Carlos Eduardo Martins', 'Cadu', '20130140155', '27991110001', '10120130194', '2028-03-15', 3200.00, 5, 'ativo', 62);
-INSERT INTO motorista VALUES (2, 2, 2, 'João Pedro Rocha', 'JP', '20230240216', '27991110002', '10220230209', '2027-08-20', 3000.00, 5, 'ativo', 63);
-INSERT INTO motorista VALUES (3, 3, 3, 'Marcos Antônio Silva', 'Marcão', '20330340387', '27991110003', '10320330307', '2029-01-10', 3500.00, 10, 'ativo', 64);
-INSERT INTO motorista VALUES (4, 4, 4, 'Ricardo Souza Lima', NULL, '20430440448', '27991110004', '10420430413', '2027-11-30', 3100.00, 5, 'ativo', 65);
-INSERT INTO motorista VALUES (5, 5, 5, 'Fernanda Costa Alves', 'Fê', '20530540509', '27991110005', '10520530520', '2028-06-05', 3200.00, 5, 'ativo', 66);
-INSERT INTO motorista VALUES (6, 6, 6, 'Paulo Henrique Dias', 'Paulinho', '20630640670', '27991110006', '10620630636', '2027-04-18', 2900.00, 15, 'ativo', 67);
-INSERT INTO motorista VALUES (7, 7, 7, 'Juliana Ferreira', NULL, '20730740730', '27991110007', '10720730742', '2029-09-22', 3000.00, 5, 'ativo', 68);
-INSERT INTO motorista VALUES (8, 8, 8, 'Anderson Luiz Pereira', 'Dinho', '20830840800', '27991110008', '10820830859', '2028-12-01', 3400.00, 10, 'ativo', 69);
-INSERT INTO motorista VALUES (9, 9, 9, 'Roberto Carlos Nunes', 'Beto', '20930940962', '27991110009', '10920930965', '2027-07-14', 3000.00, 5, 'ativo', 70);
-INSERT INTO motorista VALUES (10, 10, NULL, 'Sérgio Mendes Ramos', NULL, '21031041028', '27991110010', '11021031011', '2026-12-31', 2800.00, 5, 'inativo', NULL);
+INSERT INTO motorista VALUES (2, 1, 2, 'João Pedro Rocha', 'JP', '20230240216', '27991110002', '10220230209', '2027-08-20', 3000.00, 5, 'ativo', 63);
+INSERT INTO motorista VALUES (3, 1, 3, 'Marcos Antônio Silva', 'Marcão', '20330340387', '27991110003', '10320330307', '2029-01-10', 3500.00, 10, 'ativo', 64);
+INSERT INTO motorista VALUES (4, 1, 4, 'Ricardo Souza Lima', NULL, '20430440448', '27991110004', '10420430413', '2027-11-30', 3100.00, 5, 'ativo', 65);
+INSERT INTO motorista VALUES (5, 1, 5, 'Fernanda Costa Alves', 'Fê', '20530540509', '27991110005', '10520530520', '2028-06-05', 3200.00, 5, 'ativo', 66);
+INSERT INTO motorista VALUES (6, 1, 6, 'Paulo Henrique Dias', 'Paulinho', '20630640670', '27991110006', '10620630636', '2027-04-18', 2900.00, 15, 'ativo', 67);
+INSERT INTO motorista VALUES (7, 1, 7, 'Juliana Ferreira', NULL, '20730740730', '27991110007', '10720730742', '2029-09-22', 3000.00, 5, 'ativo', 68);
+INSERT INTO motorista VALUES (8, 1, 8, 'Anderson Luiz Pereira', 'Dinho', '20830840800', '27991110008', '10820830859', '2028-12-01', 3400.00, 10, 'ativo', 69);
+INSERT INTO motorista VALUES (9, 1, 9, 'Roberto Carlos Nunes', 'Beto', '20930940962', '27991110009', '10920930965', '2027-07-14', 3000.00, 5, 'ativo', 70);
+INSERT INTO motorista VALUES (10, 1, NULL, 'Sérgio Mendes Ramos', NULL, '21031041028', '27991110010', '11021031011', '2026-12-31', 2800.00, 5, 'inativo', NULL);
 
 -- rota (motorista + instituição + turno; os passageiros vêm das áreas do motorista)
-INSERT INTO rota VALUES (1, 'Centro e Ipiranga → UVV (noite)', 1, 1, 'noite', '18:00:00', '22:40:00', 'ativo');
-INSERT INTO rota VALUES (2, 'Muquiçaba e Bela Vista → UniSales (noite)', 2, 2, 'noite', '18:10:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (3, 'Praia do Morro e Jardim Boa Vista → Multivix (noite)', 3, 3, 'noite', '18:15:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (4, 'Itapebussu e Lameirão → Novo Milênio (noite)', 4, 4, 'noite', '17:30:00', '23:00:00', 'ativo');
-INSERT INTO rota VALUES (5, 'Santa Mônica e Aeroporto → Estácio (noite)', 5, 5, 'noite', '18:20:00', '22:20:00', 'ativo');
-INSERT INTO rota VALUES (6, 'Centro e Ipiranga → UFES (noite)', 1, 6, 'noite', '17:15:00', '23:10:00', 'ativo');
-INSERT INTO rota VALUES (7, 'Muquiçaba e Bela Vista → Emescam (manhã)', 2, 7, 'manha', '06:30:00', '12:10:00', 'ativo');
-INSERT INTO rota VALUES (8, 'Praia do Morro e Jardim Boa Vista → IFES Guarapari (manhã)', 3, 8, 'manha', '06:50:00', '12:00:00', 'ativo');
-INSERT INTO rota VALUES (9, 'Itapebussu e Lameirão → IFES Vila Velha (tarde)', 4, 9, 'tarde', '12:40:00', '18:00:00', 'ativo');
-INSERT INTO rota VALUES (10, 'Santa Mônica e Aeroporto → Pio XII (tarde)', 5, 10, 'tarde', '12:20:00', '17:40:00', 'ativo');
-INSERT INTO rota VALUES (11, 'Centro e Ipiranga → UVV (manhã)', 1, 1, 'manha', '06:30:00', '12:10:00', 'ativo');
-INSERT INTO rota VALUES (12, 'Centro e Ipiranga → UniSales (noite)', 1, 2, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (13, 'Centro e Ipiranga → Multivix (noite)', 1, 3, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (14, 'Muquiçaba e Bela Vista → UVV (noite)', 2, 1, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (15, 'Muquiçaba e Bela Vista → Multivix (noite)', 2, 3, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (16, 'Muquiçaba e Bela Vista → Novo Milênio (manhã)', 2, 4, 'manha', '06:30:00', '12:10:00', 'ativo');
-INSERT INTO rota VALUES (17, 'Muquiçaba e Bela Vista → Novo Milênio (noite)', 2, 4, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (18, 'Muquiçaba e Bela Vista → Estácio (noite)', 2, 5, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (19, 'Muquiçaba e Bela Vista → Emescam (noite)', 2, 7, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (20, 'Praia do Morro e Jardim Boa Vista → UVV (noite)', 3, 1, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (21, 'Praia do Morro e Jardim Boa Vista → UniSales (manhã)', 3, 2, 'manha', '06:30:00', '12:10:00', 'ativo');
-INSERT INTO rota VALUES (22, 'Praia do Morro e Jardim Boa Vista → Novo Milênio (noite)', 3, 4, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (23, 'Praia do Morro e Jardim Boa Vista → Estácio (noite)', 3, 5, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (24, 'Praia do Morro e Jardim Boa Vista → UFES (noite)', 3, 6, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (25, 'Itapebussu e Lameirão → UVV (noite)', 4, 1, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (26, 'Itapebussu e Lameirão → Multivix (noite)', 4, 3, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (27, 'Itapebussu e Lameirão → IFES Guarapari (noite)', 4, 8, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (28, 'Santa Mônica e Aeroporto → UVV (noite)', 5, 1, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (29, 'Santa Mônica e Aeroporto → UniSales (noite)', 5, 2, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (30, 'Santa Mônica e Aeroporto → UFES (noite)', 5, 6, 'noite', '18:00:00', '22:30:00', 'ativo');
-INSERT INTO rota VALUES (31, 'Santa Mônica e Aeroporto → IFES Guarapari (noite)', 5, 8, 'noite', '18:00:00', '22:30:00', 'ativo');
+INSERT INTO rota VALUES (1, 'Centro e Ipiranga → UVV (noite)', 1, 1, 'noite', '18:00:00', '22:40:00', 'ativo', 1);
+INSERT INTO rota VALUES (2, 'Muquiçaba e Bela Vista → UniSales (noite)', 2, 2, 'noite', '18:10:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (3, 'Praia do Morro e Jardim Boa Vista → Multivix (noite)', 3, 3, 'noite', '18:15:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (4, 'Itapebussu e Lameirão → Novo Milênio (noite)', 4, 4, 'noite', '17:30:00', '23:00:00', 'ativo', 1);
+INSERT INTO rota VALUES (5, 'Santa Mônica e Aeroporto → Estácio (noite)', 5, 5, 'noite', '18:20:00', '22:20:00', 'ativo', 1);
+INSERT INTO rota VALUES (6, 'Centro e Ipiranga → UFES (noite)', 1, 6, 'noite', '17:15:00', '23:10:00', 'ativo', 1);
+INSERT INTO rota VALUES (7, 'Muquiçaba e Bela Vista → Emescam (manhã)', 2, 7, 'manha', '06:30:00', '12:10:00', 'ativo', 1);
+INSERT INTO rota VALUES (8, 'Praia do Morro e Jardim Boa Vista → IFES Guarapari (manhã)', 3, 8, 'manha', '06:50:00', '12:00:00', 'ativo', 1);
+INSERT INTO rota VALUES (9, 'Itapebussu e Lameirão → IFES Vila Velha (tarde)', 4, 9, 'tarde', '12:40:00', '18:00:00', 'ativo', 1);
+INSERT INTO rota VALUES (10, 'Santa Mônica e Aeroporto → Pio XII (tarde)', 5, 10, 'tarde', '12:20:00', '17:40:00', 'ativo', 1);
+INSERT INTO rota VALUES (11, 'Centro e Ipiranga → UVV (manhã)', 1, 1, 'manha', '06:30:00', '12:10:00', 'ativo', 1);
+INSERT INTO rota VALUES (12, 'Centro e Ipiranga → UniSales (noite)', 1, 2, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (13, 'Centro e Ipiranga → Multivix (noite)', 1, 3, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (14, 'Muquiçaba e Bela Vista → UVV (noite)', 2, 1, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (15, 'Muquiçaba e Bela Vista → Multivix (noite)', 2, 3, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (16, 'Muquiçaba e Bela Vista → Novo Milênio (manhã)', 2, 4, 'manha', '06:30:00', '12:10:00', 'ativo', 1);
+INSERT INTO rota VALUES (17, 'Muquiçaba e Bela Vista → Novo Milênio (noite)', 2, 4, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (18, 'Muquiçaba e Bela Vista → Estácio (noite)', 2, 5, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (19, 'Muquiçaba e Bela Vista → Emescam (noite)', 2, 7, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (20, 'Praia do Morro e Jardim Boa Vista → UVV (noite)', 3, 1, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (21, 'Praia do Morro e Jardim Boa Vista → UniSales (manhã)', 3, 2, 'manha', '06:30:00', '12:10:00', 'ativo', 1);
+INSERT INTO rota VALUES (22, 'Praia do Morro e Jardim Boa Vista → Novo Milênio (noite)', 3, 4, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (23, 'Praia do Morro e Jardim Boa Vista → Estácio (noite)', 3, 5, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (24, 'Praia do Morro e Jardim Boa Vista → UFES (noite)', 3, 6, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (25, 'Itapebussu e Lameirão → UVV (noite)', 4, 1, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (26, 'Itapebussu e Lameirão → Multivix (noite)', 4, 3, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (27, 'Itapebussu e Lameirão → IFES Guarapari (noite)', 4, 8, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (28, 'Santa Mônica e Aeroporto → UVV (noite)', 5, 1, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (29, 'Santa Mônica e Aeroporto → UniSales (noite)', 5, 2, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (30, 'Santa Mônica e Aeroporto → UFES (noite)', 5, 6, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
+INSERT INTO rota VALUES (31, 'Santa Mônica e Aeroporto → IFES Guarapari (noite)', 5, 8, 'noite', '18:00:00', '22:30:00', 'ativo', 1);
 
 -- rota_dia (1 = segunda ... 7 = domingo)
 INSERT INTO rota_dia VALUES (1, 1);
@@ -718,58 +727,69 @@ INSERT INTO assinatura_pagamento VALUES (18, 6, '2026-11-01', 199.90, '2026-11-1
 
 -- titulo_pagar
 INSERT INTO titulo_pagar VALUES (1, 1, 'salario', 1, NULL, 'Carlos Eduardo Martins', 'Salário Carlos Eduardo Martins - 09/2026', '2026-09-01', 3200.00, '2026-10-05', '2026-10-05', 3200.00, 'pago');
-INSERT INTO titulo_pagar VALUES (2, 2, 'salario', 2, NULL, 'João Pedro Rocha', 'Salário João Pedro Rocha - 09/2026', '2026-09-01', 3000.00, '2026-10-05', '2026-10-05', 3000.00, 'pago');
-INSERT INTO titulo_pagar VALUES (3, 3, 'salario', 3, NULL, 'Marcos Antônio Silva', 'Salário Marcos Antônio Silva - 09/2026', '2026-09-01', 3500.00, '2026-10-10', '2026-10-10', 3500.00, 'pago');
+INSERT INTO titulo_pagar VALUES (2, 1, 'salario', 2, NULL, 'João Pedro Rocha', 'Salário João Pedro Rocha - 09/2026', '2026-09-01', 3000.00, '2026-10-05', '2026-10-05', 3000.00, 'pago');
+INSERT INTO titulo_pagar VALUES (3, 1, 'salario', 3, NULL, 'Marcos Antônio Silva', 'Salário Marcos Antônio Silva - 09/2026', '2026-09-01', 3500.00, '2026-10-10', '2026-10-10', 3500.00, 'pago');
 INSERT INTO titulo_pagar VALUES (4, 1, 'salario', 1, NULL, 'Carlos Eduardo Martins', 'Salário Carlos Eduardo Martins - 10/2026', '2026-10-01', 3200.00, '2026-11-05', NULL, NULL, 'aberto');
-INSERT INTO titulo_pagar VALUES (5, 2, 'salario', 2, NULL, 'João Pedro Rocha', 'Salário João Pedro Rocha - 10/2026', '2026-10-01', 3000.00, '2026-11-05', NULL, NULL, 'aberto');
+INSERT INTO titulo_pagar VALUES (5, 1, 'salario', 2, NULL, 'João Pedro Rocha', 'Salário João Pedro Rocha - 10/2026', '2026-10-01', 3000.00, '2026-11-05', NULL, NULL, 'aberto');
 INSERT INTO titulo_pagar VALUES (6, 1, 'combustivel', NULL, 1, 'Posto Rodovia Ltda', 'Diesel S10 - outubro', '2026-10-01', 1850.75, '2026-10-31', NULL, NULL, 'aberto');
-INSERT INTO titulo_pagar VALUES (7, 3, 'manutencao', NULL, 3, 'Mecânica Boa Viagem', 'Troca de pastilhas e revisão 50 mil km', '2026-10-01', 1240.00, '2026-10-20', '2026-10-20', 1240.00, 'pago');
-INSERT INTO titulo_pagar VALUES (8, 5, 'seguro', NULL, 5, 'Seguradora Capixaba Ltda', 'Seguro anual - parcela 10/12', '2026-10-01', 420.30, '2026-10-15', '2026-10-15', 420.30, 'pago');
-INSERT INTO titulo_pagar VALUES (9, 7, 'impostos', NULL, 7, 'Governo do ES', 'IPVA 2026 - parcela 10', '2026-10-01', 310.00, '2026-10-25', NULL, NULL, 'cancelado');
-INSERT INTO titulo_pagar VALUES (10, 4, 'outros', NULL, NULL, 'Gráfica Guarapari', 'Adesivos e carteirinhas dos alunos', '2026-10-01', 260.00, '2026-11-10', NULL, NULL, 'aberto');
+INSERT INTO titulo_pagar VALUES (7, 1, 'manutencao', NULL, 3, 'Mecânica Boa Viagem', 'Troca de pastilhas e revisão 50 mil km', '2026-10-01', 1240.00, '2026-10-20', '2026-10-20', 1240.00, 'pago');
+INSERT INTO titulo_pagar VALUES (8, 1, 'seguro', NULL, 5, 'Seguradora Capixaba Ltda', 'Seguro anual - parcela 10/12', '2026-10-01', 420.30, '2026-10-15', '2026-10-15', 420.30, 'pago');
+INSERT INTO titulo_pagar VALUES (9, 1, 'impostos', NULL, 7, 'Governo do ES', 'IPVA 2026 - parcela 10', '2026-10-01', 310.00, '2026-10-25', NULL, NULL, 'cancelado');
+INSERT INTO titulo_pagar VALUES (10, 1, 'outros', NULL, NULL, 'Gráfica Guarapari', 'Adesivos e carteirinhas dos alunos', '2026-10-01', 260.00, '2026-11-10', NULL, NULL, 'aberto');
 
 -- titulo_receber
-INSERT INTO titulo_receber VALUES (1, 1, '2026-10-01', 450.00, '2026-10-10', '2026-10-08', 450.00, 'pago');
-INSERT INTO titulo_receber VALUES (2, 2, '2026-10-01', 420.00, '2026-10-10', '2026-10-10', 420.00, 'pago');
-INSERT INTO titulo_receber VALUES (3, 3, '2026-10-01', 380.00, '2026-10-05', '2026-10-04', 380.00, 'pago');
-INSERT INTO titulo_receber VALUES (4, 4, '2026-10-01', 520.00, '2026-10-15', '2026-10-17', 530.40, 'pago');
-INSERT INTO titulo_receber VALUES (5, 5, '2026-10-01', 350.00, '2026-10-05', NULL, NULL, 'aberto');
-INSERT INTO titulo_receber VALUES (6, 6, '2026-10-01', 600.00, '2026-10-20', '2026-10-20', 600.00, 'pago');
-INSERT INTO titulo_receber VALUES (7, 7, '2026-10-01', 480.00, '2026-10-10', NULL, NULL, 'aberto');
-INSERT INTO titulo_receber VALUES (8, 8, '2026-10-01', 400.00, '2026-10-10', '2026-10-09', 400.00, 'pago');
-INSERT INTO titulo_receber VALUES (9, 9, '2026-10-01', 360.00, '2026-10-25', NULL, NULL, 'aberto');
-INSERT INTO titulo_receber VALUES (10, 10, '2026-10-01', 390.00, '2026-10-28', NULL, NULL, 'cancelado');
+INSERT INTO titulo_receber VALUES (1, 1, '2026-10-01', 450.00, '2026-10-10', '2026-10-08', 450.00, 'pago', 1);
+INSERT INTO titulo_receber VALUES (2, 2, '2026-10-01', 420.00, '2026-10-10', '2026-10-10', 420.00, 'pago', 1);
+INSERT INTO titulo_receber VALUES (3, 3, '2026-10-01', 380.00, '2026-10-05', '2026-10-04', 380.00, 'pago', 1);
+INSERT INTO titulo_receber VALUES (4, 4, '2026-10-01', 520.00, '2026-10-15', '2026-10-17', 530.40, 'pago', 1);
+INSERT INTO titulo_receber VALUES (5, 5, '2026-10-01', 350.00, '2026-10-05', NULL, NULL, 'aberto', 1);
+INSERT INTO titulo_receber VALUES (6, 6, '2026-10-01', 600.00, '2026-10-20', '2026-10-20', 600.00, 'pago', 1);
+INSERT INTO titulo_receber VALUES (7, 7, '2026-10-01', 480.00, '2026-10-10', NULL, NULL, 'aberto', 1);
+INSERT INTO titulo_receber VALUES (8, 8, '2026-10-01', 400.00, '2026-10-10', '2026-10-09', 400.00, 'pago', 1);
+INSERT INTO titulo_receber VALUES (9, 9, '2026-10-01', 360.00, '2026-10-25', NULL, NULL, 'aberto', 1);
+INSERT INTO titulo_receber VALUES (10, 10, '2026-10-01', 390.00, '2026-10-28', NULL, NULL, 'cancelado', 1);
 
 -- veiculo
 INSERT INTO veiculo VALUES (1, 1, 'QJA1B23', 'Mercedes-Benz Sprinter 416', 'Branca', 20, 'ativo');
-INSERT INTO veiculo VALUES (2, 2, 'QJB2C34', 'Renault Master Minibus', 'Branca', 16, 'ativo');
-INSERT INTO veiculo VALUES (3, 3, 'MHB1234', 'Volkswagen Volare W9', 'Prata', 28, 'ativo');
-INSERT INTO veiculo VALUES (4, 4, 'QJD4E56', 'Iveco Daily Minibus', 'Branca', 19, 'ativo');
-INSERT INTO veiculo VALUES (5, 5, 'QJE5F67', 'Mercedes-Benz Sprinter 515', 'Azul', 20, 'ativo');
-INSERT INTO veiculo VALUES (6, 6, 'MKC5678', 'Fiat Ducato Minibus', 'Branca', 16, 'ativo');
-INSERT INTO veiculo VALUES (7, 7, 'QJG7H89', 'Peugeot Boxer Minibus', 'Prata', 16, 'ativo');
-INSERT INTO veiculo VALUES (8, 8, 'QJH8I90', 'Marcopolo Volare V8L', 'Branca', 24, 'ativo');
-INSERT INTO veiculo VALUES (9, 9, 'QJI9J01', 'Renault Master Executiva', 'Preta', 15, 'ativo');
-INSERT INTO veiculo VALUES (10, 10, 'MLD9012', 'Mercedes-Benz Sprinter 416', 'Branca', 20, 'inativo');
+INSERT INTO veiculo VALUES (2, 1, 'QJB2C34', 'Renault Master Minibus', 'Branca', 16, 'ativo');
+INSERT INTO veiculo VALUES (3, 1, 'MHB1234', 'Volkswagen Volare W9', 'Prata', 28, 'ativo');
+INSERT INTO veiculo VALUES (4, 1, 'QJD4E56', 'Iveco Daily Minibus', 'Branca', 19, 'ativo');
+INSERT INTO veiculo VALUES (5, 1, 'QJE5F67', 'Mercedes-Benz Sprinter 515', 'Azul', 20, 'ativo');
+INSERT INTO veiculo VALUES (6, 1, 'MKC5678', 'Fiat Ducato Minibus', 'Branca', 16, 'ativo');
+INSERT INTO veiculo VALUES (7, 1, 'QJG7H89', 'Peugeot Boxer Minibus', 'Prata', 16, 'ativo');
+INSERT INTO veiculo VALUES (8, 1, 'QJH8I90', 'Marcopolo Volare V8L', 'Branca', 24, 'ativo');
+INSERT INTO veiculo VALUES (9, 1, 'QJI9J01', 'Renault Master Executiva', 'Preta', 15, 'ativo');
+INSERT INTO veiculo VALUES (10, 1, 'MLD9012', 'Mercedes-Benz Sprinter 416', 'Branca', 20, 'inativo');
 
 -- viagem
-INSERT INTO viagem VALUES (1, 1, 1, 1, '2026-10-29', 'ida', '2026-10-29 17:35:00', '2026-10-29 18:00:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (2, 2, 2, 2, '2026-10-29', 'ida', '2026-10-29 17:40:00', '2026-10-29 18:12:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (3, 3, 3, 3, '2026-10-29', 'ida', '2026-10-29 17:45:00', '2026-10-29 18:15:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (4, 4, 4, 4, '2026-10-29', 'ida', '2026-10-29 17:10:00', '2026-10-29 17:32:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (5, 5, 5, 5, '2026-10-29', 'ida', '2026-10-29 17:50:00', '2026-10-29 18:18:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (6, 6, 1, 1, '2026-10-29', 'ida', '2026-10-29 16:55:00', '2026-10-29 17:20:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (7, 7, 2, 2, '2026-10-29', 'ida', '2026-10-29 06:05:00', '2026-10-29 06:31:00', 'concluida', NULL);
-INSERT INTO viagem VALUES (8, 8, 3, 3, '2026-10-29', 'ida', '2026-10-29 06:25:00', NULL, 'cancelada', NULL);
-INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL);
-INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL);
+INSERT INTO viagem VALUES (1, 1, 1, 1, '2026-10-29', 'ida', '2026-10-29 17:35:00', '2026-10-29 18:00:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (2, 2, 2, 2, '2026-10-29', 'ida', '2026-10-29 17:40:00', '2026-10-29 18:12:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (3, 3, 3, 3, '2026-10-29', 'ida', '2026-10-29 17:45:00', '2026-10-29 18:15:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (4, 4, 4, 4, '2026-10-29', 'ida', '2026-10-29 17:10:00', '2026-10-29 17:32:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (5, 5, 5, 5, '2026-10-29', 'ida', '2026-10-29 17:50:00', '2026-10-29 18:18:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (6, 6, 1, 1, '2026-10-29', 'ida', '2026-10-29 16:55:00', '2026-10-29 17:20:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (7, 7, 2, 2, '2026-10-29', 'ida', '2026-10-29 06:05:00', '2026-10-29 06:31:00', 'concluida', NULL, 1);
+INSERT INTO viagem VALUES (8, 8, 3, 3, '2026-10-29', 'ida', '2026-10-29 06:25:00', NULL, 'cancelada', NULL, 1);
+INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL, 1);
+INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL, 1);
 
--- usuario (login: admin, auxiliar, motorista e joao; senha de teste 123456 para todos: troque em produção)
-INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 0, NULL);
-INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, NULL, 0, NULL);
-INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL, 0, NULL);
-INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL, 0, NULL);
+-- usuario: o gestor entra com o CNPJ da empresa, auxiliar e motoristas com o CPF e o gerente com "univan".
+-- Senha de teste 123456 para todos: troque em produção.
+INSERT INTO usuario VALUES (1, 1, 'Guarapari Vans', '11222333000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, 'gestor@exemplo.com.br', NULL, 0, NULL);
+INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', '40000000124', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, '40000000124', 0, NULL);
+INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', '20130140155', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL, 0, NULL);
+INSERT INTO usuario VALUES (4, 1, 'João Pedro Rocha', '20230240216', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL, 0, NULL);
 INSERT INTO usuario VALUES (5, 1, 'Gerente UniVan', 'univan', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'univan', NULL, 'ativo', NULL, NULL, NULL, 0, NULL);
+-- Gestores das outras empresas: entram com o CNPJ e a senha padrão, e criam a própria no primeiro acesso.
+INSERT INTO usuario VALUES (6, 2, 'Rota Certa', '22333444000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (7, 3, 'Canela Verde', '33444555000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (8, 4, 'Uni Capixaba', '44555666000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (9, 5, 'Trilha', '55666777000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (10, 6, 'Caminho do Saber', '66777888000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (11, 7, 'Meaípe Vans', '77888999000181', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (12, 8, 'Setiba Trans', '88999000000198', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (13, 9, 'Anchieta Fret', '99000111000165', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
+INSERT INTO usuario VALUES (14, 10, 'VV Tur', '10111222000135', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 1, NULL);
 
 -- =============================================================================
 -- Índices
@@ -778,7 +798,7 @@ INSERT INTO usuario VALUES (5, 1, 'Gerente UniVan', 'univan', 'scrypt$16384$8$1$
 -- UNIQUE NULLS NOT DISTINCT: no SQLite NULLs são sempre distintos, então o
 -- índice usa ifnull para que dois feriados gerais na mesma data colidam.
 CREATE UNIQUE INDEX dia_sem_aula_data_fk_instituicao_key
-    ON dia_sem_aula (data, ifnull(fk_instituicao, -1));
+    ON dia_sem_aula (data, ifnull(fk_instituicao, -1), ifnull(fk_empresa, -1));
 
 CREATE INDEX ix_area_motorista ON area (fk_motorista);
 CREATE INDEX ix_chamada_estudante ON chamada (fk_estudante);
@@ -869,6 +889,7 @@ BEGIN
         FROM area ar
         JOIN endereco en ON en.id = NEW.fk_endereco
         WHERE ar.status = 'ativo'
+          AND ar.fk_empresa = NEW.fk_empresa  -- só os bairros da empresa do passageiro
           AND (SELECT count(*) FROM vw_area_aresta r
                WHERE r.fk_area = ar.id
                  AND (r.y1 > en.latitude) <> (r.y2 > en.latitude)
@@ -888,6 +909,7 @@ BEGIN
         FROM area ar
         JOIN endereco en ON en.id = NEW.fk_endereco
         WHERE ar.status = 'ativo'
+          AND ar.fk_empresa = NEW.fk_empresa  -- só os bairros da empresa do passageiro
           AND (SELECT count(*) FROM vw_area_aresta r
                WHERE r.fk_area = ar.id
                  AND (r.y1 > en.latitude) <> (r.y2 > en.latitude)

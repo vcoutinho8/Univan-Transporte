@@ -313,7 +313,7 @@ def criar_gestor(dados: GestorNovo, sessao: Sessao):
     sessao.add(
         Usuario(
             fk_empresa=empresa.id,
-            nome=dados.responsavel,
+            nome=dados.nome_fantasia,
             login=dados.cnpj,
             email=dados.email,
             perfil=PerfilUsuario.ADMIN,
@@ -348,6 +348,17 @@ def reativar_gestor(id_empresa: int, sessao: Sessao):
     empresa = _empresa(sessao, id_empresa)
     empresa.status, empresa.motivo_inativacao = StatusEmpresa.ATIVA, None
     atualizar_situacao(sessao, empresa)
+    sessao.commit()
+    return _resumo(sessao, empresa)
+
+
+@roteador.post("/gestores/{id_empresa}/resetar-senha", response_model=GestorResumo, summary="Voltar a senha do gestor para a padrão (123456)", responses=erros(404, 409))
+def resetar_senha_do_gestor(id_empresa: int, sessao: Sessao):
+    empresa = _empresa(sessao, id_empresa)
+    gestor = sessao.scalar(select(Usuario).where(Usuario.fk_empresa == empresa.id, Usuario.perfil == PerfilUsuario.ADMIN).order_by(Usuario.id).limit(1))
+    if gestor is None:
+        raise ConflitoDeDados("Esta empresa ainda não tem gestor.")
+    gestor.senha_hash, gestor.trocar_senha, gestor.pediu_senha_em = gerar_hash("123456"), True, None
     sessao.commit()
     return _resumo(sessao, empresa)
 

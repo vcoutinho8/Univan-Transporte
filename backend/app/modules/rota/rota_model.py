@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.shared.empresa import DaEmpresa
 from app.shared.base import Base, enum_do_banco
 from app.shared.enums import StatusCadastro, Turno
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     from app.modules.motorista.motorista_model import Motorista
 
 
-class Rota(Base):
+class Rota(DaEmpresa, Base):
     """Um motorista levando estudantes a uma instituição num turno.
 
     Os estudantes da rota não são cadastrados à mão: são os estudantes ativos das
