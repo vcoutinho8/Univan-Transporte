@@ -181,4 +181,4 @@ def test_banco_antigo_ganha_a_tabela_de_usuarios(tmp_path):
         conexao.execute("CREATE TABLE motorista (id INTEGER PRIMARY KEY, apelido TEXT)")
     preparar_banco(f"sqlite:///{arquivo}")
     with sqlite3.connect(arquivo) as conexao:
-        assert [l[0] for l in conexao.execute("SELECT login FROM usuario ORDER BY id")] == ["admin", "auxiliar", "motorista", "joao"]
+        assert [l[0] for l in conexao.execute("SELECT login FROM usuario ORDER BY id")] == ["admin", "auxiliar", "motorista", "joao", "univan"]

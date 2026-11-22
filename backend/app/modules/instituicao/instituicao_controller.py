@@ -4,7 +4,6 @@ import csv
 import unicodedata
 from functools import cache
 from pathlib import Path
-from math import asin, cos, radians, sin, sqrt
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -28,17 +27,6 @@ from app.modules.instituicao.instituicao_schema import (
 )
 
 roteador = APIRouter(prefix="/instituicoes", tags=["Instituições"], dependencies=[TODOS])
-
-# Um ajuste de pino, não uma mudança de endereço: a parada fica perto da faculdade.
-DISTANCIA_MAXIMA_KM = 1.0
-
-
-def distancia_km(a: tuple[float, float], b: tuple[float, float]) -> float:
-    """Distância em linha reta entre dois pontos (fórmula de haversine)."""
-    lat1, lng1, lat2, lng2 = map(radians, (*a, *b))
-    h = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lng2 - lng1) / 2) ** 2
-    return 2 * 6371 * asin(sqrt(h))
-
 
 def obter_repositorio_instituicao(sessao: Annotated[Session, Depends(obter_sessao)]) -> RepositorioInstituicao:
     return RepositorioInstituicao(sessao)
@@ -90,7 +78,17 @@ def listar_instituicoes(repositorio: Repositorio):
     responses=erros(409, 422),
 )
 def criar_instituicao(dados: InstituicaoNova, repositorio: Repositorio):
-    return repositorio.salvar(Instituicao(nome=dados.nome, endereco=Endereco(**dados.endereco.model_dump())))
+    _garantir_unica(repositorio, dados.nome, dados.codigo_inep)
+    return repositorio.salvar(
+        Instituicao(nome=dados.nome, codigo_inep=dados.codigo_inep, endereco=Endereco(**dados.endereco.model_dump()))
+    )
+
+
+def _garantir_unica(repositorio: RepositorioInstituicao, nome: str | None, codigo: int | None, id_atual: int | None = None) -> None:
+    """A mesma faculdade (pelo código do INEP ou pelo nome) não entra duas vezes."""
+    for outra in repositorio.listar():
+        if outra.id != id_atual and ((codigo and outra.codigo_inep == codigo) or (nome and outra.nome.lower() == nome.lower())):
+            raise ConflitoDeDados(f"A {outra.nome} já está cadastrada.")
 
 
 @roteador.delete(
@@ -130,8 +128,11 @@ def alterar_instituicao(id_instituicao: int, dados: InstituicaoAlteracao, reposi
     instituicao = repositorio.buscar_por_id(id_instituicao)
     if instituicao is None:
         raise RecursoNaoEncontrado("Instituição não encontrada.")
+    _garantir_unica(repositorio, dados.nome, dados.codigo_inep, instituicao.id)
     if dados.nome is not None:
         instituicao.nome = dados.nome
+    if dados.codigo_inep is not None:
+        instituicao.codigo_inep = dados.codigo_inep
     if dados.endereco is not None:
         for campo, valor in dados.endereco.model_dump().items():
             setattr(instituicao.endereco, campo, valor)
@@ -147,8 +148,6 @@ def alterar_instituicao(id_instituicao: int, dados: InstituicaoAlteracao, reposi
 )
 def ajustar_parada(id_instituicao: int, dados: ParadaPedido, repositorio: Repositorio):
     instituicao = _instituicao(repositorio, id_instituicao)
-    if dados.latitude is not None:
-        _garantir_perto(instituicao, dados.latitude, dados.longitude)
     instituicao.parada_latitude = dados.latitude
     instituicao.parada_longitude = dados.longitude
     repositorio.salvar(instituicao)
@@ -160,19 +159,6 @@ def _instituicao(repositorio: RepositorioInstituicao, id_instituicao: int) -> In
     if instituicao is None:
         raise RecursoNaoEncontrado("Instituição não encontrada.")
     return instituicao
-
-
-def _garantir_perto(instituicao: Instituicao, latitude: float, longitude: float | None) -> None:
-    """Parada é um ponto na rua em volta da faculdade, não outro endereço."""
-    endereco = instituicao.endereco
-    if longitude is None or endereco.latitude is None or endereco.longitude is None:
-        return
-    distancia = distancia_km((float(endereco.latitude), float(endereco.longitude)), (latitude, longitude))
-    if distancia > DISTANCIA_MAXIMA_KM:
-        raise DadosInvalidos(
-            f"O ponto de parada ficou a {distancia:.1f} km da faculdade. Coloque-o na rua em volta do campus "
-            f"(até {DISTANCIA_MAXIMA_KM:g} km); para outro endereço, altere o cadastro da instituição."
-        )
 
 
 def _garantir_nome_livre(instituicao: Instituicao, nome: str, id_parada: int | None = None) -> None:
@@ -190,7 +176,6 @@ def _garantir_nome_livre(instituicao: Instituicao, nome: str, id_parada: int | N
 )
 def adicionar_parada_extra(id_instituicao: int, dados: ParadaExtraPedido, repositorio: Repositorio):
     instituicao = _instituicao(repositorio, id_instituicao)
-    _garantir_perto(instituicao, dados.latitude, dados.longitude)
     _garantir_nome_livre(instituicao, dados.nome)
     instituicao.paradas.append(InstituicaoParada(nome=dados.nome, latitude=dados.latitude, longitude=dados.longitude))
     repositorio.salvar(instituicao)
@@ -209,7 +194,6 @@ def alterar_parada_extra(id_instituicao: int, id_parada: int, dados: ParadaExtra
     parada = repositorio.buscar_parada(id_instituicao, id_parada)
     if parada is None:
         raise RecursoNaoEncontrado("Parada não encontrada.")
-    _garantir_perto(instituicao, dados.latitude, dados.longitude)
     _garantir_nome_livre(instituicao, dados.nome, id_parada)
     parada.nome, parada.latitude, parada.longitude = dados.nome, dados.latitude, dados.longitude
     repositorio.salvar(instituicao)

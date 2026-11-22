@@ -13,6 +13,8 @@ export interface Aviso {
   descricao?: string
   /** Detalhes em lista (ex.: rotas que não geraram viagem). */
   itens?: string[]
+  /** Próximo passo sugerido (ex.: abrir as viagens do dia), ao lado do "Entendi". */
+  acao?: { rotulo: string; aoClicar: () => void }
 }
 
 const ESTILO: Record<TipoAviso, { icone: NomeIcone; tom: 'verde' | 'vermelho' | 'laranja' | 'marinho' }> = {
@@ -32,7 +34,25 @@ export function ModalAviso({ aviso, aoFechar }: { aviso: Aviso; aoFechar: () => 
       icone={estilo.icone}
       tom={estilo.tom}
       aoFechar={aoFechar}
-      acoes={<Botao onClick={aoFechar}>Entendi</Botao>}
+      acoes={
+        aviso.acao ? (
+          <>
+            <Botao variante="secundario" onClick={aoFechar}>
+              Agora não
+            </Botao>
+            <Botao
+              onClick={() => {
+                aoFechar()
+                aviso.acao!.aoClicar()
+              }}
+            >
+              {aviso.acao.rotulo}
+            </Botao>
+          </>
+        ) : (
+          <Botao onClick={aoFechar}>Entendi</Botao>
+        )
+      }
     >
       {aviso.itens && aviso.itens.length > 0 && (
         <ul className="space-y-1.5 rounded-xl bg-fundo/60 px-4 py-3 text-sm text-marinho">

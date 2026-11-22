@@ -85,11 +85,12 @@ export default function AbaRotas() {
   const [aviso, setAviso] = useState<{ mensagem: string; tipo: 'erro' | 'sucesso' } | null>(null)
   const marcadores = useRef(new Map<number, L.Marker>())
   // Ajuste do ponto de parada das faculdades: pinos arrastáveis + confirmação antes de salvar.
-  const [ajustandoParadas, setAjustandoParadas] = useState(false)
+  // O ajuste das paradas das faculdades mudou para a aba Faculdades: aqui os pinos só aparecem.
+  const ajustandoParadas = false
   const [paradaPendente, setParadaPendente] = useState<{ instituicao: Instituicao; ponto: [number, number] } | null>(null)
   const [versaoPinos, setVersaoPinos] = useState(0)
   // Faculdade em foco no ajuste: o mapa aproxima nela, no nível de rua.
-  const [focoParada, setFocoParada] = useState<number | null>(null)
+  const focoParada: number | null = null
   const [salvandoParada, setSalvandoParada] = useState(false)
   const avisosParada = useAviso()
   const [ordemAberta, setOrdemAberta] = useState(false)
@@ -110,7 +111,6 @@ export default function AbaRotas() {
     setCasaPendente(null)
     setVersaoPinos((v) => v + 1) // o pino volta para onde estava
   }
-  const [novaParada, setNovaParada] = useState<{ instituicao: Instituicao; nome: string } | null>(null)
 
   async function executarParada(acao: () => Promise<unknown>, titulo: string, descricao: string) {
     setSalvandoParada(true)
@@ -124,21 +124,6 @@ export default function AbaRotas() {
     } finally {
       setSalvandoParada(false)
     }
-  }
-
-  function criarParadaExtra() {
-    if (!novaParada) return
-    const nome = novaParada.nome.trim()
-    const base = novaParada.instituicao.ponto_parada
-    if (!nome || !base) return
-    const instituicao = novaParada.instituicao
-    setNovaParada(null)
-    // Nasce ao lado da parada principal; o usuário arrasta até o portão certo.
-    void executarParada(
-      () => servicoInstituicao.adicionarParada(instituicao.id, { nome, latitude: base[0] + 0.0006, longitude: base[1] + 0.0006 }),
-      'Parada extra criada',
-      `Arraste o pino "${nome}" até o portão certo. Depois, escolha esta parada no cadastro dos passageiros que descem nela.`,
-    )
   }
 
   async function salvarParada(instituicao: Instituicao, ponto: [number, number] | null) {
@@ -432,124 +417,15 @@ export default function AbaRotas() {
             </div>
 
             {viagem && viagem.destinos.length > 0 && (
-              <div
-                className={`rounded-2xl p-3 ring-1 transition-colors ${
-                  ajustandoParadas ? 'bg-laranja/5 ring-laranja/40' : 'bg-white ring-slate-200/70'
-                }`}
+              <button
+                type="button"
+                onClick={() => setParametros({ aba: 'faculdades' })}
+                className="flex w-full items-center gap-2 rounded-2xl bg-white p-3 text-left text-sm font-bold text-marinho ring-1 ring-slate-200/70 hover:ring-laranja/40"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAjustandoParadas(!ajustandoParadas)
-                    setFocoParada(null)
-                  }}
-                  aria-pressed={ajustandoParadas}
-                  className="flex w-full items-center gap-2 text-left text-sm font-bold text-marinho"
-                >
-                  <Icone nome="pino" className="h-4 w-4 text-laranja" />
-                  {ajustandoParadas ? 'Ajustando paradas das faculdades' : 'Ajustar paradas das faculdades'}
-                  <span
-                    className={`ml-auto rounded-full px-2 py-0.5 text-[11px] ${ajustandoParadas ? 'bg-laranja text-white' : 'bg-fundo text-slate-500'}`}
-                  >
-                    {ajustandoParadas ? 'Ligado' : 'Desligado'}
-                  </span>
-                </button>
-                {ajustandoParadas && (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-xs text-slate-600">
-                      Toque numa faculdade para aproximar o mapa nela e arraste o pino até a rua, em frente ao portão
-                      onde a van para. Faculdade com mais de um portão (ex.: UVV e Biopráticas)? Crie uma parada extra e
-                      escolha-a no cadastro de quem desce nela.
-                    </p>
-                    <ul className="space-y-1">
-                      {faculdadesDaViagem.map((d) => (
-                        <li key={chaveDestino(d)} className="space-y-1 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: corDestino(d.rota.id) }} />
-                          <button
-                            type="button"
-                            onClick={() => setFocoParada(d.instituicao.id)}
-                            className={`min-w-0 flex-1 truncate text-left font-semibold hover:text-laranja hover:underline ${
-                              focoParada === d.instituicao.id ? 'text-laranja' : 'text-marinho'
-                            }`}
-                          >
-                            {d.instituicao.nome}
-                          </button>
-                          {d.instituicao.parada_latitude !== null ? (
-                            <button
-                              type="button"
-                              disabled={salvandoParada}
-                              onClick={() => void salvarParada(d.instituicao, null)}
-                              className="shrink-0 font-semibold text-slate-500 hover:text-laranja"
-                            >
-                              Voltar ao endereço
-                            </button>
-                          ) : (
-                            <span className="shrink-0 text-slate-400">no endereço</span>
-                          )}
-                        </div>
-                        {/* Paradas extras da faculdade (ex.: Biopráticas) */}
-                        <div className="ml-4 space-y-1 border-l-2 border-slate-200 pl-2">
-                          {d.instituicao.paradas.map((extra) => (
-                            <div key={extra.id} className="flex items-center gap-2">
-                              <Icone nome="pino" className="h-3 w-3 shrink-0 text-slate-400" />
-                              <span className="min-w-0 flex-1 truncate font-semibold text-slate-600">{extra.nome}</span>
-                              <button
-                                type="button"
-                                disabled={salvandoParada}
-                                onClick={async () => {
-                                  if (!(await confirmacao.confirmar({ titulo: `Remover a parada ${extra.nome}?`, descricao: `Quem descia nela volta para a parada principal.`, botao: 'Remover', perigo: true }))) return
-                                  void executarParada(
-                                    () => servicoInstituicao.removerParada(d.instituicao.id, extra.id),
-                                    'Parada removida',
-                                    `Quem usava ${extra.nome} volta para a parada principal de ${d.instituicao.nome}.`,
-                                  )
-                                }}
-                                className="shrink-0 font-semibold text-red-500 hover:underline"
-                              >
-                                Remover
-                              </button>
-                            </div>
-                          ))}
-                          {novaParada?.instituicao.id === d.instituicao.id ? (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault()
-                                criarParadaExtra()
-                              }}
-                              className="flex items-center gap-1"
-                            >
-                              <input
-                                autoFocus
-                                maxLength={60}
-                                placeholder="Nome (ex.: Biopráticas)"
-                                value={novaParada.nome}
-                                onChange={(e) => setNovaParada({ ...novaParada, nome: e.target.value })}
-                                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-laranja"
-                              />
-                              <button type="submit" className="rounded-lg bg-laranja px-2 py-1 font-bold text-white">
-                                Criar
-                              </button>
-                              <button type="button" onClick={() => setNovaParada(null)} className="px-1 text-slate-400 hover:text-marinho">
-                                <Icone nome="fechar" className="h-3.5 w-3.5" />
-                              </button>
-                            </form>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setNovaParada({ instituicao: d.instituicao, nome: '' })}
-                              className="font-bold text-laranja hover:underline"
-                            >
-                              + Parada extra
-                            </button>
-                          )}
-                        </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+                <Icone nome="escola" className="h-4 w-4 text-laranja" />
+                Portões e paradas extras das faculdades
+                <span className="ml-auto text-xs font-semibold text-laranja">aba Faculdades →</span>
+              </button>
             )}
 
             <Cartao className="animate-surgir">
@@ -647,15 +523,7 @@ export default function AbaRotas() {
                           rotulo={`Distância (${sentido === 'ida' ? 'ida' : 'volta'})`}
                           valor={trajetoPrincipal ? `${trajetoPrincipal.distanciaKm.toFixed(1)} km` : null}
                           carregando={tracando}
-                        />
-                        <Medida
-                          rotulo="Tempo ao volante"
-                          valor={
-                            trajetoPrincipal
-                              ? `${Math.floor(trajetoPrincipal.duracaoMin / 60)}h${String(Math.round(trajetoPrincipal.duracaoMin % 60)).padStart(2, '0')}`
-                              : null
-                          }
-                          carregando={tracando}
+                          className="col-span-2"
                         />
                       </div>
                     )}
@@ -1125,9 +993,9 @@ export default function AbaRotas() {
   )
 }
 
-function Medida({ rotulo, valor, carregando }: { rotulo: string; valor: string | null; carregando: boolean }) {
+function Medida({ rotulo, valor, carregando, className = '' }: { rotulo: string; valor: string | null; carregando: boolean; className?: string }) {
   return (
-    <div className="rounded-xl bg-fundo p-3">
+    <div className={`rounded-xl bg-fundo p-3 ${className}`}>
       {carregando ? <div className="esqueleto h-8 w-16" /> : <p className="text-2xl font-extrabold text-marinho tabular-nums">{valor ?? '—'}</p>}
       <p className="text-xs font-semibold text-slate-500">{rotulo}</p>
     </div>

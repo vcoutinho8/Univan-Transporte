@@ -192,14 +192,15 @@ export default function PaginaPainel() {
           )}
         </Cartao>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           {/* Chamadas do dia */}
           <Cartao
             titulo="Chamadas de hoje"
             className="animate-surgir [animation-delay:400ms]"
             acoes={
-              <Link to="/chamadas" className="text-sm font-semibold text-laranja hover:underline">
-                Abrir
+              <Link to="/chamadas" className="group flex items-center gap-1 text-sm font-semibold text-laranja">
+                Abrir chamadas
+                <Icone nome="seta" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             }
           >
@@ -226,8 +227,8 @@ export default function PaginaPainel() {
           </Cartao>
 
           {/* Atalhos */}
-          <Cartao titulo="Atalhos" className="animate-surgir [animation-delay:460ms]">
-            <div className="grid grid-cols-2 gap-2">
+          <Cartao titulo="Atalhos" className="flex-1 animate-surgir [animation-delay:460ms]">
+            <div className="grid h-full grid-cols-2 gap-2">
               {ATALHOS.map((a) => (
                 <Link
                   key={a.para}

@@ -27,6 +27,9 @@ export interface Motorista {
   veiculo: VeiculoDoMotorista | null
   /** Casa/garagem: de onde a ida sai e onde a volta termina. */
   endereco?: Endereco | null
+  /** Salário mensal (texto decimal da API): entra sozinho no Financeiro. */
+  salario?: string | null
+  dia_pagamento?: number | null
 }
 
 /**
@@ -44,4 +47,6 @@ export interface DadosMotorista {
   /** null tira o endereço; ausente não mexe. */
   endereco?: DadosEndereco | null
   status?: StatusCadastro
+  salario?: number | null
+  dia_pagamento?: number
 }

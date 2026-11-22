@@ -82,9 +82,8 @@ class PeriodoSemAulaCriacao(BaseModel):
 class PeriodoSemAulaResultado(BaseModel):
     criados: int = Field(description="Dias novos cadastrados.")
     ja_existiam: int = Field(description="Dias do período que já estavam cadastrados (não foram duplicados).")
-    viagens_geradas: int = Field(
-        description="Viagens já geradas nesses dias para as instituições afetadas; continuam valendo até serem canceladas."
-    )
+    viagens_geradas: int = Field(description="Viagens já geradas nesses dias para as instituições afetadas.")
+    viagens_canceladas: int = Field(default=0, description="Delas, as agendadas que foram canceladas com o motivo.")
 
 
 class RemocaoPedido(BaseModel):

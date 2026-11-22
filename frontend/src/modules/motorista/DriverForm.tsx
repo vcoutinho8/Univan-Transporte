@@ -2,8 +2,10 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
+import { useVerificacaoCadastro } from '../../shared/hooks/useVerificacaoCadastro.ts'
 import Botao from '../../shared/components/Button.tsx'
 import Gaveta from '../../shared/components/Drawer.tsx'
+import CampoMoeda from '../../shared/components/MoneyInput.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import { ErroApi } from '../../shared/services/api.ts'
 import type { StatusCadastro } from '../../shared/types/api.ts'
@@ -30,6 +32,8 @@ function valoresIniciais(m: Motorista | null) {
     cnh_validade: m?.cnh_validade?.slice(0, 10) ?? '',
     fk_veiculo: m?.fk_veiculo ? String(m.fk_veiculo) : '',
     status: (m?.status ?? 'ativo') as StatusCadastro,
+    salario: m?.salario ? String(Number(m.salario)) : '',
+    dia_pagamento: String(m?.dia_pagamento ?? 5),
   }
 }
 
@@ -40,6 +44,8 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
   const { usuario } = useSessao()
   const empresa = motorista?.fk_empresa ?? usuario?.fk_empresa
   const [valores, setValores] = useState<Valores>(() => valoresIniciais(motorista))
+  // CPF já usado em outro cadastro e celular repetido: aviso já ao digitar.
+  const verificacao = useVerificacaoCadastro(valores.cpf, valores.celular, 'motorista', motorista?.id)
   const [endereco, setEndereco] = useState(() => enderecoDoFormulario(motorista?.endereco))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -131,6 +137,8 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
         // Sem endereço: no cadastro não envia; na edição, tira o que havia.
         ...(semEndereco ? (motorista?.endereco ? { endereco: null } : {}) : { endereco: paraApi(endereco) }),
         status: valores.status,
+        salario: valores.salario === '' ? null : Number(valores.salario),
+        dia_pagamento: Number(valores.dia_pagamento) || 5,
       })
     } catch (e) {
       setErro(e instanceof ErroApi ? e.mensagemCompleta : 'Erro inesperado ao salvar.')
@@ -191,6 +199,9 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
               {cpfCorreto === false && (
                 <span className="mt-1 text-xs font-semibold text-rose-600">Dígitos do CPF não conferem</span>
               )}
+              {cpfCorreto !== false && verificacao.avisoCpf && (
+                <span className="mt-1 block text-xs font-semibold text-rose-600">{verificacao.avisoCpf}</span>
+              )}
             </Campo>
 
             <Campo rotulo="Celular" className="sm:col-span-2">
@@ -201,8 +212,10 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
                 placeholder="(27) 99999-0000"
                 value={valores.celular}
                 onChange={(e) => mudar('celular', formatarCelular(e.target.value))}
-                className="campo"
+                aria-invalid={Boolean(verificacao.avisoCelular)}
+                className={`campo ${verificacao.avisoCelular ? 'border-red-300 ring-2 ring-red-100' : ''}`}
               />
+              {verificacao.avisoCelular && <span className="mt-1 block text-xs font-semibold text-rose-600">{verificacao.avisoCelular}</span>}
             </Campo>
           </Secao>
 
@@ -282,6 +295,25 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
 
             {/* Situação: entra ativo; inativar e reativar ficam nos botões da lista. */}
           </Secao>
+
+          <Secao titulo="Salário" icone="dinheiro">
+            <Campo rotulo="Salário mensal" opcional>
+              <CampoMoeda
+                valor={valores.salario === '' ? null : Number(valores.salario)}
+                aoMudar={(v) => mudar('salario', v === null ? '' : String(v))}
+              />
+            </Campo>
+            <Campo rotulo="Dia do pagamento (mês seguinte)">
+              <select value={valores.dia_pagamento} onChange={(e) => mudar('dia_pagamento', e.target.value)} className="campo">
+                {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>
+                    Dia {d}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+            <p className="text-xs text-slate-500 sm:col-span-2">O salário entra sozinho nos gastos do Financeiro todo mês.</p>
+          </Secao>
         </div>
 
         <footer className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
@@ -303,7 +335,7 @@ function Secao({
   children,
 }: {
   titulo: string
-  icone: 'usuario' | 'relatorio' | 'van' | 'pino'
+  icone: 'usuario' | 'relatorio' | 'van' | 'pino' | 'dinheiro'
   children: ReactNode
 }) {
   return (

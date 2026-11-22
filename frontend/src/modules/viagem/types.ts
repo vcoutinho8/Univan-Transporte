@@ -99,6 +99,7 @@ export interface DiaDoCalendario {
   rotas: number
   feriados: string[]
   feriado_geral: boolean
+  motivo_geral?: string | null
 }
 
 export interface FiltrosViagem {

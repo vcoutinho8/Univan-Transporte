@@ -50,6 +50,12 @@ CREATE TABLE empresa (
     cnpj          TEXT NOT NULL,
     telefone      TEXT,
     fk_endereco   INTEGER REFERENCES endereco (id),
+    -- Assinatura do app (o gerente UniVan cuida): responsável, situação e valor mensal.
+    responsavel   TEXT,
+    status        TEXT NOT NULL DEFAULT 'ativa',
+    valor_assinatura NUMERIC NOT NULL DEFAULT 199.90,
+    motivo_inativacao TEXT,
+    CONSTRAINT empresa_status_check CHECK (status IN ('ativa', 'em_negociacao', 'inativa')),
     CONSTRAINT empresa_cnpj_key UNIQUE (cnpj),
     CONSTRAINT empresa_cnpj_check CHECK (length(cnpj) = 14 AND cnpj NOT GLOB '*[^0-9]*')
 );
@@ -60,7 +66,9 @@ CREATE TABLE instituicao (
     fk_endereco      INTEGER NOT NULL REFERENCES endereco (id),
     -- Ponto de parada na rua (onde a van para). Vazio = usa a localização do endereço.
     parada_latitude  NUMERIC,
-    parada_longitude NUMERIC
+    parada_longitude NUMERIC,
+    -- Código da IES no e-MEC/INEP (cadastro oficial): a mesma faculdade não entra duas vezes.
+    codigo_inep      INTEGER
 );
 
 -- Paradas extras da faculdade além da principal (ex.: UVV: Biopráticas e fundos). O passageiro escolhe
@@ -225,6 +233,20 @@ CREATE TABLE chamada (
 
 -- ---------------------------------------------------------------- Financeiro
 
+-- Mensalidade do app de cada empresa (gestor). Em atraso: "em negociação"; 30 dias depois, inativa.
+CREATE TABLE assinatura_pagamento (
+    id              INTEGER PRIMARY KEY,
+    fk_empresa      INTEGER NOT NULL REFERENCES empresa (id),
+    competencia     TEXT NOT NULL,
+    valor           NUMERIC NOT NULL,
+    data_vencimento TEXT NOT NULL,
+    data_pagamento  TEXT,
+    status          TEXT NOT NULL DEFAULT 'aberto',
+    CONSTRAINT assinatura_pagamento_fk_empresa_competencia_key UNIQUE (fk_empresa, competencia),
+    CONSTRAINT assinatura_pagamento_valor_check CHECK (valor >= 0),
+    CONSTRAINT assinatura_pagamento_status_check CHECK (status IN ('aberto', 'pago', 'cancelado'))
+);
+
 CREATE TABLE titulo_receber (
     id               INTEGER PRIMARY KEY,
     fk_estudante     INTEGER NOT NULL REFERENCES estudante (id),
@@ -282,10 +304,12 @@ CREATE TABLE usuario (
     cpf           TEXT,
     -- 1 = senha padrão (123456): no próximo login a pessoa cria a dela.
     trocar_senha  INTEGER NOT NULL DEFAULT 0,
+    -- Pediu uma senha nova em "Esqueci a senha" (o gestor vê e reseta).
+    pediu_senha_em TEXT,
     CONSTRAINT usuario_login_key UNIQUE (login),
     CONSTRAINT usuario_login_check CHECK (length(login) BETWEEN 3 AND 30 AND login NOT GLOB '*[^a-z0-9._-]*'),
     CONSTRAINT usuario_fk_motorista_key UNIQUE (fk_motorista),
-    CONSTRAINT usuario_perfil_check CHECK (perfil IN ('admin', 'auxiliar', 'motorista')),
+    CONSTRAINT usuario_perfil_check CHECK (perfil IN ('admin', 'auxiliar', 'motorista', 'univan')),
     CONSTRAINT usuario_motorista_check CHECK ((perfil = 'motorista') = (fk_motorista IS NOT NULL)),
     CONSTRAINT usuario_status_check CHECK (status IN ('ativo', 'inativo'))
 );
@@ -331,16 +355,16 @@ INSERT INTO dia_sem_aula VALUES (9, '2026-12-04', 6, 'Recesso UFES');
 INSERT INTO dia_sem_aula VALUES (10, '2026-11-19', 8, 'Jornada pedagógica IFES Guarapari');
 
 -- empresa
-INSERT INTO empresa VALUES (1, 'Guarapari Vans Transportes Ltda', 'Guarapari Vans', '11222333000101', '2733611001', 1);
-INSERT INTO empresa VALUES (2, 'Rota Certa Fretamentos Ltda', 'Rota Certa', '22333444000102', '2733611002', 2);
-INSERT INTO empresa VALUES (3, 'Expresso Canela Verde Ltda', 'Canela Verde', '33444555000103', '2733611003', 3);
-INSERT INTO empresa VALUES (4, 'Universitário Capixaba Turismo Ltda', 'Uni Capixaba', '44555666000104', '2733611004', 4);
-INSERT INTO empresa VALUES (5, 'Trilha Fretamento e Turismo Ltda', 'Trilha', '55666777000105', '2733611005', 5);
-INSERT INTO empresa VALUES (6, 'Caminho do Saber Transportes ME', 'Caminho do Saber', '66777888000106', '2733611006', 6);
-INSERT INTO empresa VALUES (7, 'Meaípe Vans Ltda', 'Meaípe Vans', '77888999000107', '2733611007', 7);
-INSERT INTO empresa VALUES (8, 'Setiba Transportes ME', 'Setiba Trans', '88999000000108', '2733611008', 8);
-INSERT INTO empresa VALUES (9, 'Anchieta Fretamentos Ltda', 'Anchieta Fret', '99000111000109', '2733611009', 9);
-INSERT INTO empresa VALUES (10, 'Vila Velha Turismo e Fretamento Ltda', 'VV Tur', '10111222000110', '2733611010', 10);
+INSERT INTO empresa VALUES (1, 'Guarapari Vans Transportes Ltda', 'Guarapari Vans', '11222333000181', '2733611001', 1, 'Roberto Almeida', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (2, 'Rota Certa Fretamentos Ltda', 'Rota Certa', '22333444000181', '2733611002', 2, 'Sandra Ribeiro', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (3, 'Expresso Canela Verde Ltda', 'Canela Verde', '33444555000181', '2733611003', 3, 'Paulo Mendes', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (4, 'Universitário Capixaba Turismo Ltda', 'Uni Capixaba', '44555666000181', '2733611004', 4, 'Juliana Costa', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (5, 'Trilha Fretamento e Turismo Ltda', 'Trilha', '55666777000181', '2733611005', 5, 'André Batista', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (6, 'Caminho do Saber Transportes ME', 'Caminho do Saber', '66777888000181', '2733611006', 6, 'Clara Nunes', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (7, 'Meaípe Vans Ltda', 'Meaípe Vans', '77888999000181', '2733611007', 7, 'Responsável', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (8, 'Setiba Transportes ME', 'Setiba Trans', '88999000000198', '2733611008', 8, 'Responsável', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (9, 'Anchieta Fretamentos Ltda', 'Anchieta Fret', '99000111000165', '2733611009', 9, 'Responsável', 'ativa', 199.90, NULL);
+INSERT INTO empresa VALUES (10, 'Vila Velha Turismo e Fretamento Ltda', 'VV Tur', '10111222000135', '2733611010', 10, 'Responsável', 'ativa', 199.90, NULL);
 
 -- endereco (1-10 empresas, 11-20 instituições, 21+ passageiros; coordenadas do OpenStreetMap)
 INSERT INTO endereco VALUES (1, '29200260', 'Rua Joaquim da Silva Lima', '100', 'Sala 2', 'Centro', 'Guarapari', 'ES', NULL, NULL);
@@ -458,16 +482,16 @@ INSERT INTO estudante VALUES (40, 'Samuel Gobbi', 'Samu', '11122233340', '279988
 INSERT INTO estudante VALUES (41, 'Paula Rezende', NULL, '11122233341', '27998880041', NULL, 5, 'Publicidade', 'noite', 61, NULL, '17:32:00', 580.0, 5, 'ativo', NULL);
 
 -- instituicao
-INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11, NULL, NULL);
-INSERT INTO instituicao VALUES (2, 'UniSales - Centro Universitário Salesiano', 12, NULL, NULL);
-INSERT INTO instituicao VALUES (3, 'Multivix Vila Velha', 13, NULL, NULL);
-INSERT INTO instituicao VALUES (4, 'Faculdade Novo Milênio', 14, NULL, NULL);
-INSERT INTO instituicao VALUES (5, 'Estácio - Campus Vila Velha', 15, NULL, NULL);
-INSERT INTO instituicao VALUES (6, 'UFES - Campus Goiabeiras', 16, NULL, NULL);
-INSERT INTO instituicao VALUES (7, 'Emescam', 17, NULL, NULL);
-INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18, NULL, NULL);
-INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19, NULL, NULL);
-INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20, NULL, NULL);
+INSERT INTO instituicao VALUES (1, 'UVV - Universidade Vila Velha', 11, NULL, NULL, 664);
+INSERT INTO instituicao VALUES (2, 'UniSales - Centro Universitário Salesiano', 12, NULL, NULL, 1494);
+INSERT INTO instituicao VALUES (3, 'Multivix Vila Velha', 13, NULL, NULL, 18979);
+INSERT INTO instituicao VALUES (4, 'Faculdade Novo Milênio', 14, NULL, NULL, 1308);
+INSERT INTO instituicao VALUES (5, 'Estácio - Campus Vila Velha', 15, NULL, NULL, 1496);
+INSERT INTO instituicao VALUES (6, 'UFES - Campus Goiabeiras', 16, NULL, NULL, 573);
+INSERT INTO instituicao VALUES (7, 'Emescam', 17, NULL, NULL, 501);
+INSERT INTO instituicao VALUES (8, 'IFES - Campus Guarapari', 18, NULL, NULL, 1808);
+INSERT INTO instituicao VALUES (9, 'IFES - Campus Vila Velha', 19, NULL, NULL, NULL);
+INSERT INTO instituicao VALUES (10, 'Faculdade Pio XII', 20, NULL, NULL, 1240);
 INSERT INTO instituicao_parada VALUES (1, 1, 'Biopráticas', -20.351902, -40.296912);
 INSERT INTO instituicao_parada VALUES (2, 1, 'Fundos da UVV', -20.356611, -40.300705);
 
@@ -672,6 +696,26 @@ INSERT INTO rota_dia VALUES (31, 3);
 INSERT INTO rota_dia VALUES (31, 4);
 INSERT INTO rota_dia VALUES (31, 5);
 
+-- assinatura_pagamento (Uni Capixaba atrasou novembro; Trilha, outubro e novembro)
+INSERT INTO assinatura_pagamento VALUES (1, 1, '2026-09-01', 199.90, '2026-09-10', '2026-09-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (2, 1, '2026-10-01', 199.90, '2026-10-10', '2026-10-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (3, 1, '2026-11-01', 199.90, '2026-11-10', '2026-11-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (4, 2, '2026-09-01', 199.90, '2026-09-10', '2026-09-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (5, 2, '2026-10-01', 199.90, '2026-10-10', '2026-10-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (6, 2, '2026-11-01', 199.90, '2026-11-10', '2026-11-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (7, 3, '2026-09-01', 199.90, '2026-09-10', '2026-09-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (8, 3, '2026-10-01', 199.90, '2026-10-10', '2026-10-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (9, 3, '2026-11-01', 199.90, '2026-11-10', '2026-11-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (10, 4, '2026-09-01', 199.90, '2026-09-10', '2026-09-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (11, 4, '2026-10-01', 199.90, '2026-10-10', '2026-10-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (12, 4, '2026-11-01', 199.90, '2026-11-10', NULL, 'aberto');
+INSERT INTO assinatura_pagamento VALUES (13, 5, '2026-09-01', 199.90, '2026-09-10', '2026-09-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (14, 5, '2026-10-01', 199.90, '2026-10-10', NULL, 'aberto');
+INSERT INTO assinatura_pagamento VALUES (15, 5, '2026-11-01', 199.90, '2026-11-10', NULL, 'aberto');
+INSERT INTO assinatura_pagamento VALUES (16, 6, '2026-09-01', 199.90, '2026-09-10', '2026-09-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (17, 6, '2026-10-01', 199.90, '2026-10-10', '2026-10-08', 'pago');
+INSERT INTO assinatura_pagamento VALUES (18, 6, '2026-11-01', 199.90, '2026-11-10', '2026-11-08', 'pago');
+
 -- titulo_pagar
 INSERT INTO titulo_pagar VALUES (1, 1, 'salario', 1, NULL, 'Carlos Eduardo Martins', 'Salário Carlos Eduardo Martins - 09/2026', '2026-09-01', 3200.00, '2026-10-05', '2026-10-05', 3200.00, 'pago');
 INSERT INTO titulo_pagar VALUES (2, 2, 'salario', 2, NULL, 'João Pedro Rocha', 'Salário João Pedro Rocha - 09/2026', '2026-09-01', 3000.00, '2026-10-05', '2026-10-05', 3000.00, 'pago');
@@ -721,10 +765,11 @@ INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendad
 INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL);
 
 -- usuario (login: admin, auxiliar, motorista e joao; senha de teste 123456 para todos: troque em produção)
-INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 0);
-INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, NULL, 0);
-INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL, 0);
-INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL, 0);
+INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 0, NULL);
+INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, NULL, 0, NULL);
+INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL, 0, NULL);
+INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL, 0, NULL);
+INSERT INTO usuario VALUES (5, 1, 'Gerente UniVan', 'univan', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'univan', NULL, 'ativo', NULL, NULL, NULL, 0, NULL);
 
 -- =============================================================================
 -- Índices

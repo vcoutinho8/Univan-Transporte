@@ -41,8 +41,13 @@ export function MapaBase({ children, className = 'h-96', zoom = 13, rolagem = tr
   )
 }
 
+// Mapas que já foram enquadrados: trocar de aba (outro <Enquadrar> no mesmo mapa) não tira o
+// usuário de onde ele estava olhando.
+const jaEnquadrados = new WeakSet<L.Map>()
+
 /**
- * Enquadra os pontos com um voo suave sempre que a `chave` muda. `manterSeVisivel`: se tudo já
+ * Enquadra os pontos com um voo suave sempre que a `chave` muda (na 1ª vez de cada mapa e quando
+ * a seleção muda; montar de novo numa outra aba não mexe). `manterSeVisivel`: se tudo já
  * está na tela, não mexe (trocar uma opção não tira o zoom que o usuário escolheu).
  */
 export function Enquadrar({
@@ -63,9 +68,11 @@ export function Enquadrar({
     // Espera a tela terminar de surgir e remede o contêiner; senão o enquadramento sai errado.
     const temporizador = window.setTimeout(() => {
       mapa.invalidateSize()
-      const jaVisiveis = !primeira.current && mapa.getBounds().contains(L.latLngBounds(pontos))
+      const montouAgora = primeira.current
       primeira.current = false
-      if (manterSeVisivel && jaVisiveis) return
+      if (montouAgora && jaEnquadrados.has(mapa)) return
+      jaEnquadrados.add(mapa)
+      if (manterSeVisivel && !montouAgora && mapa.getBounds().contains(L.latLngBounds(pontos))) return
       if (pontos.length === 1) mapa.flyTo(pontos[0], zoomMaximo, { duration: 0.8 })
       else mapa.flyToBounds(L.latLngBounds(pontos), { padding: [48, 48], maxZoom: zoomMaximo, duration: 0.8 })
     }, 350)

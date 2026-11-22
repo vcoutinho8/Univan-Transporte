@@ -15,7 +15,7 @@ export default function RotaProtegida({ children }: { children: ReactNode }) {
   const local = useLocation()
 
   if (!usuario) return <Navigate to="/login" replace />
-  if (local.pathname === '/' && usuario.perfil === 'motorista') return <Navigate to={telaInicial('motorista')} replace />
+  if (local.pathname === '/' && usuario.perfil !== 'admin' && usuario.perfil !== 'auxiliar') return <Navigate to={telaInicial(usuario.perfil)} replace />
   if (!abreTela(usuario.perfil, local.pathname)) {
     return (
       <div className="grid min-h-[60vh] place-items-center text-center">

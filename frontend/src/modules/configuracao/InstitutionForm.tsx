@@ -27,10 +27,13 @@ async function localizar(f: FaculdadeDoCatalogo): Promise<Coordenada | null> {
  */
 export default function FormularioInstituicao({
   instituicao,
+  cadastradas = [],
   aoSalvar,
   aoFechar,
 }: {
   instituicao: Instituicao | null
+  /** Já cadastradas: aparecem acinzentadas no catálogo, para não repetir. */
+  cadastradas?: Instituicao[]
   aoSalvar: (mensagem: string) => void
   aoFechar: () => void
 }) {
@@ -41,6 +44,8 @@ export default function FormularioInstituicao({
   const [achadas, setAchadas] = useState<FaculdadeDoCatalogo[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const outras = cadastradas.filter((i) => i.id !== instituicao?.id)
+  const jaTem = (f: FaculdadeDoCatalogo) => outras.some((i) => i.codigo_inep === f.codigo || i.nome.trim().toLowerCase() === f.nome.trim().toLowerCase())
 
   useEffect(() => {
     const espera = window.setTimeout(() => {
@@ -69,8 +74,9 @@ export default function FormularioInstituicao({
         latitude: posicao?.[0] ?? null,
         longitude: posicao?.[1] ?? null,
       }
-      if (instituicao) await servicoInstituicao.alterar(instituicao.id, { nome: escolhida.nome, endereco })
-      else await servicoInstituicao.criar({ nome: escolhida.nome, endereco })
+      const dados = { nome: escolhida.nome, codigo_inep: escolhida.codigo, endereco }
+      if (instituicao) await servicoInstituicao.alterar(instituicao.id, dados)
+      else await servicoInstituicao.criar(dados)
       aoSalvar(
         posicao
           ? `${escolhida.nome} salva. Ajuste o portão em Mapa e rotas › Faculdades, se precisar.`
@@ -161,8 +167,10 @@ export default function FormularioInstituicao({
                 <li key={f.codigo}>
                   <button
                     type="button"
+                    disabled={jaTem(f)}
+                    title={jaTem(f) ? 'Esta faculdade já está cadastrada' : undefined}
                     onClick={() => setEscolhida(f)}
-                    className={`flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors ${escolhida?.codigo === f.codigo ? 'bg-laranja/10' : 'hover:bg-laranja/5'}`}
+                    className={`flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-50 ${escolhida?.codigo === f.codigo ? 'bg-laranja/10' : 'hover:bg-laranja/5'}`}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-marinho">
@@ -174,6 +182,7 @@ export default function FormularioInstituicao({
                         {f.numero ? `, ${f.numero}` : ''}
                       </span>
                     </span>
+                    {jaTem(f) && <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">já cadastrada</span>}
                     {escolhida?.codigo === f.codigo && <Icone nome="ok" className="h-4 w-4 shrink-0 text-laranja" />}
                   </button>
                 </li>

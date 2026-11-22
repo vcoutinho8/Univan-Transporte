@@ -267,10 +267,8 @@ export default function PaginaViagens() {
         indice={indice}
         ocupado={jornada.viagens.some((v) => v.id === ocupada)}
         carregandoWhatsApp={preparandoWhatsApp === chave}
-        // Só a viagem de hoje se inicia (passada ou futura, não: a API também recusa).
-        aoIniciar={
-          data === dataIso() ? () => (perfil === 'motorista' ? irParaMinhaRota(jornada, true) : setAberto({ tipo: 'iniciar', jornada })) : undefined
-        }
+        // Quem inicia é o motorista (pela Minha rota) e só a viagem de hoje (a API também recusa outro dia).
+        aoIniciar={perfil === 'motorista' && data === dataIso() ? () => irParaMinhaRota(jornada, true) : undefined}
         aoAcompanhar={() =>
           perfil === 'motorista' && jornada.status === 'em_andamento' ? irParaMinhaRota(jornada, false) : setAberto({ tipo: 'andamento', jornada })
         }

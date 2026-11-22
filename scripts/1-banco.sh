@@ -77,6 +77,7 @@ try:
     DELETE FROM motorista      WHERE id > 5;
     DELETE FROM veiculo        WHERE id > 5;
     DELETE FROM instituicao    WHERE id > 5;
+    DELETE FROM assinatura_pagamento WHERE fk_empresa > 5;
     DELETE FROM empresa        WHERE id > 5;
     -- endereços: só os usados pelas empresas, instituições, estudantes e motoristas que ficaram
     DELETE FROM endereco WHERE id NOT IN (
@@ -98,6 +99,35 @@ try:
     FROM estudante e JOIN area a ON a.id = e.fk_area
     WHERE a.fk_motorista IN (1, 2) AND e.turno = 'noite' AND e.status = 'ativo';
 """)
+
+    # Dados coerentes com as regras do sistema: CPF válido e único, celular único e tudo numa
+    # empresa só (os veículos aparecem para todos os motoristas; o login é por CPF).
+    def cpf_com_digitos(base9: str) -> str:
+        numeros = [int(d) for d in base9]
+        for tamanho in (9, 10):
+            soma = sum(n * (tamanho + 1 - i) for i, n in enumerate(numeros[:tamanho]))
+            numeros.append((soma * 10 % 11) % 10)
+        return "".join(map(str, numeros))
+
+    for (id_estudante,) in conexao.execute("SELECT id FROM estudante ORDER BY id").fetchall():
+        conexao.execute(
+            "UPDATE estudante SET cpf = ?, celular = ? WHERE id = ?",
+            (cpf_com_digitos(f"{300000000 + id_estudante * 7:09d}"), f"2799{id_estudante:07d}", id_estudante),
+        )
+    for (id_motorista,) in conexao.execute("SELECT id FROM motorista ORDER BY id").fetchall():
+        conexao.execute("UPDATE motorista SET cpf = ? WHERE id = ?", (cpf_com_digitos(f"{200000000 + id_motorista * 13:09d}"), id_motorista))
+    conexao.executescript("""
+        UPDATE motorista SET fk_empresa = 1;
+        UPDATE veiculo   SET fk_empresa = 1;
+        UPDATE usuario   SET fk_empresa = 1;
+        -- Acesso: o gestor entra com o CNPJ da empresa; o motorista com o CPF do cadastro dele.
+        UPDATE usuario SET login = (SELECT cnpj FROM empresa WHERE id = 1), cpf = NULL WHERE perfil = 'admin';
+        UPDATE usuario SET login = (SELECT cpf FROM motorista m WHERE m.id = usuario.fk_motorista), cpf = NULL WHERE perfil = 'motorista';
+    """)
+    cpf_auxiliar = cpf_com_digitos("400000001")
+    conexao.execute("UPDATE usuario SET login = ?, cpf = ? WHERE perfil = 'auxiliar'", (cpf_auxiliar, cpf_auxiliar))
+    for perfil, login, nome in conexao.execute("SELECT perfil, login, nome FROM usuario ORDER BY id").fetchall():
+        print(f"  login {perfil:<9} {login:<15} {nome}")
 
     problemas = conexao.execute("PRAGMA foreign_key_check").fetchall()
     if problemas:

@@ -28,7 +28,7 @@ from app.config.banco import obter_sessao
 from app.config.configuracoes import obter_configuracoes
 from app.config.erros import AcessoNegado, NaoAutenticado
 
-PERFIS = ("admin", "auxiliar", "motorista")
+PERFIS = ("admin", "auxiliar", "motorista", "univan")
 
 # ---------------------------------------------------------------- senha
 
@@ -153,7 +153,7 @@ Logado = Annotated[UsuarioLogado, Depends(usuario_logado)]
 
 def exigir_perfil(*perfis: str) -> Callable[[UsuarioLogado], UsuarioLogado]:
     """Dependência: só deixa passar os perfis informados (403 para os outros)."""
-    nomes = {"admin": "administrador", "auxiliar": "auxiliar", "motorista": "motorista"}
+    nomes = {"admin": "gestor do sistema", "auxiliar": "auxiliar", "motorista": "motorista", "univan": "gerente UniVan"}
 
     def verificar(usuario: Logado) -> UsuarioLogado:
         if usuario.perfil not in perfis:
@@ -167,3 +167,4 @@ ADMIN = Depends(exigir_perfil("admin"))
 ADMIN_OU_AUXILIAR = Depends(exigir_perfil("admin", "auxiliar"))
 OPERACAO = Depends(exigir_perfil("admin", "motorista"))  # iniciar, embarcar, desembarcar
 TODOS = Depends(exigir_perfil(*PERFIS))
+UNIVAN = Depends(exigir_perfil("univan"))  # gerente do app: gestores e assinaturas

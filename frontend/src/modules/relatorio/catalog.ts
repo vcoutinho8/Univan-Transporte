@@ -54,7 +54,7 @@ export const RELATORIOS: DefinicaoRelatorio[] = [
     descricao: 'Total de viagens por situação, rota, turno, motorista e sentido.',
     icone: 'mala',
     categoria: 'Viagens',
-    disponivel: false,
+    disponivel: true,
   },
   {
     id: 'pontualidade',
@@ -88,7 +88,7 @@ export const RELATORIOS: DefinicaoRelatorio[] = [
     descricao: 'Presenças, faltas sem aviso, avisos de "não vou" e percentual de presença.',
     icone: 'tendencia',
     categoria: 'Frequência',
-    disponivel: false,
+    disponivel: true,
   },
   {
     id: 'frequencia-rota',
@@ -114,7 +114,7 @@ export const RELATORIOS: DefinicaoRelatorio[] = [
     descricao: 'Motoristas com CNH vencida ou vencendo nos próximos 30 ou 60 dias.',
     icone: 'cnh',
     categoria: 'Frota e motoristas',
-    disponivel: false,
+    disponivel: true,
   },
   {
     id: 'dias-sem-aula',
@@ -132,7 +132,7 @@ export const RELATORIOS: DefinicaoRelatorio[] = [
     descricao: 'Mensalidades em aberto e vencidas, com dias de atraso.',
     icone: 'dinheiro',
     categoria: 'Financeiro',
-    disponivel: false,
+    disponivel: true,
   },
   {
     id: 'resultado-mes',

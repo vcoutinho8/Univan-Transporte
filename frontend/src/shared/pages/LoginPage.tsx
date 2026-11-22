@@ -5,7 +5,8 @@ import { telaInicial } from '../auth/permissoes.ts'
 import { useSessao } from '../auth/useSessao.ts'
 import Icone from '../components/Icon.tsx'
 import Logo from '../components/Logo.tsx'
-import { useAviso } from '../components/NoticeModal.tsx'
+import { useAviso, useConfirmacao } from '../components/NoticeModal.tsx'
+import { requisitar } from '../services/api.ts'
 import { ErroApi } from '../services/api.ts'
 import CenaVanNaEstrada from './LoginScene.tsx'
 
@@ -20,10 +21,16 @@ const DESTAQUES = [
   { titulo: 'A rota na palma da mão', texto: 'O motorista segue o mapa parada por parada, com navegação até a porta.' },
 ]
 
+/** Login como a API guarda: minúsculo; CPF/CNPJ com máscara vira só os números. */
+export const normalizarLogin = (usuario: string) => {
+  const login = usuario.trim().toLowerCase()
+  return /^[\d.\-/\s]+$/.test(login) ? login.replace(/\D/g, '') : login
+}
+
 /** Mensagem do campo, ou nada se estiver certo (mesmas regras da API). */
 export function validarLogin(usuario: string, senha: string): { usuario?: string; senha?: string } {
   const erros: { usuario?: string; senha?: string } = {}
-  const login = usuario.trim().toLowerCase()
+  const login = normalizarLogin(usuario)
   if (!login) erros.usuario = 'Informe o usuário.'
   else if (!FORMATO_USUARIO.test(login)) erros.usuario = 'Use de 3 a 30 letras, números, ponto, hífen ou sublinhado.'
   if (!senha) erros.senha = 'Informe a senha.'
@@ -66,6 +73,32 @@ export default function PaginaLogin() {
   const [tocado, setTocado] = useState(false)
   const [destaque, setDestaque] = useState(0)
   const avisos = useAviso()
+  const confirmacao = useConfirmacao()
+
+  /** Motorista e auxiliar: o pedido vai ao gestor. Gestor: recebe o link por e-mail. */
+  async function esqueciASenha() {
+    const informado = await confirmacao.pedirTexto({
+      titulo: 'Esqueceu a senha?',
+      descricao: 'Sem problema! Informe seu acesso (o CPF, ou o CNPJ da empresa se você for o gestor) e a gente resolve.',
+      botao: 'Continuar',
+      campo: { rotulo: 'CPF ou CNPJ', placeholder: 'Somente números ou com pontuação' },
+    })
+    if (!informado) return
+    try {
+      const { canal } = await requisitar<{ canal: 'email' | 'gestor' }>('/auth/esqueci-senha', { metodo: 'POST', corpo: { usuario: informado } })
+      avisos.mostrar(
+        canal === 'email'
+          ? { tipo: 'sucesso', titulo: 'Confira seu e-mail', descricao: 'Mandamos um link para você criar uma senha nova. Ele vale por 1 hora.' }
+          : {
+              tipo: 'sucesso',
+              titulo: 'Pedido enviado ao gestor',
+              descricao: 'O gestor do sistema vai liberar uma senha provisória (123456). Depois é só entrar e criar a sua.',
+            },
+      )
+    } catch (e) {
+      avisos.erro(e instanceof ErroApi ? e.message : 'Não foi possível enviar o pedido agora.', 'Ops, algo não deu certo')
+    }
+  }
 
   useEffect(() => {
     const relogio = window.setInterval(() => setDestaque((d) => (d + 1) % DESTAQUES.length), 5000)
@@ -84,7 +117,7 @@ export default function PaginaLogin() {
     setTocado(true)
     if (Object.keys(validarLogin(usuario, senha)).length) return
     setEnviando(true)
-    const login = usuario.trim().toLowerCase()
+    const login = normalizarLogin(usuario)
     try {
       const nova = await entrar(login, senha)
       if (lembrar) localStorage.setItem(CHAVE_LEMBRAR, login)
@@ -138,7 +171,7 @@ export default function PaginaLogin() {
                   spellCheck={false}
                   value={usuario}
                   onChange={(e) => setUsuario(e.target.value)}
-                  placeholder="Digite seu usuário"
+                  placeholder="CPF, CNPJ ou usuário"
                   aria-invalid={Boolean(erros.usuario)}
                   className={campo(erros.usuario)}
                 />
@@ -177,14 +210,7 @@ export default function PaginaLogin() {
                 </label>
                 <button
                   type="button"
-                  onClick={() =>
-                    avisos.mostrar({
-                      tipo: 'info',
-                      titulo: 'Esqueceu a senha?',
-                      descricao:
-                        'Peça ao administrador: em Configurações › Usuários ele define uma senha nova para você. Se quem esqueceu foi o administrador, outro administrador (ou o suporte técnico) redefine.',
-                    })
-                  }
+                  onClick={() => void esqueciASenha()}
                   className="font-semibold text-laranja hover:underline"
                 >
                   Esqueci a senha
@@ -244,6 +270,7 @@ export default function PaginaLogin() {
         </aside>
       </div>
       {avisos.modal}
+      {confirmacao.modal}
     </div>
   )
 }

@@ -68,6 +68,9 @@ class RepositorioMotoristaFalso:
     def garantir_cpf_livre(self, cpf):
         pass  # os outros cadastros não existem no teste unitário
 
+    def garantir_celular_livre(self, celular, id_atual=None):
+        pass
+
     def buscar_por_cnh(self, cnh):
         return next((m for m in self.motoristas.values() if m.cnh == cnh), None)
 

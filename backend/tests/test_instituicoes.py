@@ -26,12 +26,12 @@ def test_ajusta_e_volta_ao_endereco(cliente):  # noqa: F811
     assert voltou["ponto_parada"] == [uvv["endereco"]["latitude"], uvv["endereco"]["longitude"]]
 
 
-def test_recusa_ponto_longe_ou_incompleto(cliente):  # noqa: F811
+def test_aceita_ponto_longe_e_recusa_incompleto(cliente):  # noqa: F811
+    # Sem limite de distância: campus grande ou portão afastado também vale.
     uvv = _uvv(cliente)
     longe = cliente.patch(
         "/api/instituicoes/1/parada", json={"latitude": uvv["endereco"]["latitude"] + 0.05, "longitude": uvv["endereco"]["longitude"]}
     )
-    assert longe.status_code == 422
-    assert longe.json()["mensagem"].startswith("O ponto de parada ficou a 5.6 km da faculdade.")
+    assert longe.status_code == 200, longe.text
     assert cliente.patch("/api/instituicoes/1/parada", json={"latitude": -20.3}).status_code == 422
     assert cliente.patch("/api/instituicoes/999/parada", json={"latitude": -20.3, "longitude": -40.3}).status_code == 404

@@ -30,6 +30,10 @@ from app.modules.rota import rota_controller
 from app.modules.saude import saude_controller
 from app.modules.dia_sem_aula.feriados import importar_feriados
 from app.modules.usuario import conta_controller, usuario_controller
+from app.modules.verificacao import verificacao_controller
+from app.modules.financeiro import financeiro_controller
+from app.modules.relatorio import relatorio_tabelas
+from app.modules.empresa import univan_controller
 from app.modules.veiculo import veiculo_controller
 from app.modules.veiculo.veiculo_repositorio import RepositorioVeiculo
 from app.modules.viagem import viagem_controller
@@ -45,6 +49,7 @@ CONTROLLERS = (
     saude_controller,
     usuario_controller,
     conta_controller,
+    verificacao_controller,
     painel_controller,
     empresa_controller,
     veiculo_controller,
@@ -57,6 +62,9 @@ CONTROLLERS = (
     chamada_controller,
     dia_sem_aula_controller,
     relatorio_controller,
+    financeiro_controller,
+    relatorio_tabelas,
+    univan_controller,
 )
 
 

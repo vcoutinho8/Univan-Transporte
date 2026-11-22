@@ -108,9 +108,9 @@ export default function FormularioUsuario({
               <span className="font-bold text-marinho">{ROTULOS_PERFIL[usuario.perfil]}</span>
             </div>
           ) : (
-            <Campo rotulo="Perfil" dica="Gestor vê e altera tudo; auxiliar acompanha; motorista vê as próprias viagens.">
-              <div className="grid grid-cols-3 gap-2">
-                {(['admin', 'auxiliar', 'motorista'] as Perfil[]).map((p) => (
+            <Campo rotulo="Perfil" dica="Auxiliar acompanha a operação; motorista vê as próprias viagens.">
+              <div className="grid grid-cols-2 gap-2">
+                {(['auxiliar', 'motorista'] as Perfil[]).map((p) => (
                   <button
                     key={p}
                     type="button"

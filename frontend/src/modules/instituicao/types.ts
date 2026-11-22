@@ -12,6 +12,8 @@ export interface Instituicao {
   ponto_parada: [number, number] | null
   /** Paradas extras (ex.: UVV: Biopráticas, fundos). A principal é `ponto_parada`. */
   paradas: ParadaExtra[]
+  /** Código da IES no e-MEC/INEP (cadastro oficial). */
+  codigo_inep?: number | null
 }
 
 export interface ParadaExtra {

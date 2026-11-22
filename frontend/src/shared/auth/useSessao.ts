@@ -7,6 +7,7 @@ interface RespostaLogin {
   token: string
   expira_em_minutos: number
   usuario: UsuarioSessao
+  aviso_assinatura?: string | null
 }
 
 /** Sessão atual e as ações de entrar e sair. Todas as telas enxergam a mesma sessão. */
@@ -32,6 +33,7 @@ export function useSessao() {
       token: resposta.token,
       usuario: resposta.usuario,
       expiraEm: Date.now() + resposta.expira_em_minutos * 60_000,
+      avisoAssinatura: resposta.aviso_assinatura ?? null,
     }
     gravarSessao(nova)
     return nova

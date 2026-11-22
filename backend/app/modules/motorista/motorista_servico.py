@@ -58,6 +58,8 @@ class ServicoMotorista:
             raise DadosInvalidos("O motorista novo entra ativo. Para desativar, edite o cadastro depois.")
         self._garantir_cpf_disponivel(dados.cpf)
         self._garantir_cnh_disponivel(dados.cnh)
+        if dados.celular:
+            self.repositorio.garantir_celular_livre(dados.celular)
         if dados.status == StatusCadastro.ATIVO:
             self._garantir_cnh_em_dia(dados.cnh_validade)
         else:
@@ -85,6 +87,8 @@ class ServicoMotorista:
         # mesmo que o número gravado no passado não passe na conta dos dígitos.
         if "cpf" in alteracoes and alteracoes["cpf"] != motorista.cpf:
             self._garantir_cpf_disponivel(alteracoes["cpf"])
+        if alteracoes.get("celular") and alteracoes["celular"] != motorista.celular:
+            self.repositorio.garantir_celular_livre(alteracoes["celular"], motorista.id)
         if "cnh" in alteracoes and alteracoes["cnh"] != motorista.cnh:
             self._garantir_cnh_disponivel(alteracoes["cnh"])
         if alteracoes.get("fk_veiculo") is not None and alteracoes["fk_veiculo"] != motorista.fk_veiculo:

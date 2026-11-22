@@ -105,8 +105,9 @@ def test_paradas_extras_da_faculdade(cliente):  # noqa: F811
     assert nova.status_code == 201 and len(nova.json()["paradas"]) == 3
     repetida = cliente.post("/api/instituicoes/1/paradas", json={"nome": "portão 3", "latitude": -20.3550, "longitude": -40.2985})
     assert repetida.status_code == 409
+    # Sem limite de distância: portão afastado do campus também vale.
     longe = cliente.post("/api/instituicoes/1/paradas", json={"nome": "Centro", "latitude": -20.67, "longitude": -40.50})
-    assert longe.status_code == 422 and "km da faculdade" in longe.json()["mensagem"]
+    assert longe.status_code == 201, longe.text
 
     # Removendo a Biopráticas, quem usava volta para a principal.
     bio = next(p for p in uvv["paradas"] if p["nome"] == "Biopráticas")

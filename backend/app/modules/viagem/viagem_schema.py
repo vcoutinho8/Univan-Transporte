@@ -40,6 +40,7 @@ class DiaDoCalendario(BaseModel):
     rotas: int = Field(description="Rotas ativas que rodam nesse dia da semana.")
     feriados: list[str] = Field(description="Dias sem aula: 'Finados' (geral) ou 'UVV: Semana acadêmica'.")
     feriado_geral: bool = Field(description="Sem aula em todas as instituições.")
+    motivo_geral: str | None = Field(default=None, description="Motivo do dia sem aula geral (Feriado, Greve, Recesso...).")
 
 
 class SubstituicaoPedido(BaseModel):

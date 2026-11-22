@@ -36,6 +36,14 @@ class Configuracoes(BaseSettings):
     # Assina os tokens de sessão. Em produção, defina SECRET_KEY no .env com um valor longo e aleatório.
     chave_secreta: str = Field(default="univan-dev-troque-esta-chave-em-producao", alias="SECRET_KEY", min_length=16)
     minutos_sessao: int = Field(default=8 * 60, gt=0, alias="SESSION_MINUTES")
+    # E-mail (redefinição de senha do gestor). Sem SMTP_HOST, o link vai para o log da API.
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_porta: int = Field(default=587, alias="SMTP_PORT")
+    smtp_usuario: str = Field(default="", alias="SMTP_USER")
+    smtp_senha: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_remetente: str = Field(default="UniVan <nao-responda@univan.app>", alias="SMTP_FROM")
+    # Endereço do site (o link do e-mail aponta para cá).
+    url_app: str = Field(default="http://localhost:5173", alias="APP_URL")
     # Roteador de ruas (OSRM) para o cálculo da melhor ordem das paradas. O público é de demonstração;
     # em produção use um servidor próprio. Vazio = só a estimativa em linha reta.
     url_osrm: str = Field(default="https://router.project-osrm.org", alias="OSRM_URL")

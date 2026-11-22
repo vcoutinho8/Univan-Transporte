@@ -77,3 +77,32 @@ export function iniciais(nome: string): string {
   const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
   return (primeira + ultima).toUpperCase()
 }
+
+/** Máscara de Real enquanto digita: os dígitos são os centavos ("12345" → 123,45; vazio → null). */
+export function lerMoeda(texto: string): number | null {
+  const d = soDigitos(texto).replace(/^0+/, '').slice(0, 9)
+  return d ? Number(d) / 100 : null
+}
+
+/** "11222333000181" → "11.222.333/0001-81" (também serve como máscara enquanto digita). */
+export function formatarCnpj(valor: string): string {
+  const d = soDigitos(valor).slice(0, 14)
+  return d
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
+
+/** Confere os dígitos verificadores do CNPJ (mesma conta da API). */
+export function cnpjValido(valor: string): boolean {
+  const d = soDigitos(valor)
+  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false
+  for (const tamanho of [12, 13]) {
+    let soma = 0
+    for (let i = 0; i < tamanho; i++) soma += Number(d[tamanho - 1 - i]) * (2 + (i % 8))
+    const digito = 11 - (soma % 11)
+    if ((digito >= 10 ? 0 : digito) !== Number(d[tamanho])) return false
+  }
+  return true
+}
