@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { pode } from '../../shared/auth/permissoes.ts'
+import { useAviso, useConfirmacao } from '../../shared/components/NoticeModal.tsx'
 import { combinaBusca } from '../../shared/utils/busca.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
@@ -32,7 +33,15 @@ export default function PaginaVeiculos() {
   const [filtroStatus, setFiltroStatus] = useState<StatusCadastro | ''>('ativo')
   const [busca, setBusca] = useState('')
   const [formulario, setFormulario] = useState<EstadoFormulario>({ modo: 'fechado' })
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  // Retorno de salvar/inativar em popup, no padrão do sistema.
+  const avisos = useAviso()
+  const confirmacao = useConfirmacao()
+  const setAviso = (a: Aviso) =>
+    avisos.mostrar({
+      tipo: a.tipo,
+      titulo: a.tipo === 'erro' ? 'Não foi possível concluir' : 'Pronto!',
+      descricao: a.mensagem,
+    })
 
   const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: filtroStatus }), [filtroStatus])
   // Quem dirige cada veículo (veículo padrão do motorista), para mostrar nas ações.
@@ -69,8 +78,8 @@ export default function PaginaVeiculos() {
     }
   }
 
-  function inativar(veiculo: Veiculo) {
-    if (!window.confirm(`Inativar o veículo ${veiculo.placa}? O histórico será mantido.`)) return
+  async function inativar(veiculo: Veiculo) {
+    if (!(await confirmacao.confirmar({ titulo: `Inativar o veículo ${veiculo.placa}?`, descricao: `O histórico será mantido.`, botao: 'Inativar', perigo: true }))) return
     void executar(() => servicoVeiculo.inativar(veiculo.id), `Veículo ${veiculo.placa} inativado.`)
   }
 
@@ -91,11 +100,8 @@ export default function PaginaVeiculos() {
         }
       />
 
-      {aviso && (
-        <div className="mb-4 animate-surgir">
-          <Alerta mensagem={aviso.mensagem} tipo={aviso.tipo} aoFechar={() => setAviso(null)} />
-        </div>
-      )}
+      {avisos.modal}
+      {confirmacao.modal}
 
       {formulario.modo !== 'fechado' && (
         <FormularioVeiculo

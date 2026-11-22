@@ -62,3 +62,85 @@ export function useAviso() {
     modal: aviso ? <ModalAviso aviso={aviso} aoFechar={fechar} /> : null,
   }
 }
+
+interface PedidoConfirmacao {
+  titulo: string
+  descricao?: string
+  /** Texto do botão que confirma (ex.: "Inativar"). */
+  botao?: string
+  /** Ação que apaga ou desliga algo: botão vermelho. */
+  perigo?: boolean
+  /** Pede um texto antes de confirmar (ex.: o nome de uma parada nova). */
+  campo?: { rotulo: string; placeholder?: string }
+}
+
+/**
+ * Confirmação no padrão do sistema (no lugar do confirm/prompt do navegador).
+ * Uso: const confirmacao = useConfirmacao() … if (!(await confirmacao.confirmar({ titulo: 'Inativar?' }))) return
+ * … const nome = await confirmacao.pedirTexto({ titulo: 'Nova parada', campo: { rotulo: 'Nome' } }) … {confirmacao.modal}
+ */
+export function useConfirmacao() {
+  const [pedido, setPedido] = useState<(PedidoConfirmacao & { responder: (texto: string | null) => void }) | null>(null)
+  const [texto, setTexto] = useState('')
+
+  const perguntar = useCallback(
+    (opcoes: PedidoConfirmacao) =>
+      new Promise<string | null>((resolver) => {
+        setTexto('')
+        setPedido({
+          ...opcoes,
+          responder: (resposta) => {
+            setPedido(null)
+            resolver(resposta)
+          },
+        })
+      }),
+    [],
+  )
+
+  const modal = pedido ? (
+    <Modal
+      titulo={pedido.titulo}
+      descricao={pedido.descricao}
+      icone={pedido.perigo ? 'alerta' : pedido.campo ? 'editar' : 'ok'}
+      tom={pedido.perigo ? 'vermelho' : 'laranja'}
+      aoFechar={() => pedido.responder(null)}
+      acoes={
+        <>
+          <Botao variante="secundario" onClick={() => pedido.responder(null)}>
+            Cancelar
+          </Botao>
+          <Botao
+            variante={pedido.perigo ? 'perigo' : 'primario'}
+            disabled={Boolean(pedido.campo) && !texto.trim()}
+            onClick={() => pedido.responder(pedido.campo ? texto.trim() : 'ok')}
+          >
+            {pedido.botao ?? 'Confirmar'}
+          </Botao>
+        </>
+      }
+    >
+      {pedido.campo && (
+        <label className="block text-sm font-semibold text-marinho">
+          {pedido.campo.rotulo}
+          <input
+            autoFocus
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && texto.trim() && pedido.responder(texto.trim())}
+            placeholder={pedido.campo.placeholder}
+            className="campo"
+          />
+        </label>
+      )}
+    </Modal>
+  ) : null
+
+  return {
+    /** true se a pessoa confirmou. */
+    confirmar: async (opcoes: PedidoConfirmacao) => (await perguntar(opcoes)) !== null,
+    /** O texto digitado, ou null se cancelou. */
+    pedirTexto: (opcoes: PedidoConfirmacao & { campo: { rotulo: string; placeholder?: string } }) => perguntar(opcoes),
+    modal,
+  }
+}

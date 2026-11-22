@@ -49,7 +49,7 @@ export function abreTela(perfil: Perfil | undefined, caminho: string): boolean {
 export const telaInicial = (perfil: Perfil) => (perfil === 'motorista' ? '/minha-rota' : '/')
 
 export const ROTULOS_PERFIL: Record<Perfil, string> = {
-  admin: 'Administrador',
-  auxiliar: 'Auxiliar',
+  admin: 'Gestor do Sistema',
+  auxiliar: 'Auxiliar do Sistema',
   motorista: 'Motorista',
 }

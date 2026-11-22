@@ -23,7 +23,7 @@ export default function AvisoSemResultado({ titulo, filtros, aoLimpar, dica, ico
   return (
     <EstadoVazio
       icone={icone}
-      tom={filtros.length > 0 ? 'ambar' : 'marinho'}
+      tom={filtros.length > 0 ? 'ambar' : 'laranja'}
       titulo={titulo}
       descricao={
         dica ??

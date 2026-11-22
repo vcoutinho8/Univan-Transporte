@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CircleMarker, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet'
 
 import Alerta from '../../shared/components/Alert.tsx'
+import { useConfirmacao } from '../../shared/components/NoticeModal.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Icone from '../../shared/components/Icon.tsx'
@@ -47,6 +48,7 @@ const DICA_MODO: Record<Modo, string> = {
 /** Aba Bairros: áreas da cidade desenhadas no mapa e o motorista de cada uma. */
 export default function AbaBairros() {
   const dados = useDadosMapa()
+  const confirmacao = useConfirmacao()
   const { areas, ativas, estudantes, comLocal, motoristas, carregando } = dados
 
   const [edicao, setEdicao] = useState<Edicao | null>(null)
@@ -150,9 +152,9 @@ export default function AbaBairros() {
     }
   }
 
-  function inativar(area: Area) {
+  async function inativar(area: Area) {
     const total = passageirosPorArea.get(area.id) ?? 0
-    if (!window.confirm(`Inativar o bairro ${area.nome}? ${total} passageiro(s) ficarão sem área e fora das rotas.`)) return
+    if (!(await confirmacao.confirmar({ titulo: `Inativar o bairro ${area.nome}?`, descricao: `${total} passageiro(s) ficarão sem área e fora das rotas.`, botao: 'Inativar', perigo: true }))) return
     void executar(() => servicoArea.inativar(area.id), `Bairro ${area.nome} inativado.`)
   }
 
@@ -163,6 +165,7 @@ export default function AbaBairros() {
 
   return (
     <>
+      {confirmacao.modal}
       <PainelLateral>
         {aviso && (
           <div className="animate-surgir">

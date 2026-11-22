@@ -280,6 +280,8 @@ CREATE TABLE usuario (
     -- Contato e documento (opcionais; o CPF do motorista fica no cadastro de motorista).
     email         TEXT,
     cpf           TEXT,
+    -- 1 = senha padrão (123456): no próximo login a pessoa cria a dela.
+    trocar_senha  INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT usuario_login_key UNIQUE (login),
     CONSTRAINT usuario_login_check CHECK (length(login) BETWEEN 3 AND 30 AND login NOT GLOB '*[^a-z0-9._-]*'),
     CONSTRAINT usuario_fk_motorista_key UNIQUE (fk_motorista),
@@ -719,10 +721,10 @@ INSERT INTO viagem VALUES (9, 9, 4, 4, '2026-10-30', 'ida', NULL, NULL, 'agendad
 INSERT INTO viagem VALUES (10, 10, 5, 5, '2026-10-30', 'ida', NULL, NULL, 'agendada', NULL);
 
 -- usuario (login: admin, auxiliar, motorista e joao; senha de teste 123456 para todos: troque em produção)
-INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL);
-INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, NULL);
-INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL);
-INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL);
+INSERT INTO usuario VALUES (1, 1, 'Administrador', 'admin', 'scrypt$16384$8$1$univan-admin-01$uiMAQHd0guiOGqg11klLmR2229/aDuPBl4OxQIWrTUk=', 'admin', NULL, 'ativo', NULL, NULL, NULL, 0);
+INSERT INTO usuario VALUES (2, 1, 'Paula Auxiliar', 'auxiliar', 'scrypt$16384$8$1$univan-aux-0001$4kQD/M6gnCbc1IdWR8GI82+UjECZLoPqqGUsTVV0kbA=', 'auxiliar', NULL, 'ativo', NULL, NULL, NULL, 0);
+INSERT INTO usuario VALUES (3, 1, 'Carlos Eduardo Martins', 'motorista', 'scrypt$16384$8$1$univan-mot-0001$INlxScT8hk88nHp/Rccss+gh2J9ZeTcl7Fat+e2kexc=', 'motorista', 1, 'ativo', NULL, NULL, NULL, 0);
+INSERT INTO usuario VALUES (4, 2, 'João Pedro Rocha', 'joao', 'scrypt$16384$8$1$univan-mot-0002$Z3VpWZjsYMKvNn5TGKU0Iubps+ycdp8ZeMjTeO8+2XM=', 'motorista', 2, 'ativo', NULL, NULL, NULL, 0);
 
 -- =============================================================================
 -- Índices

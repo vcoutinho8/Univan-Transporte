@@ -28,7 +28,7 @@ interface Propriedades {
  * Estado vazio ilustrado: ícone grande sobre um halo com bolinhas flutuando, título, explicação
  * e uma ação. Usado sempre que uma tela ou lista não tem o que mostrar.
  */
-export default function EstadoVazio({ icone, titulo, descricao, acao, tom = 'marinho', compacto = false, children }: Propriedades) {
+export default function EstadoVazio({ icone, titulo, descricao, acao, tom = 'laranja', compacto = false, children }: Propriedades) {
   const cores = TONS[tom]
   return (
     <div className={`flex animate-surgir flex-col items-center text-center ${compacto ? 'px-4 py-6' : 'px-6 py-12'}`}>

@@ -30,7 +30,8 @@ interface Propriedades {
   indice: number
   ocupado: boolean
   carregandoWhatsApp?: boolean
-  aoIniciar: () => void
+  /** Sem ele não há botão de iniciar (só se inicia a viagem de hoje). */
+  aoIniciar?: () => void
   aoAcompanhar: () => void
   /** Sem ele o botão some (ex.: dia que já passou: a chamada não vale mais). */
   aoCompartilharWhatsApp?: () => void
@@ -126,7 +127,7 @@ export default function CartaoJornada({
                 Ver passageiros
               </Botao>
             )}
-            {!somenteLeitura && jornada.status === 'agendada' && (
+            {!somenteLeitura && aoIniciar && jornada.status === 'agendada' && (
               <Botao onClick={aoIniciar} disabled={ocupado} className="flex-1 py-3 sm:flex-initial sm:py-2">
                 <Icone nome="van" className="h-4 w-4" />
                 {ida ? 'Iniciar ida' : 'Iniciar volta'}

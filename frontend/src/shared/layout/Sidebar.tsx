@@ -129,9 +129,7 @@ export default function MenuLateral({ aberto, aoFechar, recolhido, aoAlternarRec
             </span>
             <div className={`min-w-0 flex-1 leading-tight ${recolhido ? 'lg:hidden' : ''}`}>
               <p className="truncate text-sm font-bold text-marinho">{usuario.nome}</p>
-              <p className="truncate text-xs text-slate-500">
-                {ROTULOS_PERFIL[usuario.perfil]} · {usuario.login}
-              </p>
+              <p className="truncate text-xs text-slate-500">{ROTULOS_PERFIL[usuario.perfil]}</p>
             </div>
             <button
               onClick={() => {

@@ -280,28 +280,7 @@ export default function FormularioMotorista({ motorista, veiculos, aoSalvar, aoF
               </select>
             </Campo>
 
-            {/* Cadastro novo entra ativo; desativar só editando. */}
-            {motorista && (
-            <div className="sm:col-span-2">
-              <p className="text-sm font-semibold text-marinho">Situação cadastral</p>
-              <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl bg-fundo p-1">
-                {(['ativo', 'inativo'] as const).map((sit) => (
-                  <button
-                    key={sit}
-                    type="button"
-                    onClick={() => mudar('status', sit)}
-                    className={`rounded-lg py-2 text-xs font-bold transition-all ${
-                      valores.status === sit
-                        ? 'bg-white text-marinho shadow-sm'
-                        : 'text-slate-500 hover:text-marinho'
-                    }`}
-                  >
-                    {sit === 'ativo' ? 'Ativo' : 'Inativo (desativado)'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            )}
+            {/* Situação: entra ativo; inativar e reativar ficam nos botões da lista. */}
           </Secao>
         </div>
 

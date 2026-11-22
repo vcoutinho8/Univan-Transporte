@@ -10,7 +10,7 @@ import Alerta from '../../shared/components/Alert.tsx'
 import Botao from '../../shared/components/Button.tsx'
 import Cartao from '../../shared/components/Card.tsx'
 import Modal from '../../shared/components/Modal.tsx'
-import { useAviso } from '../../shared/components/NoticeModal.tsx'
+import { useAviso, useConfirmacao } from '../../shared/components/NoticeModal.tsx'
 import Icone from '../../shared/components/Icon.tsx'
 import { ErroApi } from '../../shared/services/api.ts'
 import { formatarHorario, iniciais } from '../../shared/utils/formatar.ts'
@@ -71,6 +71,7 @@ type Formulario = { modo: 'fechado' } | { modo: 'nova' } | { modo: 'editar'; rot
  */
 export default function AbaRotas() {
   const dados = useDadosMapa()
+  const confirmacao = useConfirmacao()
   const { ativas, comLocal, estudantes, instituicoes, rotas, motoristas, carregando } = dados
   const [parametros, setParametros] = useSearchParams()
   const idMotorista = Number(parametros.get('motorista')) || null
@@ -326,7 +327,7 @@ export default function AbaRotas() {
   }
 
   async function alternarSituacao(r: Rota) {
-    if (r.status === 'ativo' && !window.confirm(`Inativar a rota ${r.nome}? Ela para de gerar viagens; o histórico fica.`)) return
+    if (r.status === 'ativo' && !(await confirmacao.confirmar({ titulo: `Inativar a rota ${r.nome}?`, descricao: `Ela para de gerar viagens; o histórico fica.`, botao: 'Inativar', perigo: true }))) return
     try {
       await (r.status === 'ativo' ? servicoRota.inativar(r.id) : servicoRota.reativar(r.id))
       await dados.recarregar()
@@ -340,6 +341,7 @@ export default function AbaRotas() {
 
   return (
     <>
+      {confirmacao.modal}
       <PainelLateral>
         {aviso && (
           <div className="animate-surgir">
@@ -495,8 +497,8 @@ export default function AbaRotas() {
                               <button
                                 type="button"
                                 disabled={salvandoParada}
-                                onClick={() => {
-                                  if (!window.confirm(`Remover a parada ${extra.nome}? Quem descia nela volta para a parada principal.`)) return
+                                onClick={async () => {
+                                  if (!(await confirmacao.confirmar({ titulo: `Remover a parada ${extra.nome}?`, descricao: `Quem descia nela volta para a parada principal.`, botao: 'Remover', perigo: true }))) return
                                   void executarParada(
                                     () => servicoInstituicao.removerParada(d.instituicao.id, extra.id),
                                     'Parada removida',

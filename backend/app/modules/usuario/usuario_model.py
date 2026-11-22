@@ -33,5 +33,7 @@ class Usuario(Base):
     email: Mapped[str | None] = mapped_column(String(120))
     # CPF de admin e auxiliar (o do motorista fica no cadastro de motorista).
     cpf: Mapped[str | None] = mapped_column(String(11))
+    # Senha padrão (123456) definida pelo admin: no próximo login a pessoa cria a dela.
+    trocar_senha: Mapped[bool] = mapped_column(default=False, server_default="0")
 
     motorista: Mapped["Motorista | None"] = relationship()

@@ -8,6 +8,7 @@ from math import asin, cos, radians, sin, sqrt
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config.banco import obter_sessao
@@ -90,6 +91,32 @@ def listar_instituicoes(repositorio: Repositorio):
 )
 def criar_instituicao(dados: InstituicaoNova, repositorio: Repositorio):
     return repositorio.salvar(Instituicao(nome=dados.nome, endereco=Endereco(**dados.endereco.model_dump())))
+
+
+@roteador.delete(
+    "/{id_instituicao}",
+    response_model=InstituicaoResposta,
+    dependencies=[ADMIN],
+    summary="Excluir instituição (só se nenhum passageiro, rota ou dia sem aula usa ela)",
+    responses=erros(404, 409),
+)
+def excluir_instituicao(id_instituicao: int, repositorio: Repositorio):
+    instituicao = _instituicao(repositorio, id_instituicao)
+    sessao = repositorio.sessao
+    uso = {
+        "passageiro(s)": "SELECT count(*) FROM estudante WHERE fk_instituicao = :id",
+        "rota(s)": "SELECT count(*) FROM rota WHERE fk_instituicao = :id",
+        "dia(s) sem aula": "SELECT count(*) FROM dia_sem_aula WHERE fk_instituicao = :id",
+    }
+    em_uso = [f"{n} {rotulo}" for rotulo, sql in uso.items() if (n := sessao.scalar(text(sql), {"id": id_instituicao}))]
+    if em_uso:
+        raise ConflitoDeDados(f"A {instituicao.nome} ainda é usada por {', '.join(em_uso)}. Troque esses cadastros antes de excluir.")
+    excluida = InstituicaoResposta.model_validate(instituicao)
+    endereco = instituicao.endereco
+    sessao.delete(instituicao)
+    sessao.delete(endereco)
+    sessao.commit()
+    return excluida
 
 
 @roteador.put(

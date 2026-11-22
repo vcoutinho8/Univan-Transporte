@@ -68,6 +68,7 @@ COLUNAS_NOVAS = (
     ("viagem", "motivo_encerramento", "TEXT"),
     ("usuario", "email", "TEXT"),
     ("usuario", "cpf", "TEXT"),
+    ("usuario", "trocar_senha", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 

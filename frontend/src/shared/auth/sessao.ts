@@ -9,6 +9,8 @@ export interface UsuarioSessao {
   perfil: Perfil
   fk_empresa: number
   fk_motorista: number | null
+  /** Entrou com a senha padrão (123456): precisa criar a dele antes de usar o sistema. */
+  trocar_senha?: boolean
 }
 
 export interface Sessao {

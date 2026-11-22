@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { pode } from '../../shared/auth/permissoes.ts'
+import { useAviso, useConfirmacao } from '../../shared/components/NoticeModal.tsx'
 import { combinaBusca } from '../../shared/utils/busca.ts'
 import { useSessao } from '../../shared/auth/useSessao.ts'
 import Alerta from '../../shared/components/Alert.tsx'
@@ -40,7 +41,15 @@ export default function PaginaMotoristas() {
   const [formulario, setFormulario] = useState<EstadoFormulario>(() =>
     parametros.get('novo') ? { modo: 'novo' } : { modo: 'fechado' },
   )
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  // Retorno de salvar/inativar em popup, no padrão do sistema.
+  const avisos = useAviso()
+  const confirmacao = useConfirmacao()
+  const setAviso = (a: Aviso) =>
+    avisos.mostrar({
+      tipo: a.tipo,
+      titulo: a.tipo === 'erro' ? 'Não foi possível concluir' : a.tipo === 'aviso' ? 'Salvo, com um alerta' : 'Pronto!',
+      descricao: a.mensagem,
+    })
 
   const motoristas = useRequisicao(() => servicoMotorista.listar({ status: filtroStatus }), [filtroStatus])
   const veiculos = useRequisicao(() => servicoVeiculo.listar({ status: 'ativo' }))
@@ -87,8 +96,8 @@ export default function PaginaMotoristas() {
     }
   }
 
-  function inativar(motorista: Motorista) {
-    if (!window.confirm(`Inativar o motorista ${motorista.nome}? O histórico de viagens será mantido.`)) return
+  async function inativar(motorista: Motorista) {
+    if (!(await confirmacao.confirmar({ titulo: `Inativar o motorista ${motorista.nome}?`, descricao: `O histórico de viagens será mantido.`, botao: 'Inativar', perigo: true }))) return
     void executar(() => servicoMotorista.inativar(motorista.id), `Motorista ${motorista.nome} inativado(a).`)
   }
 
@@ -109,11 +118,8 @@ export default function PaginaMotoristas() {
         }
       />
 
-      {aviso && (
-        <div className="mb-4 animate-surgir">
-          <Alerta mensagem={aviso.mensagem} tipo={aviso.tipo} aoFechar={() => setAviso(null)} />
-        </div>
-      )}
+      {avisos.modal}
+      {confirmacao.modal}
 
       {formulario.modo !== 'fechado' && (
         <FormularioMotorista
